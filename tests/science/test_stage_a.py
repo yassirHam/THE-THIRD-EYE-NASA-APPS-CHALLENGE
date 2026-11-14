@@ -1253,6 +1253,52 @@ class TestApplyFactor:
             practical_margin_tau=15.0,
         )
         assert result.practical_change == PracticalChange.WITHIN_MARGIN
+        assert result.headline_direction == HeadlineDirection.WITHIN_PRACTICAL_MARGIN
+        assert result.observed_sign == "increase"
+
+    def test_within_margin_headline_aligns_with_contract_and_preserves_sign(self, full_factor):
+        # Regression test: within-margin headline must use contract's within_practical_margin
+        # while preserving the observed sign (increase, decrease, no_change)
+        
+        # 1. Positive delta within margin
+        res_pos = apply_factor(
+            factor_result=full_factor,
+            baseline_B=95.0, viirs_V=80.0,  # mapped_Z = 100.0, delta = +5.0
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
+            practical_margin_tau=10.0,
+        )
+        assert res_pos.practical_change == PracticalChange.WITHIN_MARGIN
+        assert res_pos.headline_direction == HeadlineDirection.WITHIN_PRACTICAL_MARGIN
+        assert res_pos.observed_sign == "increase"
+        assert res_pos.headline_direction.value == "within_practical_margin"
+
+        # 2. Negative delta within margin
+        res_neg = apply_factor(
+            factor_result=full_factor,
+            baseline_B=105.0, viirs_V=80.0,  # mapped_Z = 100.0, delta = -5.0
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
+            practical_margin_tau=10.0,
+        )
+        assert res_neg.practical_change == PracticalChange.WITHIN_MARGIN
+        assert res_neg.headline_direction == HeadlineDirection.WITHIN_PRACTICAL_MARGIN
+        assert res_neg.observed_sign == "decrease"
+
+        # 3. Exactly zero delta within margin
+        res_zero = apply_factor(
+            factor_result=full_factor,
+            baseline_B=100.0, viirs_V=80.0,  # mapped_Z = 100.0, delta = 0.0
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
+            practical_margin_tau=10.0,
+        )
+        assert res_zero.practical_change == PracticalChange.WITHIN_MARGIN
+        assert res_zero.headline_direction == HeadlineDirection.WITHIN_PRACTICAL_MARGIN
+        assert res_zero.observed_sign == "no_change" 
 
     def test_practical_change_unspecified_when_no_tau(self, full_factor):
         result = apply_factor(

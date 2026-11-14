@@ -220,6 +220,7 @@ class PracticalChange(str, Enum):
 class HeadlineDirection(str, Enum):
     INCREASE = "increase"
     DECREASE = "decrease"
+    WITHIN_PRACTICAL_MARGIN = "within_practical_margin"
     NO_CHANGE = "no_change"
     AMBIGUOUS = "ambiguous"
     UNRESOLVED = "unresolved"
@@ -1031,6 +1032,7 @@ class AppliedComparison:
     practical_change: PracticalChange
     headline_direction: HeadlineDirection
     equality_break_a: Optional[float]  # B / V; None when V <= 0 or unavailable
+    observed_sign: Optional[Literal["increase", "decrease", "no_change"]] = None
     reasons: list[str] = field(default_factory=list)
 
 
@@ -1138,6 +1140,8 @@ def apply_factor(
     )
     applicability_permits_direction = applicability_status_ok and applicability_passed
 
+    observed_sign: Optional[Literal["increase", "decrease", "no_change"]] = None
+
     if delta is None:
         headline_direction = HeadlineDirection.UNRESOLVED
     elif not applicability_status_ok:
@@ -1158,12 +1162,35 @@ def apply_factor(
             "Spec §7: 'Evaluated does NOT mean passed'; a directional "
             "conclusion requires the evaluation to have actually passed."
         )
-    elif delta > 0.0:
-        headline_direction = HeadlineDirection.INCREASE
-    elif delta < 0.0:
-        headline_direction = HeadlineDirection.DECREASE
     else:
-        headline_direction = HeadlineDirection.NO_CHANGE
+        # Applicability permitted: compute observed sign
+        if delta > 0.0:
+            observed_sign = "increase"
+        elif delta < 0.0:
+            observed_sign = "decrease"
+        else:
+            observed_sign = "no_change"
+
+        # Determine headline direction aligned with contract (§7, comparison contract)
+        if practical_margin_tau is not None:
+            if delta > practical_margin_tau:
+                headline_direction = HeadlineDirection.INCREASE
+            elif delta < -practical_margin_tau:
+                headline_direction = HeadlineDirection.DECREASE
+            else:
+                headline_direction = HeadlineDirection.WITHIN_PRACTICAL_MARGIN
+                reasons.append(
+                    f"Effect delta {delta:.6f} is within practical margin "
+                    f"tau={practical_margin_tau:.6f}; headline direction is "
+                    f"'within_practical_margin' while observed sign is '{observed_sign}'."
+                )
+        else:
+            if delta > 0.0:
+                headline_direction = HeadlineDirection.INCREASE
+            elif delta < 0.0:
+                headline_direction = HeadlineDirection.DECREASE
+            else:
+                headline_direction = HeadlineDirection.NO_CHANGE
 
     # --- practical change (§7) ---
     # Requires both gates: evaluated AND passed.
@@ -1191,5 +1218,6 @@ def apply_factor(
         practical_change=practical_change,
         headline_direction=headline_direction,
         equality_break_a=equality_break_a,
+        observed_sign=observed_sign,
         reasons=reasons,
     )
