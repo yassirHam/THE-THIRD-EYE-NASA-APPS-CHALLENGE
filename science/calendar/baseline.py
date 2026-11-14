@@ -10,8 +10,10 @@ Scientific authority:
 Rules implemented:
   - Required years for a target year T are every year from
     eligible_start_year through min(T - 1, eligible_end_year).  T and later
-    years never enter.  If that span has fewer than min_years years the
-    baseline is INSUFFICIENT_BASELINE.
+    years never enter.  Years in excluded_years are removed from the span and
+    reported (never silently); sealed years must be excluded and their records
+    are refused (P5 decision d0b8c90: never reuse holdouts).  If the remaining
+    span has fewer than min_years years the baseline is INSUFFICIENT_BASELINE.
   - Every required year must be present with complete, pre-cessation records
     whose summed O meets min_support_O.  One missing, partial or
     under-supported year makes the baseline MISSING_REQUIRED_YEARS; years are
@@ -55,11 +57,37 @@ class BaselineConfig:
     min_support_O: int
     normal_season_threshold_fraction: float
     season_year_start_month: int
+    # Years inside [eligible_start_year, eligible_end_year] that never enter the
+    # baseline, listed explicitly (P5 binding decision, handoff d0b8c90 and
+    # 0a49cbb: sealed 2020-2021 are excluded everywhere; never reuse holdouts).
+    # Required, may be empty.  Excluded years are reported, never silently dropped.
+    excluded_years: tuple[int, ...]
+    # Years of the sealed evaluation window.  Every sealed year inside the span
+    # must be in excluded_years, and records from sealed years are refused: they
+    # must never reach a development baseline.  Required, may be empty.
+    sealed_years: tuple[int, ...]
     policy: PolicyID = "own_support"
 
     def __post_init__(self) -> None:
         if self.eligible_end_year < self.eligible_start_year:
             raise ValueError("eligible_end_year must be >= eligible_start_year.")
+        for name in ("excluded_years", "sealed_years"):
+            years = getattr(self, name)
+            if (not isinstance(years, tuple) or len(set(years)) != len(years)
+                    or not all(isinstance(y, int) and not isinstance(y, bool) for y in years)):
+                raise ValueError(f"{name} must be a tuple of unique integer years.")
+        outside = [y for y in self.excluded_years
+                   if not (self.eligible_start_year <= y <= self.eligible_end_year)]
+        if outside:
+            raise ValueError(f"excluded_years {outside} lie outside the registered span.")
+        unexcluded = [y for y in self.sealed_years
+                      if self.eligible_start_year <= y <= self.eligible_end_year
+                      and y not in self.excluded_years]
+        if unexcluded:
+            raise ValueError(
+                f"Sealed years {unexcluded} lie inside the baseline span and are not "
+                "excluded; holdouts are never reused (P5 decision d0b8c90)."
+            )
         if self.min_years < 1:
             raise ValueError("min_years must be >= 1.")
         if self.min_support_O < 1:
@@ -94,6 +122,7 @@ class MonthBaseline:
     missing_years: list[int]
     status: BaselineStatus
     reasons: list[str] = field(default_factory=list)
+    excluded_years: list[int] = field(default_factory=list)  # registered exclusions in span
 
 
 @dataclass
@@ -150,6 +179,26 @@ def _nearest_rank_percentile(sorted_values: list[float], p: float) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Required years (shared by monthly and weekly baselines)
+# ---------------------------------------------------------------------------
+def _required_years(target_year: int, config: BaselineConfig) -> tuple[list[int], list[int]]:
+    """(required years, registered exclusions inside the target's span)."""
+    last_year = min(target_year - 1, config.eligible_end_year)
+    span = list(range(config.eligible_start_year, last_year + 1))
+    excluded = [y for y in span if y in config.excluded_years]
+    return [y for y in span if y not in config.excluded_years], excluded
+
+
+def _refuse_sealed(all_obs: list[PeriodObs], config: BaselineConfig) -> None:
+    sealed = sorted({o.year for o in all_obs if o.year in config.sealed_years})
+    if sealed:
+        raise ValueError(
+            f"Records from sealed years {sealed} were supplied to a baseline; sealed "
+            "evaluation data must not reach development code (P5 decision d0b8c90)."
+        )
+
+
+# ---------------------------------------------------------------------------
 # Monthly baseline
 # ---------------------------------------------------------------------------
 def compute_month_baseline(
@@ -160,8 +209,8 @@ def compute_month_baseline(
     required_blocks: Optional[tuple[str, ...]] = None,
 ) -> MonthBaseline:
     """Baseline for one calendar month and target year under a frozen config."""
-    last_year = min(target_year - 1, config.eligible_end_year)
-    required = list(range(config.eligible_start_year, last_year + 1))
+    _refuse_sealed(all_obs, config)
+    required, excluded = _required_years(target_year, config)
 
     def _result(status, median=None, p90=None, used=None, missing=None, reasons=None):
         used = used or []
@@ -172,6 +221,7 @@ def compute_month_baseline(
             median_rate=median, p90_rate=p90, n_years=len(used),
             eligible_years=used, required_years=required,
             missing_years=missing or [], status=status, reasons=reasons or [],
+            excluded_years=excluded,
         )
 
     if len(required) < config.min_years:
@@ -403,8 +453,8 @@ def compute_week_baseline(
             f"for ISO week-year {target_year}."
         ) from exc
     
-    last_year = min(target_year - 1, config.eligible_end_year)
-    required = list(range(config.eligible_start_year, last_year + 1))
+    _refuse_sealed(all_obs, config)
+    required, excluded = _required_years(target_year, config)
 
     def _result(status, median=None, p90=None, used=None, missing=None, reasons=None):
         used = used or []
@@ -416,6 +466,7 @@ def compute_week_baseline(
             median_rate=median, p90_rate=p90, n_years=len(used),
             eligible_years=used, required_years=required,
             missing_years=missing or [], status=status, reasons=reasons or [],
+            excluded_years=excluded,
         )
 
     if len(required) < config.min_years:

@@ -65,12 +65,16 @@ def _wk_block(sensor, year, week, D, O, block_id, partial=False):
 
 
 def _cfg(sensor="MODIS_Aqua", start=2016, end=2024, min_years=3,
-         min_support=100, fraction=0.25, season_start=1, policy="own_support"):
+         min_support=100, fraction=0.25, season_start=1, policy="own_support",
+         excluded=(), sealed=()):
+    # Synthetic tests only: the default has no sealed years.  Production configs
+    # must pass the registered sealed window (see TestExcludedAndSealedYears).
     return BaselineConfig(
         sensor=sensor, eligible_start_year=start, eligible_end_year=end,
         min_years=min_years, min_support_O=min_support,
         normal_season_threshold_fraction=fraction,
         season_year_start_month=season_start, policy=policy,
+        excluded_years=excluded, sealed_years=sealed,
     )
 
 
@@ -1008,3 +1012,75 @@ class TestDNotAboveO:
     def test_O_zero_message_takes_precedence(self):
         with pytest.raises(ValueError, match="O = 0"):
             _mo("MODIS_Aqua", 2016, 7, 5, 0)
+
+
+# ---------------------------------------------------------------------------
+# Excluded and sealed years (P5 binding decision d0b8c90 / 0a49cbb)
+# Synthetic values only.  Fabricated 2020-2021 records appear only to prove they
+# are refused; no sealed observation is read.
+# ---------------------------------------------------------------------------
+SEALED = (2020, 2021)
+
+
+def _years(sensor, years, month=7, D=10, O=1000):
+    return [_mo(sensor, y, month, D, O) for y in years]
+
+
+class TestExcludedAndSealedYears:
+    def test_sealed_years_inside_the_span_must_be_excluded(self):
+        with pytest.raises(ValueError, match="never reused"):
+            _cfg(start=2016, end=2023, sealed=SEALED)
+        _cfg(start=2016, end=2023, sealed=SEALED, excluded=SEALED)
+        _cfg(start=2016, end=2019, sealed=SEALED)  # span does not reach the window
+
+    def test_excluded_years_must_lie_in_the_span_and_be_unique(self):
+        with pytest.raises(ValueError, match="outside"):
+            _cfg(start=2016, end=2019, excluded=(2015,))
+        with pytest.raises(ValueError, match="unique"):
+            _cfg(start=2016, end=2019, excluded=(2017, 2017))
+        with pytest.raises(ValueError, match="tuple"):
+            _cfg(start=2016, end=2019, excluded=[2017])
+
+    def test_later_target_skips_sealed_years_and_reports_them(self):
+        cfg = _cfg(start=2016, end=2023, min_years=3, sealed=SEALED, excluded=SEALED)
+        obs = _years("MODIS_Aqua", [2016, 2017, 2018, 2019, 2022])
+        bl = compute_month_baseline(7, 2023, obs, cfg)
+        assert bl.status == BaselineStatus.AVAILABLE
+        assert bl.required_years == [2016, 2017, 2018, 2019, 2022]
+        assert bl.eligible_years == [2016, 2017, 2018, 2019, 2022]
+        assert bl.excluded_years == [2020, 2021]
+
+    def test_records_from_sealed_years_are_refused_not_ignored(self):
+        cfg = _cfg(start=2016, end=2023, sealed=SEALED, excluded=SEALED)
+        obs = _years("MODIS_Aqua", [2016, 2017, 2018, 2019, 2020, 2022])
+        with pytest.raises(ValueError, match="sealed years \\[2020\\]"):
+            compute_month_baseline(7, 2023, obs, cfg)
+        wk = [_wk("MODIS_Aqua", y, 27, 5, 500) for y in (2016, 2017, 2018, 2021)]
+        with pytest.raises(ValueError, match="sealed years \\[2021\\]"):
+            compute_week_baseline(27, 2023, wk, cfg)
+
+    def test_too_few_years_after_exclusion_is_insufficient_not_backfilled(self):
+        cfg = _cfg(start=2018, end=2023, min_years=3, sealed=SEALED, excluded=SEALED)
+        bl = compute_month_baseline(7, 2022, _years("MODIS_Aqua", [2018, 2019]), cfg)
+        assert bl.status == BaselineStatus.INSUFFICIENT_BASELINE
+        assert bl.required_years == [2018, 2019] and bl.excluded_years == [2020, 2021]
+
+    def test_missing_required_year_stays_unavailable_after_exclusion(self):
+        cfg = _cfg(start=2016, end=2023, min_years=3, sealed=SEALED, excluded=SEALED)
+        obs = _years("MODIS_Aqua", [2016, 2018, 2019, 2022])  # 2017 missing
+        bl = compute_month_baseline(7, 2023, obs, cfg)
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2017] and bl.median_rate is None and bl.p90_rate is None
+
+    def test_partial_required_year_is_never_dropped(self):
+        cfg = _cfg(start=2016, end=2019, min_years=3)
+        obs = _years("MODIS_Aqua", [2016, 2018, 2019]) + [_mo("MODIS_Aqua", 2017, 7, 10, 1000, partial=True)]
+        bl = compute_month_baseline(7, 2020, obs, cfg)
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS and bl.missing_years == [2017]
+
+    def test_weekly_baseline_uses_the_same_exclusions(self):
+        cfg = _cfg(start=2016, end=2023, min_years=3, sealed=SEALED, excluded=SEALED)
+        wk = [_wk("MODIS_Aqua", y, 27, 5, 500) for y in (2016, 2017, 2018, 2019, 2022)]
+        bl = compute_week_baseline(27, 2023, wk, cfg)
+        assert bl.status == BaselineStatus.AVAILABLE
+        assert bl.excluded_years == [2020, 2021] and 2020 not in bl.required_years
