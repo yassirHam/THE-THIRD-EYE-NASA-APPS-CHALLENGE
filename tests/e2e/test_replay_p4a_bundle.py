@@ -26,8 +26,8 @@ import pytest
 from tests.e2e import replay_bundle as rb
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-# origin/task/P4-A-001 0edd7d3 "emit one replayable ProvenanceManifest per bundle file".
-PINNED_PIPELINE_COMMIT = "0edd7d304a1ba0f40161e7f059394b42a0fb4bc5"
+# origin/task/P4-A-001 8553174 (replay manifests 0edd7d3 + contract 1.6.0 merge).
+PINNED_PIPELINE_COMMIT = "8553174b9544bc5521158719db94f30c3ab356a2"
 
 
 def _pipeline_root(tmp: Path) -> Path:
@@ -150,4 +150,25 @@ def test_p4a_manifest_identity_change_breaks_the_cache_key(built: Path, tmp_path
     data["partitions"][0]["geometry_id"] = "geo-synthetic-sub-a"  # another area
     path.write_text(json.dumps(data), encoding="utf-8")
     res = rb.replay(path, copy, tmp_path / "out")
+    assert not res.reproduced and any("cache key" in f for f in res.failures)
+
+
+@pytest.mark.parametrize("field,value", [("geometry_id", "geo-synthetic-sub-a"), ("period_spec", "synthetic-2024"),
+                                         ("method_id", "other_method"), ("policy_id", "common_support_eligible"),
+                                         ("artifact_version", "synthetic-v2")])
+def test_cache_isolation_any_identity_field_change_is_detected(built: Path, short_out: Path, field: str,
+                                                               value: str) -> None:
+    """A manifest re-labelled for another area, period, method, policy or version cannot replay
+    the original file: the cache-key digest no longer matches the five fields."""
+    copy = short_out / "bundle"
+    shutil.copytree(built, copy)
+    m = next(x for x in _index(copy)["replay_manifests"] if x["family"] == "comparison")
+    path = copy / m["path"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if field == "artifact_version":
+        data["artifact_version"] = value
+    else:
+        data["partitions"][0][field] = value
+    path.write_text(json.dumps(data), encoding="utf-8")
+    res = rb.replay(path, copy, short_out / "out")
     assert not res.reproduced and any("cache key" in f for f in res.failures)
