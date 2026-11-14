@@ -51,7 +51,7 @@ FIXTURES_DIR = ROOT / "contracts" / "fixtures"
 # Fixture values of the CURRENT contract are read from this git ref (P4-B review checkpoint), in
 # addition to any older contracts/fixtures on this branch. Override with
 # $env:SUBMISSION_CONTRACT_REF. If the ref is unreadable the leak check FAILS.
-CONTRACT_REF = os.environ.get("SUBMISSION_CONTRACT_REF", "8edec4676b26237c81b11140587ad0989d28ba22")
+CONTRACT_REF = os.environ.get("SUBMISSION_CONTRACT_REF", "edf9d65255377320b0a544e69f64db897e2960bd")
 
 REQUIRED_FILES = [CAPTURE, ONE_PAGE, DEMO, CHECKLIST, Path(__file__).resolve()]
 
