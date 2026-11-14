@@ -12,13 +12,18 @@ export type CalendarEntry = {
   unit: string
   availability: Availability
   detail?: string
+  /** Contract 1.4.0 coverage state of this sensor-period (partial periods carry no labels). */
+  coverage?: 'complete' | 'partial' | 'unavailable'
+  unusualLabel?: string
+  criticalLabel?: string
+  comparisonEligible?: boolean
 }
 
-/** Contract 1.1.0 compound identity. A cached factor, baseline or result may be reused
+/** Contract 1.4.0 five-field compound identity. A cached factor, baseline or result may be reused
  * only when all five fields match; never key a cache on the area alone. */
 export type CacheKey = [artifactVersion: string, geometryId: string, periodSpec: string, methodId: string, policyId: string]
 
-/** Contract 1.1.0 reviewed-summary categories and their plain-language labels. */
+/** Contract 1.4.0 reviewed-summary categories and their plain-language labels. */
 export type OutputCategory =
   | 'consistent_across_tested_corrections'
   | 'depends_on_the_correction'
@@ -63,6 +68,9 @@ export type AreaView = {
   comparison?: ComparisonView
   normalSeason?: { text: string; evidenceUrl: string }
   artifactUrl?: string
+  /** evaluated: comparison and finding may show; blocked: evaluated area whose evidence or
+   * footprint does not allow a conclusion; raw_only: no evaluation for this area. */
+  access?: 'evaluated' | 'blocked' | 'raw_only' | 'unavailable'
 }
 export type ComparisonView = {
   applicability: 'applicable' | 'failed' | 'missing' | 'out-of-domain'
@@ -109,6 +117,6 @@ export function describePracticalChange(change: PracticalChangeView): string {
   }
 }
 
-// Replace this provider with a P4-approved artifact adapter when its contract exists.
-// Keep it empty until real, approved artifacts are available.
+// Real artifacts enter through src/lab/adapter.ts (contract 1.4.0). Keep this empty until
+// approved, non-synthetic artifacts are available.
 export const labView: LabView = { areas: [] }

@@ -1,0 +1,57 @@
+{
+  "contract_version": "1.4.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "region_selector",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "options": [
+    {
+      "geometry_id": "geo-synthetic-primary",
+      "display_name": "Synthetic Primary",
+      "geometry_role": "primary_region",
+      "boundary_source": "synthetic",
+      "boundary_version": "1",
+      "crs": "EPSG:4326",
+      "grid_inclusion_rule": "cell centroid inside boundary",
+      "raw_data_status": "available",
+      "comparison_access_status": "evaluated_comparison",
+      "unavailable_reason": null,
+      "evaluated_method_id": "stage_a_finite_factors",
+      "evaluated_policy_id": "own_support_eligible",
+      "evaluated_period_spec": "synthetic-2023"
+    },
+    {
+      "geometry_id": "geo-synthetic-sub-a",
+      "display_name": "Synthetic Sub-area A",
+      "geometry_role": "predeclared_sub_area",
+      "boundary_source": "synthetic",
+      "boundary_version": "1",
+      "crs": "EPSG:4326",
+      "grid_inclusion_rule": "cell centroid inside boundary",
+      "raw_data_status": "available",
+      "comparison_access_status": "raw_only",
+      "unavailable_reason": null,
+      "evaluated_method_id": null,
+      "evaluated_policy_id": null,
+      "evaluated_period_spec": null
+    },
+    {
+      "geometry_id": "geo-synthetic-sub-b",
+      "display_name": "Synthetic Sub-area B",
+      "geometry_role": "predeclared_sub_area",
+      "boundary_source": "synthetic",
+      "boundary_version": "1",
+      "crs": "EPSG:4326",
+      "grid_inclusion_rule": "cell centroid inside boundary",
+      "raw_data_status": "unavailable",
+      "comparison_access_status": "unavailable",
+      "unavailable_reason": "incomplete_footprint",
+      "evaluated_method_id": null,
+      "evaluated_policy_id": null,
+      "evaluated_period_spec": null
+    }
+  ]
+}

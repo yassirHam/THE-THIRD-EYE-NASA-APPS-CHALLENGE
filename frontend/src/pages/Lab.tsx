@@ -5,6 +5,7 @@ import { Name } from '../components/Keep'
 import Calendar from '../lab/Calendar'
 import Chart from '../lab/Chart'
 import Comparison from '../lab/Comparison'
+import { findingVisible } from '../lab/adapter'
 import { labView, type Sensor } from '../lab/model'
 import './lab.css'
 
@@ -42,7 +43,7 @@ export default function Lab() {
             <p className="lab__note">Each calendar uses one sensor at a time. <Name>Suomi NPP</Name> data ended 2 November 2026; NOAA-20 is a separate platform.</p>
           </section>
           <aside className="lab__aside" aria-label="Finding and limitations">
-            <section><p className="lab__eyebrow">Finding</p>{area?.finding && !area.rawOnly ? <><h3>{area.finding.text}</h3><a href={area.finding.evidenceUrl}>Inspect evidence</a></> : <><h3>No finding available yet.</h3><p>An evidence-backed finding will appear when the selected area and comparison have been evaluated.</p></>}</section>
+            <section><p className="lab__eyebrow">Finding</p>{area?.finding && findingVisible(area) ? <><h3>{area.finding.text}</h3><a href={area.finding.evidenceUrl}>Inspect evidence</a></> : <><h3>No finding available yet.</h3><p>An evidence-backed finding will appear when the selected area and comparison have been evaluated.</p></>}</section>
             <section><p className="lab__eyebrow">Limit</p><p>{area?.limitation ?? 'Satellite observations do not count individual fires. Missing observations and failed checks must remain visible.'}</p></section>
             <section><p className="lab__eyebrow">Normal season</p>{area?.normalSeason ? <><p>{area.normalSeason.text}</p><a href={area.normalSeason.evidenceUrl}>Inspect seasonal evidence</a></> : <p>Unavailable until enough eligible observations are present.</p>}</section>
             <section><p className="lab__eyebrow">Sensor-switch test</p>{labView.headline ? <><strong>{labView.headline.text}</strong><p>{labView.headline.denominator}</p><a href={labView.headline.evidenceUrl}>Inspect evidence</a></> : <><strong>Unavailable</strong><p>Result and number of evaluated cases are not available yet.</p></>}</section>
