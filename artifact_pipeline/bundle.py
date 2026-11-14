@@ -221,6 +221,10 @@ class Bundle:
                 "p0_compressed_target_bytes": P0_COMPRESSED_TARGET_BYTES,
                 "within_p0_target": None if total_gz is None else total_gz <= P0_COMPRESSED_TARGET_BYTES,
                 "measured": "exact byte counts of the files written; load time is measured by P4-C smoke checks",
+                # A synthetic bundle's size says nothing about the real P0 artifact size.
+                "measurement_basis": ("synthetic development fixtures, not real P0 artifacts"
+                                      if self.data_classification == "synthetic_dev_fixture"
+                                      else "production artifacts in this bundle"),
             },
             "firms_separate": all(e.path.startswith("firms/") == (e.family == "firms_hotspots")
                                   for e in self.entries),

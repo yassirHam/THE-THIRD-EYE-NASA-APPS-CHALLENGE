@@ -44,6 +44,7 @@ def test_build_write_and_verify_round_trip(tmp_path: Path) -> None:
     size = index["size_report"]
     assert size["total_gzip_bytes"] == sum(e["gzip_bytes"] for e in index["entries"])
     assert size["within_p0_target"] is True
+    assert size["measurement_basis"].startswith("synthetic")  # never reported as real P0 evidence
 
 
 def test_output_is_deterministic(tmp_path: Path) -> None:
@@ -214,3 +215,10 @@ def test_cli_refuses_conflicting_fixture_variants(tmp_path: Path) -> None:
                  "--classification", SYN, "--files", "sample_comparison_normal.json",
                  "sample_comparison_sensitive.json"])
     assert code == 2
+
+
+def test_bundle_refuses_an_artifact_from_another_contract_version() -> None:
+    comp = model("sample_comparison_normal.json")
+    old = comp.model_construct(**{**comp.__dict__, "contract_version": "1.3.0"})
+    with pytest.raises(BundleError, match="contract"):
+        Bundle(bundle_version="v", data_classification=SYN).add(old)
