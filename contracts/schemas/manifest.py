@@ -35,17 +35,26 @@ class SourceCollection(StrictContractModel):
 
 
 class PartitionFileRecord(StrictContractModel):
+    """One file of the described artifact, relative to the bundle root.
+
+    sensor: the single sensor of a per-sensor file, or null (required key) when the file
+    holds several same-sensor series (a calendar) or is not sensor data (comparison,
+    evaluation, selector, FIRMS view). Null never means a merged cross-sensor series.
+    coverage_status: footprint coverage of the data in this file. "unverified" (1.5.0) is
+    used whenever P2 has not certified the footprint; it is never upgraded to complete.
+    """
+
     file_path: str = Field(min_length=1)
     geometry_id: str = Field(min_length=1)
     period_spec: str = Field(min_length=1)
     method_id: str = Field(min_length=1)
     policy_id: str = Field(min_length=1)
-    sensor: SensorType
+    sensor: SensorType | None
     row_count: int = Field(ge=0)
     file_size_bytes: int = Field(ge=0)
     cache_key_sha256: str = Field(pattern=r"^tte-cache-v1:[0-9a-f]{64}$")
     sha256_checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
-    coverage_status: Literal["complete", "partial", "unavailable"]
+    coverage_status: Literal["complete", "partial", "unavailable", "unverified"]
 
 
 class ProvenanceManifest(ArtifactIdentity):
@@ -111,3 +120,14 @@ def assert_manifest_describes(
     differing = [n for n in CACHE_KEY_FIELDS if getattr(manifest, n) != getattr(artifact, n)]
     if differing:
         raise ManifestBindingError(f"manifest identity differs from the artifact on: {', '.join(differing)}")
+    if manifest.data_classification != artifact.data_classification:
+        raise ManifestBindingError("manifest and artifact differ in data classification")
+    # A manifest cannot claim more coverage than the calendar's own footprint certification.
+    cert = getattr(artifact, "footprint_certification", None)
+    if artifact_type == "calendar":
+        allowed = {"complete": "complete", "partial": "partial"}.get(cert.status if cert else "", "unverified")
+        for part in manifest.partitions:
+            if part.coverage_status != allowed:
+                raise ManifestBindingError(
+                    f"partition {part.file_path} claims {part.coverage_status}; the calendar's footprint "
+                    f"certification allows only {allowed}")

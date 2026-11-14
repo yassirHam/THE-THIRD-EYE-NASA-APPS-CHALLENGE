@@ -1,4 +1,4 @@
-# P4-B contract 1.4.0: rule evidence and registration status
+# P4-B contract 1.5.0: rule evidence and registration status
 
 First prepared 2026-11-14T19:32:28Z; updated 2026-11-14T19:56:09Z and 2026-11-14T21:38:42Z (UTC,
 contract 1.4.0, Round 10) on `task/P4-B-001`. Plan file
@@ -225,6 +225,18 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
 - Manifest partitions must carry the manifest's five-field identity and its digest; a manifest is
   bound to one artifact with `assert_manifest_describes` (tests for cross-region, cross-period,
   cross-policy and cross-version reuse).
+
+## 15. Replayable manifests (contract 1.5.0, backend replay gap)
+
+- Purpose: P4-A emits one `ProvenanceManifest` per described artifact so P5-B's replay verifier can check
+  the bundle file by file (path, size, sha256, five-field cache key, totals). Proposed to P5 in
+  `handoff/escalations/P5/P5-exact-sha-review-request-r1.md`; P5 has not answered yet.
+- `PartitionFileRecord.sensor` is nullable with a required key: null for files that hold several
+  same-sensor series or non-sensor data. It never denotes a merged cross-sensor series.
+- `coverage_status` gains `unverified`. `assert_manifest_describes` refuses a manifest whose
+  partitions claim more coverage than the calendar's footprint certification (complete -> complete,
+  partial -> partial, otherwise unverified) and a manifest whose data classification differs.
+- Breaking: 1.4.0 artifacts are rejected (version is a literal).
 
 ## Test shim
 
