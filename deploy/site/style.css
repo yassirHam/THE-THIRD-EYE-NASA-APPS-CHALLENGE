@@ -1,0 +1,5 @@
+body { font-family: system-ui, sans-serif; margin: 0; color: #111; background: #fafafa; }
+.banner { background: #7a1f1f; color: #fff; padding: 0.75rem 1rem; font-weight: 600; }
+main { max-width: 48rem; margin: 0 auto; padding: 1rem; }
+li { font-family: ui-monospace, monospace; font-size: 0.85rem; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
