@@ -126,6 +126,127 @@ class TestSumsBeforeDivision:
         assert (total_D_b / total_O_b) * 1000 == pytest.approx(EXPECTED_B)
 
 
+class TestCompositionMissingBlock:
+    """
+    Fixed-weight standardization: if a required component block is missing
+    (O=0 or None), the pooled result must be UNAVAILABLE.
+
+    It must NEVER silently re-normalize remaining weights to sum to 1.0.
+    Example: Block A weight=0.8, Block B weight=0.2.  If Block B is missing,
+    the result is UNAVAILABLE — not the same as applying weight 1.0 to Block A.
+    """
+
+    def _fixed_weight_pool(
+        self,
+        blocks: list[tuple[float, float, float]],  # (D, O, weight)
+    ) -> object:
+        """
+        Fixed-weight pooling: sum(D_i * w_i) / sum(O_i * w_i).
+        Returns UNAVAILABLE if any required block has O=0 or O=None.
+        Never re-normalizes weights of remaining blocks.
+        """
+        for D, O, w in blocks:
+            if O is None or O == 0:
+                return UNAVAILABLE
+        total_wD = sum(D * w for D, O, w in blocks)
+        total_wO = sum(O * w for D, O, w in blocks)
+        if total_wO == 0:
+            return UNAVAILABLE
+        return (total_wD / total_wO) * 1000
+
+    def _renormalized_pool(
+        self,
+        blocks: list[tuple[float, float, float]],
+    ) -> object:
+        """
+        WRONG: drops missing blocks and silently re-normalizes remaining weights.
+        Included only to prove the two approaches differ.
+        """
+        present = [(D, O, w) for D, O, w in blocks if O is not None and O > 0]
+        if not present:
+            return UNAVAILABLE
+        total_w = sum(w for _, _, w in present)
+        total_wD = sum(D * (w / total_w) for D, O, w in present)
+        total_wO = sum(O * (w / total_w) for D, O, w in present)
+        if total_wO == 0:
+            return UNAVAILABLE
+        return (total_wD / total_wO) * 1000
+
+    # Block A: D=8.0, O=1.0, weight=0.8  -> rate = 8000 FAI
+    # Block B: D=1.0, O=1.0, weight=0.2  -> rate = 1000 FAI
+    BLOCK_A = (8.0, 1.0, 0.8)
+    BLOCK_B = (1.0, 1.0, 0.2)
+
+    def test_both_blocks_present_gives_numeric_result(self):
+        result = self._fixed_weight_pool([self.BLOCK_A, self.BLOCK_B])
+        assert result != UNAVAILABLE
+        assert isinstance(result, float)
+
+    def test_both_blocks_exact_value(self):
+        # wD = 8*0.8 + 1*0.2 = 6.4 + 0.2 = 6.6
+        # wO = 1*0.8 + 1*0.2 = 0.8 + 0.2 = 1.0
+        # FAI = 6.6 / 1.0 * 1000 = 6600
+        result = self._fixed_weight_pool([self.BLOCK_A, self.BLOCK_B])
+        assert result == pytest.approx(6600.0, rel=1e-9)
+
+    def test_block_b_missing_o_zero_returns_unavailable(self):
+        block_b_missing = (1.0, 0, 0.2)
+        result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
+        assert result == UNAVAILABLE, (
+            "Missing block (O=0) must make pooled result UNAVAILABLE"
+        )
+
+    def test_block_b_missing_o_none_returns_unavailable(self):
+        block_b_missing = (1.0, None, 0.2)
+        result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
+        assert result == UNAVAILABLE, (
+            "Missing block (O=None) must make pooled result UNAVAILABLE"
+        )
+
+    def test_block_a_missing_o_zero_returns_unavailable(self):
+        block_a_missing = (8.0, 0, 0.8)
+        result = self._fixed_weight_pool([block_a_missing, self.BLOCK_B])
+        assert result == UNAVAILABLE
+
+    def test_no_silent_renormalization_when_block_missing(self):
+        """
+        With Block B missing, the fixed-weight result must be UNAVAILABLE.
+        It must NOT equal the result of treating Block A with weight=1.0.
+        """
+        block_b_missing = (1.0, 0, 0.2)
+        fixed_result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
+        # What silent re-normalization would wrongly produce:
+        renorm_result = self._renormalized_pool([self.BLOCK_A, block_b_missing])
+
+        assert fixed_result == UNAVAILABLE, (
+            "Fixed-weight pool with a missing block must be UNAVAILABLE"
+        )
+        # Confirm the renormalized result is a number (not UNAVAILABLE) so
+        # the two approaches demonstrably differ.
+        assert isinstance(renorm_result, float), (
+            "Re-normalized pool should produce a float (proving it silently drops the missing block)"
+        )
+        assert fixed_result != renorm_result, (
+            "Fixed-weight (UNAVAILABLE) must differ from silently re-normalized result"
+        )
+
+    def test_renormalized_pool_is_not_unavailable(self):
+        """
+        Demonstrate that the WRONG method does not return UNAVAILABLE,
+        proving it silently re-normalizes. This is the bad behavior.
+        """
+        block_b_missing = (1.0, 0, 0.2)
+        renorm_result = self._renormalized_pool([self.BLOCK_A, block_b_missing])
+        # Wrong method keeps Block A and treats weight as 1.0 -> FAI = 8000
+        assert renorm_result == pytest.approx(8000.0, rel=1e-9), (
+            "Re-normalized wrong result should be 8000 (Block A at full weight)"
+        )
+
+    def test_all_blocks_missing_returns_unavailable(self):
+        result = self._fixed_weight_pool([(8.0, 0, 0.8), (1.0, 0, 0.2)])
+        assert result == UNAVAILABLE
+
+
 class TestCompositionInvariance:
     """
     Adding a third region: pooled result must equal sums-before-division
