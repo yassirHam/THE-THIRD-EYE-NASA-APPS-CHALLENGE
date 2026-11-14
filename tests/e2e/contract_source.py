@@ -1,10 +1,10 @@
-"""Locate the contract 1.4.0 package that the parity suite verifies.
+"""Locate the contract 1.5.0 package that the parity suite verifies.
 
 P5 lane B may only edit tests/e2e/**, so it never copies P4's contracts into this
 branch. Resolution order:
 
 1. ``$env:E2E_CONTRACTS_DIR``: a directory that contains ``contracts/``.
-2. This repository's own ``contracts/`` if it declares contract 1.4.0.
+2. This repository's own ``contracts/`` if it declares contract 1.5.0.
 3. A read-only ``git archive`` of ``$env:E2E_CONTRACT_REF`` (default: the pinned
    P4 commit below) extracted to a temporary directory.
 
@@ -21,11 +21,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-EXPECTED_CONTRACT_VERSION = "1.4.0"
-# origin/task/P4-B-001 8edec46 "fix(contracts): require contract_version; ..." (on a39dd3e):
+EXPECTED_CONTRACT_VERSION = "1.5.0"
+# origin/task/P4-B-001 edf9d65 "feat(contracts): 1.5.0 replayable manifest partitions":
 # contract 1.4.0 REVIEW CHECKPOINT (P4-B Round 10). Not yet approved by P1/P2 or verified by P5;
 # repin to the approved SHA before any exact-SHA verdict.
-PINNED_CONTRACT_COMMIT = "8edec4676b26237c81b11140587ad0989d28ba22"
+PINNED_CONTRACT_COMMIT = "edf9d65255377320b0a544e69f64db897e2960bd"
 
 
 @dataclass(frozen=True)

@@ -42,7 +42,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
-CONTRACT_VERSION = "1.4.0"
+CONTRACT_VERSION = "1.5.0"
 CACHE_KEY_FIELDS = ("artifact_version", "geometry_id", "period_spec", "method_id", "policy_id")
 CACHE_KEY_PREFIX = "tte-cache-v1:"
 CHECKPOINT_NAME = ".replay_checkpoint.json"
@@ -77,7 +77,7 @@ def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
 
 
 def cache_key_digest(identity: dict) -> str:
-    """Written definition (contract 1.4.0, unchanged since 1.1.0): JSON array of the five fields in fixed
+    """Written definition (contract 1.5.0, unchanged since 1.1.0): JSON array of the five fields in fixed
     order, compact separators, ASCII; SHA256 of its UTF-8 bytes, with prefix."""
     values = [identity[name] for name in CACHE_KEY_FIELDS]
     canonical = json.dumps(values, ensure_ascii=True, separators=(",", ":"))

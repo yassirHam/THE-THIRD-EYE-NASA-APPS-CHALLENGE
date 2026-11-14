@@ -53,7 +53,7 @@ def build_bundle(root: Path, files: dict[str, bytes]) -> tuple[Path, Path]:
             "coverage_status": "complete",
         })
     manifest = {
-        "contract_version": "1.4.0",
+        "contract_version": "1.5.0",
         **IDENTITY,
         "described_artifact_type": "calendar",
         "snpp_cutoff_status": "reserved_inactive",
@@ -330,7 +330,7 @@ def test_resume_detects_corrupted_materialized_copy(replay, bundle, tmp_path):
     assert (out / "bundle/calendar/monthly.json").read_bytes() == FILES["calendar/monthly.json"]
 
 
-def test_synthetic_manifest_is_valid_contract_1_4_0(contracts, bundle):
+def test_synthetic_manifest_is_valid_contract_1_5_0(contracts, bundle):
     """The replay fixture uses P4's real manifest shape, checked by P4's own schema."""
     pytest.importorskip("pydantic")
     import subprocess
