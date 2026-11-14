@@ -108,17 +108,23 @@ def check_applicability(
     negative observation counts. Negative O is an invalid/corrupt input and
     is treated as missing_required_support (O < min_support path covers O < 0
     naturally when min_support > 0, but the guard below is explicit).
+
+    Explicit calibration_check_status must be "passed" to return "applicable".
+    Any missing/unrecognized status returns MISSING_REQUIRED_SUPPORT.
     """
     if not in_domain:
         return OUT_OF_DOMAIN
-    # Treat None, 0, negative, or below threshold as missing/insufficient support
+    # Treat None, 0, or negative as missing_required_support
     if O is None or O == 0 or (isinstance(O, (int, float)) and O < 0):
         return MISSING_REQUIRED_SUPPORT
+    # O > 0 but below min_support -> insufficient_support
     if isinstance(O, (int, float)) and O < min_support:
         return INSUFFICIENT_SUPPORT
     # In domain, sufficient support — now check calibration
-    if calibration_check_status == "failed":
-        return FAILED_APPLICABILITY
+    if calibration_check_status != "passed":
+        if calibration_check_status == "failed":
+            return FAILED_APPLICABILITY
+        return MISSING_REQUIRED_SUPPORT  # missing/unknown calibration evidence
     return "applicable"
 
 

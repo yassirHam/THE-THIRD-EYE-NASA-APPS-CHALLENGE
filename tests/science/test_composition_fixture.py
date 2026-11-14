@@ -36,6 +36,7 @@ Fixed-weight standardization (plan definition):
     composition artefact (the block rates did not change at all).
 """
 
+import math
 import pytest
 
 UNAVAILABLE = "unavailable"
@@ -143,121 +144,108 @@ class TestSumsBeforeDivision:
 class TestCompositionMissingBlock:
     """
     Fixed-weight standardization: if a required component block is missing
-    (O=0 or None), the pooled result must be UNAVAILABLE.
+    (O=0 or None), the standardized result must be UNAVAILABLE.
 
     It must NEVER silently re-normalize remaining weights to sum to 1.0.
     Example: Block A weight=0.8, Block B weight=0.2.  If Block B is missing,
     the result is UNAVAILABLE — not the same as applying weight 1.0 to Block A.
+
+    The legacy _fixed_weight_pool helper (sum(q*D)/sum(q*O)) was removed.
+    The plan defines sum(q*D)/sum(q*O) as INVALID and contradictory to
+    fixed_weight_standardize (which uses sum(q*r) = sum(q*(D/O)*1000)).
     """
-
-    def _fixed_weight_pool(
-        self,
-        blocks: list[tuple[float, float, float]],  # (D, O, weight)
-    ) -> object:
-        """
-        Fixed-weight pooling: sum(D_i * w_i) / sum(O_i * w_i).
-        Returns UNAVAILABLE if any required block has O=0 or O=None.
-        Never re-normalizes weights of remaining blocks.
-        """
-        for D, O, w in blocks:
-            if O is None or O == 0:
-                return UNAVAILABLE
-        total_wD = sum(D * w for D, O, w in blocks)
-        total_wO = sum(O * w for D, O, w in blocks)
-        if total_wO == 0:
-            return UNAVAILABLE
-        return (total_wD / total_wO) * 1000
-
-    def _renormalized_pool(
-        self,
-        blocks: list[tuple[float, float, float]],
-    ) -> object:
-        """
-        WRONG: drops missing blocks and silently re-normalizes remaining weights.
-        Included only to prove the two approaches differ.
-        """
-        present = [(D, O, w) for D, O, w in blocks if O is not None and O > 0]
-        if not present:
-            return UNAVAILABLE
-        total_w = sum(w for _, _, w in present)
-        total_wD = sum(D * (w / total_w) for D, O, w in present)
-        total_wO = sum(O * (w / total_w) for D, O, w in present)
-        if total_wO == 0:
-            return UNAVAILABLE
-        return (total_wD / total_wO) * 1000
 
     # Block A: D=8.0, O=1.0, weight=0.8  -> rate = 8000 FAI
     # Block B: D=1.0, O=1.0, weight=0.2  -> rate = 1000 FAI
     BLOCK_A = (8.0, 1.0, 0.8)
     BLOCK_B = (1.0, 1.0, 0.2)
 
-    def test_both_blocks_present_gives_numeric_result(self):
-        result = self._fixed_weight_pool([self.BLOCK_A, self.BLOCK_B])
-        assert result != UNAVAILABLE
-        assert isinstance(result, float)
+    def test_invalid_legacy_formula_sum_qd_over_sum_qo(self):
+        """
+        Legacy formula: sum(q_b * D_b) / sum(q_b * O_b) * 1000
+        This is INVALID per the plan. It contradicts fixed_weight_standardize.
+        Using Block A (D=8,O=1,rate=8000) and Block B (D=1,O=1,rate=1000)
+        with q_A=0.8, q_B=0.2:
+        Legacy: (0.8*8 + 0.2*1) / (0.8*1 + 0.2*1) * 1000 = 6.6/1.0*1000 = 6600
+        Plan:   sum(q*r) = 0.8*8000 + 0.2*1000 = 6400 + 200 = 6600
+        With equal weights they happen to match, but the formulas are distinct.
+        """
+        D1, O1 = 8.0, 1.0   # rate=8000
+        D2, O2 = 1.0, 1.0   # rate=1000
+        q1, q2 = 0.5, 0.5
 
-    def test_both_blocks_exact_value(self):
-        # wD = 8*0.8 + 1*0.2 = 6.4 + 0.2 = 6.6
-        # wO = 1*0.8 + 1*0.2 = 0.8 + 0.2 = 1.0
-        # FAI = 6.6 / 1.0 * 1000 = 6600
-        result = self._fixed_weight_pool([self.BLOCK_A, self.BLOCK_B])
+        # Plan formula (fixed_weight_standardize)
+        plan_result = sum(q * (D / O) * 1000 for q, D, O in [(q1, D1, O1), (q2, D2, O2)])
+        assert plan_result == pytest.approx(4500.0, rel=1e-9)
+
+        # Legacy formula (sum(q*D)/sum(q*O)*1000) - INVALID per plan
+        legacy_numerator = q1 * D1 + q2 * D2
+        legacy_denominator = q1 * O1 + q2 * O2
+        legacy_result = (legacy_numerator / legacy_denominator) * 1000
+        assert legacy_result == pytest.approx(4500.0, rel=1e-9)
+
+        # Demonstrate divergence with unequal O
+        D1, O1 = 80.0, 8.0   # rate=10000
+        D2, O2 = 2.0, 2.0    # rate=1000
+        q1, q2 = 0.5, 0.5
+
+        plan_result = sum(q * (D / O) * 1000 for q, D, O in [(q1, D1, O1), (q2, D2, O2)])
+        assert plan_result == pytest.approx(5500.0, rel=1e-9)
+
+        legacy_numerator = q1 * D1 + q2 * D2
+        legacy_denominator = q1 * O1 + q2 * O2
+        legacy_result = (legacy_numerator / legacy_denominator) * 1000
+        assert legacy_result == pytest.approx(8200.0, rel=1e-9)
+
+        assert plan_result != pytest.approx(legacy_result, rel=1e-4), (
+            "Plan formula and legacy formula must diverge on unequal-O data"
+        )
+
+    def test_plan_formula_sum_qb_rb_is_correct(self):
+        """
+        Plan: standardized_fai = sum(q_b * r_b) where r_b = (D_b / O_b) * 1000.
+        This is DISTINCT from sum(q_b * D_b) / sum(q_b * O_b).
+        """
+        # Block A: D=8, O=1 -> r=8000, q=0.8
+        # Block B: D=1, O=1 -> r=1000, q=0.2
+        # Plan result = 0.8*8000 + 0.2*1000 = 6400 + 200 = 6600
+        result = sum(q * (D / O) * 1000 for D, O, q in [self.BLOCK_A, self.BLOCK_B])
         assert result == pytest.approx(6600.0, rel=1e-9)
 
-    def test_block_b_missing_o_zero_returns_unavailable(self):
-        block_b_missing = (1.0, 0, 0.2)
-        result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
-        assert result == UNAVAILABLE, (
-            "Missing block (O=0) must make pooled result UNAVAILABLE"
-        )
+    def test_weighted_pooled_fai_wrong_formula(self):
+        """
+        Legacy wrong formula: sum(q*D)/sum(q*O)*1000.
+        Included to prove it differs from plan when blocks have unequal O.
+        """
+        # With Block A (D=80,O=8) rate=10000 and Block B (D=2,O=2) rate=1000
+        D1, O1 = 80.0, 8.0   # rate=10000
+        D2, O2 = 2.0, 2.0    # rate=1000
+        q1, q2 = 0.5, 0.5
 
-    def test_block_b_missing_o_none_returns_unavailable(self):
-        block_b_missing = (1.0, None, 0.2)
-        result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
-        assert result == UNAVAILABLE, (
-            "Missing block (O=None) must make pooled result UNAVAILABLE"
-        )
+        # Plan (correct): 0.5*10000 + 0.5*1000 = 5500
+        plan = sum(q * (D / O) * 1000 for D, O, q in [(D1, O1, q1), (D2, O2, q2)])
 
-    def test_block_a_missing_o_zero_returns_unavailable(self):
-        block_a_missing = (8.0, 0, 0.8)
-        result = self._fixed_weight_pool([block_a_missing, self.BLOCK_B])
-        assert result == UNAVAILABLE
+        # Wrong: (0.5*80 + 0.5*2) / (0.5*8 + 0.5*2) * 1000 = 41/5*1000 = 8200
+        wrong = (q1 * D1 + q2 * D2) / (q1 * O1 + q2 * O2) * 1000
+
+        assert plan == pytest.approx(5500.0, rel=1e-9)
+        assert wrong == pytest.approx(8200.0, rel=1e-9)
+        assert plan != pytest.approx(wrong, rel=1e-4)
 
     def test_no_silent_renormalization_when_block_missing(self):
         """
         With Block B missing, the fixed-weight result must be UNAVAILABLE.
-        It must NOT equal the result of treating Block A with weight=1.0.
+        The legacy helper that used sum(q*D)/sum(q*O) was removed.
+        The plan's fixed_weight_standardize also returns UNAVAILABLE for missing O.
         """
         block_b_missing = (1.0, 0, 0.2)
-        fixed_result = self._fixed_weight_pool([self.BLOCK_A, block_b_missing])
-        # What silent re-normalization would wrongly produce:
-        renorm_result = self._renormalized_pool([self.BLOCK_A, block_b_missing])
-
-        assert fixed_result == UNAVAILABLE, (
-            "Fixed-weight pool with a missing block must be UNAVAILABLE"
-        )
-        # Confirm the renormalized result is a number (not UNAVAILABLE) so
-        # the two approaches demonstrably differ.
-        assert isinstance(renorm_result, float), (
-            "Re-normalized pool should produce a float (proving it silently drops the missing block)"
-        )
-        assert fixed_result != renorm_result, (
-            "Fixed-weight (UNAVAILABLE) must differ from silently re-normalized result"
-        )
-
-    def test_renormalized_pool_is_not_unavailable(self):
-        """
-        Demonstrate that the WRONG method does not return UNAVAILABLE,
-        proving it silently re-normalizes. This is the bad behavior.
-        """
-        block_b_missing = (1.0, 0, 0.2)
-        renorm_result = self._renormalized_pool([self.BLOCK_A, block_b_missing])
-        # Wrong method keeps Block A and treats weight as 1.0 -> FAI = 8000
-        assert renorm_result == pytest.approx(8000.0, rel=1e-9), (
-            "Re-normalized wrong result should be 8000 (Block A at full weight)"
+        result = fixed_weight_standardize([self.BLOCK_A, block_b_missing])
+        assert result == UNAVAILABLE, (
+            "Missing block (O=0) must make standardized result UNAVAILABLE"
         )
 
     def test_all_blocks_missing_returns_unavailable(self):
-        result = self._fixed_weight_pool([(8.0, 0, 0.8), (1.0, 0, 0.2)])
+        result = fixed_weight_standardize([(8.0, 0, 0.8), (1.0, 0, 0.2)])
         assert result == UNAVAILABLE
 
 
@@ -312,14 +300,21 @@ def fixed_weight_standardize(
         standardized_fai = sum(q_b * r_b)
                          = sum(q_b * (D_b / O_b) * 1000)
 
-    where sum(q_b) == 1.0.
+    where sum(q_b) == 1.0 and each q_b >= 0.
 
     This is DISTINCT from sum(q_b * D_b) / sum(q_b * O_b).
 
     Returns UNAVAILABLE if ANY required block has O_b == 0 or O_b is None.
     Renormalizing remaining weights to 1.0 when a block is missing is
     strictly rejected; the caller must supply all required blocks.
+
+    Raises ValueError if any weight is negative or if weights do not sum to 1.0.
     """
+    for _, _, q in blocks:
+        if q < 0:
+            raise ValueError("Weight must be non-negative")
+    if not math.isclose(sum(q for _, _, q in blocks), 1.0, rel_tol=1e-6, abs_tol=1e-6):
+        raise ValueError("Weights must sum to 1.0")
     for _D, O, _q in blocks:
         if O is None or O == 0:
             return UNAVAILABLE
@@ -524,3 +519,28 @@ class TestFixedWeightStandardization:
         assert result != wrong_renorm, (
             "UNAVAILABLE must not equal the renormalized single-block value"
         )
+
+    def test_negative_weight_raises_value_error(self):
+        """Weight must be non-negative."""
+        D1, O1 = P1_BLOCK1
+        with pytest.raises(ValueError, match="Weight must be non-negative"):
+            fixed_weight_standardize([(D1, O1, -0.5), (2.0, 2.0, 1.5)])
+
+    def test_weights_not_summing_to_one_raises_value_error(self):
+        """Weights must sum to 1.0."""
+        D1, O1 = P1_BLOCK1
+        # Weights sum to 1.2, not 1.0
+        with pytest.raises(ValueError, match="Weights must sum to 1.0"):
+            fixed_weight_standardize([(D1, O1, 0.6), (2.0, 2.0, 0.6)])
+
+    def test_weights_summing_to_zero_raises_value_error(self):
+        """Weights must sum to 1.0, not 0.0."""
+        D1, O1 = P1_BLOCK1
+        with pytest.raises(ValueError, match="Weights must sum to 1.0"):
+            fixed_weight_standardize([(D1, O1, 0.0), (2.0, 2.0, 0.0)])
+
+    def test_weights_summing_to_two_raises_value_error(self):
+        """Weights must sum to 1.0, not 2.0."""
+        D1, O1 = P1_BLOCK1
+        with pytest.raises(ValueError, match="Weights must sum to 1.0"):
+            fixed_weight_standardize([(D1, O1, 1.0), (2.0, 2.0, 1.0)])
