@@ -53,6 +53,7 @@ from science.methods.stage_a import (
     fit_own_support_variants,
     _pooled_rate,
     _check_year_support,
+    _check_stratum_match,
 )
 
 
@@ -1071,3 +1072,300 @@ class TestSensitivityNonUniform:
         ]
         assert min(values) == pytest.approx(1.0)
         assert max(values) == pytest.approx(4.0)
+
+
+# ---------------------------------------------------------------------------
+# 12. (v3) Headline direction withheld when applicability fails or is absent
+#     Issue 1 from third review
+# ---------------------------------------------------------------------------
+class TestApplicabilityGatesDirection:
+    """
+    Spec §7: "do not collapse these dimensions into a reassuring single badge
+    or report a directional conclusion when its mandatory applicability evidence
+    fails or is absent."
+
+    Only ApplicabilityStatus.EVALUATED permits INCREASE/DECREASE/NO_CHANGE.
+    All four non-evaluated statuses must yield UNRESOLVED headline_direction
+    and UNSPECIFIED practical_change, even when delta is numerically non-None.
+
+    Fixture:
+      a_H = 1.25, B = 90.0, V = 80.0
+        Z = 1.25 * 80.0 = 100.0
+        delta = 100.0 - 90.0 = 10.0  (positive — would be INCREASE if applicable)
+    """
+
+    @pytest.fixture()
+    def factor_and_inputs(self):
+        aqua  = [_own("aqua",  y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
+        viirs = [_own("viirs", y, D=80,  O=1000) for y in TRAINING_YEARS_DEFAULT]
+        full = fit_own_support_variants(aqua, viirs)["full_training_2016_2017_2018"]
+        return full, 90.0, 80.0  # factor, B, V
+
+    _NON_EVALUATED = [
+        ApplicabilityStatus.FAILED_APPLICABILITY,
+        ApplicabilityStatus.OUTSIDE_EVALUATED,
+        ApplicabilityStatus.MISSING_REQUIRED_SUPPORT,
+        ApplicabilityStatus.INSUFFICIENT_EVIDENCE,
+    ]
+
+    @pytest.mark.parametrize("bad_status", _NON_EVALUATED)
+    def test_headline_direction_unresolved_for_non_evaluated_status(
+        self, factor_and_inputs, bad_status
+    ):
+        """
+        delta = +10.0 but applicability is not EVALUATED → direction must be
+        UNRESOLVED, not INCREASE.
+        """
+        full, B, V = factor_and_inputs
+        result = apply_factor(
+            factor_result=full,
+            baseline_B=B,
+            viirs_V=V,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=bad_status,
+        )
+        # delta is still computed (numeric dimensions are independent)
+        assert result.delta == pytest.approx(10.0), (
+            "delta must still be computed even when direction is withheld"
+        )
+        assert result.headline_direction == HeadlineDirection.UNRESOLVED, (
+            f"headline_direction must be UNRESOLVED for status {bad_status.value}, "
+            f"got {result.headline_direction}"
+        )
+        assert any("applicability" in r.lower() for r in result.reasons), (
+            "reasons must explain that direction was withheld due to applicability"
+        )
+
+    @pytest.mark.parametrize("bad_status", _NON_EVALUATED)
+    def test_practical_change_unspecified_for_non_evaluated_status(
+        self, factor_and_inputs, bad_status
+    ):
+        """
+        practical_change must be UNSPECIFIED when applicability is not EVALUATED,
+        even when tau is supplied and delta is non-None.
+        """
+        full, B, V = factor_and_inputs
+        result = apply_factor(
+            factor_result=full,
+            baseline_B=B,
+            viirs_V=V,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=bad_status,
+            practical_margin_tau=5.0,  # delta=10 would normally be MEANINGFUL_INCREASE
+        )
+        assert result.practical_change == PracticalChange.UNSPECIFIED, (
+            f"practical_change must be UNSPECIFIED for {bad_status.value}, "
+            f"got {result.practical_change}"
+        )
+
+    def test_direction_emitted_only_for_evaluated_status(
+        self, factor_and_inputs
+    ):
+        """
+        EVALUATED is the only status that permits a directional answer.
+        delta = +10 → INCREASE.
+        """
+        full, B, V = factor_and_inputs
+        result = apply_factor(
+            factor_result=full,
+            baseline_B=B,
+            viirs_V=V,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+        )
+        assert result.headline_direction == HeadlineDirection.INCREASE
+        assert result.delta == pytest.approx(10.0)
+
+    def test_direction_unresolved_when_delta_zero_but_applicability_failed(
+        self, factor_and_inputs
+    ):
+        """
+        Even Delta = 0.0 (equality) must become UNRESOLVED when applicability
+        has failed — the caller must not receive a NO_CHANGE verdict.
+
+        Fixture: B = 100.0, V = 80.0 → Z = 1.25*80 = 100.0, Delta = 0.
+        """
+        full, _, _ = factor_and_inputs
+        result = apply_factor(
+            factor_result=full,
+            baseline_B=100.0,
+            viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.FAILED_APPLICABILITY,
+        )
+        assert result.delta == pytest.approx(0.0)
+        assert result.headline_direction == HeadlineDirection.UNRESOLVED
+
+    def test_stable_sensitivity_does_not_override_applicability_gate(
+        self, factor_and_inputs
+    ):
+        """
+        STABLE sensitivity must not grant a directional conclusion when
+        applicability is OUTSIDE_EVALUATED.  The two dimensions are independent.
+        """
+        full, B, V = factor_and_inputs
+        result = apply_factor(
+            factor_result=full,
+            baseline_B=B,
+            viirs_V=V,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.OUTSIDE_EVALUATED,
+        )
+        assert result.sensitivity_status == SensitivityStatus.STABLE
+        assert result.headline_direction == HeadlineDirection.UNRESOLVED
+
+
+# ---------------------------------------------------------------------------
+# 13. (v3) Matched calendar strata required before making a factor available
+#     Issue 2 from third review
+# ---------------------------------------------------------------------------
+class TestStratumMatch:
+    """
+    Spec §6: "matched calendar strata" for a_H; "identical paired
+    common-support cell-days" for a_C.
+
+    _check_stratum_match returns the symmetric difference of available
+    (year, stratum) keys across the two sensor lists.  _fit_factor treats
+    any mismatch as UNAVAILABLE.
+
+    The stratum field on ObsRecord defaults to "annual" in the _own/_common
+    helpers used throughout the other tests — those are matched by design.
+    Here we construct records with deliberately mismatched strata.
+    """
+
+    def test_check_stratum_match_no_mismatch(self):
+        """Identical (year, stratum) keys → empty list."""
+        aqua  = [_own("aqua",  2016, D=100, O=1000),
+                 _own("aqua",  2017, D=100, O=1000)]
+        viirs = [_own("viirs", 2016, D=80,  O=1000),
+                 _own("viirs", 2017, D=80,  O=1000)]
+        assert _check_stratum_match(aqua, viirs) == []
+
+    def test_check_stratum_match_extra_aqua_stratum(self):
+        """Aqua has a stratum that VIIRS lacks."""
+        aqua = [
+            ObsRecord("aqua", 2016, "month_07", "own_support", 100, 1000),
+            ObsRecord("aqua", 2016, "month_08", "own_support",  50,  500),
+        ]
+        viirs = [
+            ObsRecord("viirs", 2016, "month_07", "own_support", 80, 1000),
+            # month_08 is absent for VIIRS
+        ]
+        result = _check_stratum_match(aqua, viirs)
+        assert (2016, "month_08") in result
+
+    def test_check_stratum_match_extra_viirs_stratum(self):
+        """VIIRS has a stratum that Aqua lacks."""
+        aqua = [
+            ObsRecord("aqua", 2017, "month_06", "own_support", 100, 1000),
+        ]
+        viirs = [
+            ObsRecord("viirs", 2017, "month_06", "own_support", 80, 1000),
+            ObsRecord("viirs", 2017, "month_07", "own_support", 60, 1000),
+        ]
+        result = _check_stratum_match(aqua, viirs)
+        assert (2017, "month_07") in result
+
+    def test_check_stratum_match_ignores_unavailable_records(self):
+        """
+        O=0 records are excluded from the key set; a year/stratum present
+        only as O=0 for one sensor does not create a mismatch — it was never
+        available to pool anyway.
+        """
+        aqua = [
+            ObsRecord("aqua", 2016, "month_07", "own_support", 100, 1000),
+            ObsRecord("aqua", 2016, "month_08", "own_support",   0,    0),  # unavailable
+        ]
+        viirs = [
+            ObsRecord("viirs", 2016, "month_07", "own_support", 80, 1000),
+            # month_08 also absent for VIIRS, but it's O=0 for Aqua too — no mismatch
+        ]
+        # Aqua month_08 is O=0 (unavailable), so it is excluded from key set.
+        # Both sensors have only (2016, month_07) available → no mismatch.
+        assert _check_stratum_match(aqua, viirs) == []
+
+    def test_mismatched_stratum_makes_own_support_factor_unavailable(self):
+        """
+        a_H: Aqua has month_07 and month_08; VIIRS has only month_07.
+        Factor must be UNAVAILABLE with the mismatch recorded.
+        """
+        aqua = [
+            ObsRecord("aqua", 2016, "month_07", "own_support", 100, 1000),
+            ObsRecord("aqua", 2016, "month_08", "own_support",  50,  500),
+        ]
+        viirs = [
+            ObsRecord("viirs", 2016, "month_07", "own_support", 80, 1000),
+        ]
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        full = variants["full_training_2016"]
+        assert full.status == FactorStatus.UNAVAILABLE
+        assert (2016, "month_08") in full.mismatched_strata
+        assert any("strata" in r.lower() or "stratum" in r.lower()
+                   for r in full.reasons)
+
+    def test_mismatched_stratum_makes_common_support_factor_unavailable(self):
+        """
+        a_C: Aqua common has month_07 and month_09; VIIRS common has only month_07.
+        Factor must be UNAVAILABLE — the pairing is not identical.
+        """
+        aqua = [
+            ObsRecord("aqua",  2016, "month_07", "common_support", 60, 800),
+            ObsRecord("aqua",  2016, "month_09", "common_support", 30, 400),
+        ]
+        viirs = [
+            ObsRecord("viirs", 2016, "month_07", "common_support", 48, 800),
+        ]
+        variants = fit_common_support_variants(aqua, viirs, training_years=(2016,))
+        full = variants["full_training_2016"]
+        assert full.status == FactorStatus.UNAVAILABLE
+        assert (2016, "month_09") in full.mismatched_strata
+
+    def test_matched_strata_across_multiple_years_produces_available_factor(self):
+        """
+        When every (year, stratum) key is matched, the stratum check passes
+        and the factor proceeds to the pooled-rate computation.
+
+        Fixture (two strata, two years):
+          Aqua  2016 month_07: D=80, O=1000  → rate  80.0
+          Aqua  2016 month_08: D=20, O=1000  → rate  20.0
+          Aqua  2017 month_07: D=80, O=1000
+          Aqua  2017 month_08: D=20, O=1000
+          Pooled Aqua D=200, O=4000 → 1000*200/4000 = 50.0
+
+          VIIRS 2016 month_07: D=40, O=1000  → rate  40.0
+          VIIRS 2016 month_08: D=10, O=1000  → rate  10.0
+          VIIRS 2017 month_07: D=40, O=1000
+          VIIRS 2017 month_08: D=10, O=1000
+          Pooled VIIRS D=100, O=4000 → 1000*100/4000 = 25.0
+
+          a_H = 50.0 / 25.0 = 2.0
+        """
+        aqua = [
+            ObsRecord("aqua", 2016, "month_07", "own_support",  80, 1000),
+            ObsRecord("aqua", 2016, "month_08", "own_support",  20, 1000),
+            ObsRecord("aqua", 2017, "month_07", "own_support",  80, 1000),
+            ObsRecord("aqua", 2017, "month_08", "own_support",  20, 1000),
+        ]
+        viirs = [
+            ObsRecord("viirs", 2016, "month_07", "own_support", 40, 1000),
+            ObsRecord("viirs", 2016, "month_08", "own_support", 10, 1000),
+            ObsRecord("viirs", 2017, "month_07", "own_support", 40, 1000),
+            ObsRecord("viirs", 2017, "month_08", "own_support", 10, 1000),
+        ]
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016, 2017))
+        full = variants["full_training_2016_2017"]
+        assert full.status == FactorStatus.AVAILABLE
+        assert full.factor_value == pytest.approx(2.0)
+        assert full.mismatched_strata == []
+
+    def test_valid_factor_has_empty_mismatched_strata_field(self):
+        """
+        Standard single-stratum fixture must carry an empty mismatched_strata
+        list (the field exists and is empty when all strata match).
+        """
+        aqua  = [_own("aqua",  2016, D=100, O=1000)]
+        viirs = [_own("viirs", 2016, D=80,  O=1000)]
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        full = variants["full_training_2016"]
+        assert full.status == FactorStatus.AVAILABLE
+        assert full.mismatched_strata == []

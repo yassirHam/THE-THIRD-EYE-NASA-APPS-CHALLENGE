@@ -32,6 +32,33 @@ Changes v2 (review response):
        - outside_evaluated_conditions  (domain not evaluated at all)
        - missing_required_support      (required observations absent)
        - insufficient_evidence         (checks incomplete/unavailable)
+
+Changes v3 (review response — two remaining issues):
+  Issue 1 — Headline direction withheld when applicability fails or is absent
+    (stage_a.py:668 in v2):
+    apply_factor now gates headline_direction on applicability_status.
+    Only ApplicabilityStatus.EVALUATED permits INCREASE/DECREASE/NO_CHANGE.
+    Any other status (FAILED_APPLICABILITY, MISSING_REQUIRED_SUPPORT,
+    OUTSIDE_EVALUATED, INSUFFICIENT_EVIDENCE) → UNRESOLVED, with the reason
+    recorded.  practical_change is similarly gated: a directional practical
+    category requires both a numeric delta AND evaluated applicability.
+    Spec §7: "do not collapse these dimensions into a reassuring single badge
+    or report a directional conclusion when its mandatory applicability evidence
+    fails or is absent."
+
+  Issue 2 — Matched calendar strata required before making a factor available
+    (stage_a.py:383 in v2):
+    Added _check_stratum_match(aqua, viirs) which computes the symmetric
+    difference of (year, stratum) key sets present in both sensor lists.
+    Keys present in one sensor but absent in the other → factor UNAVAILABLE
+    with the mismatched key list in a new FactorResult.mismatched_strata field.
+    This applies to both own-support (a_H) and common-support (a_C) fits.
+    Spec §6: "matched calendar strata"; a_C uses "identical paired
+    common-support cell-days" — unverified pairing is now an error, not a
+    silent assumption.
+    Note: this check verifies (year, stratum) key presence, not sub-pixel
+    spatial cell identity; spatial pairing of cell-days must be verified by
+    the data layer before records are assembled and passed here.
 """
 from __future__ import annotations
 
@@ -216,6 +243,7 @@ class FactorResult:
     n_viirs_obs: int
     missing_aqua_years: list[int] = field(default_factory=list)
     missing_viirs_years: list[int] = field(default_factory=list)
+    mismatched_strata: list[tuple[int, str]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
 
 
@@ -238,6 +266,38 @@ def _check_year_support(
     return sorted(y for y in training_years if y not in years_with_support)
 
 
+def _check_stratum_match(
+    aqua_records: list[ObsRecord],
+    viirs_records: list[ObsRecord],
+) -> list[tuple[int, str]]:
+    """
+    Return the sorted list of (year, stratum) keys that are present in one
+    sensor's available records but absent in the other's available records.
+
+    Spec §6 requires "matched calendar strata" for a_H and "identical paired
+    common-support cell-days" for a_C.  A (year, stratum) key present for Aqua
+    but missing for VIIRS (or vice-versa) means the two pooled rates would not
+    cover the same temporal domain — the factor would be computed on
+    mismatched observations.
+
+    Only available (O > 0) records are considered; O = 0 records carry no
+    poolable information and are ignored here just as they are in _pooled_rate.
+
+    Note: this verifies (year, stratum) key identity, not sub-pixel spatial
+    cell membership.  Spatial cell pairing for a_C must be enforced by the
+    data layer before records are assembled and passed to this module.
+    """
+    aqua_keys: set[tuple[int, str]] = {
+        (r.year, r.stratum) for r in aqua_records if r.is_available
+    }
+    viirs_keys: set[tuple[int, str]] = {
+        (r.year, r.stratum) for r in viirs_records if r.is_available
+    }
+    # Symmetric difference: keys in one set but not the other
+    mismatched = aqua_keys.symmetric_difference(viirs_keys)
+    return sorted(mismatched)
+
+
 def _fit_factor(
     *,
     variant_id: str,
@@ -257,6 +317,12 @@ def _fit_factor(
     support for either sensor, the factor is UNAVAILABLE and the missing
     years are recorded explicitly.  Silently pooling over fewer years than
     registered is a scientific error (§6: "registered training years").
+
+    Precondition check (v3): every (year, stratum) key present in available
+    Aqua records must also be present in available VIIRS records, and vice
+    versa.  Mismatched strata → UNAVAILABLE.  Spec §6 requires "matched
+    calendar strata"; a_C additionally requires "identical paired
+    common-support cell-days".
 
     Returns FactorResult with status=UNAVAILABLE and factor_value=None
     whenever the computation cannot proceed.
@@ -293,6 +359,32 @@ def _fit_factor(
             n_viirs_obs=0,
             missing_aqua_years=missing_aqua,
             missing_viirs_years=missing_viirs,
+            mismatched_strata=[],
+            reasons=reasons,
+        )
+
+    # --- (v3) Check that (year, stratum) keys are matched across sensors ---
+    mismatched = _check_stratum_match(aqua_records, viirs_records)
+    if mismatched:
+        reasons.append(
+            f"Calendar strata are not matched between Aqua and VIIRS available "
+            f"records.  Mismatched (year, stratum) keys: {mismatched}.  "
+            f"Spec §6 requires matched strata; factor variant '{variant_id}' "
+            "is UNAVAILABLE until the data layer supplies aligned records."
+        )
+        return FactorResult(
+            variant_id=variant_id,
+            factor_type=factor_type,
+            training_years=training_years,
+            status=FactorStatus.UNAVAILABLE,
+            factor_value=None,
+            aqua_pooled_rate=None,
+            viirs_pooled_rate=None,
+            n_aqua_obs=0,
+            n_viirs_obs=0,
+            missing_aqua_years=[],
+            missing_viirs_years=[],
+            mismatched_strata=mismatched,
             reasons=reasons,
         )
 
@@ -337,6 +429,7 @@ def _fit_factor(
             n_viirs_obs=n_viirs,
             missing_aqua_years=missing_aqua,
             missing_viirs_years=missing_viirs,
+            mismatched_strata=[],
             reasons=reasons,
         )
 
@@ -358,6 +451,7 @@ def _fit_factor(
             n_viirs_obs=n_viirs,
             missing_aqua_years=[],
             missing_viirs_years=[],
+            mismatched_strata=[],
             reasons=reasons,
         )
 
@@ -373,6 +467,7 @@ def _fit_factor(
         n_viirs_obs=n_viirs,
         missing_aqua_years=[],
         missing_viirs_years=[],
+        mismatched_strata=[],
         reasons=[],
     )
 
@@ -748,9 +843,26 @@ def apply_factor(
                 )
             equality_break_a = None  # division undefined
 
-    # --- headline direction ---
+    # --- headline direction (v3: gated on applicability) ---
+    # Spec §7: "do not collapse these dimensions into a reassuring single badge
+    # or report a directional conclusion when its mandatory applicability evidence
+    # fails or is absent."
+    # Only ApplicabilityStatus.EVALUATED permits a directional answer.
+    # All other statuses → UNRESOLVED, with the reason recorded.
+    applicability_permits_direction = (
+        applicability_status == ApplicabilityStatus.EVALUATED
+    )
+
     if delta is None:
         headline_direction = HeadlineDirection.UNRESOLVED
+    elif not applicability_permits_direction:
+        headline_direction = HeadlineDirection.UNRESOLVED
+        reasons.append(
+            f"Headline direction withheld: applicability_status is "
+            f"'{applicability_status.value}', not 'evaluated_for_conditions'. "
+            "A directional conclusion requires passing applicability gates "
+            "(spec §7)."
+        )
     elif delta > 0.0:
         headline_direction = HeadlineDirection.INCREASE
     elif delta < 0.0:
@@ -759,7 +871,10 @@ def apply_factor(
         headline_direction = HeadlineDirection.NO_CHANGE
 
     # --- practical change (§7) ---
-    if delta is None or practical_margin_tau is None:
+    # Practical category also requires evaluated applicability: a category of
+    # "meaningful increase" is itself a directional claim and must not be
+    # emitted when applicability has failed or is absent.
+    if delta is None or practical_margin_tau is None or not applicability_permits_direction:
         practical_change = PracticalChange.UNSPECIFIED
     elif delta > practical_margin_tau:
         practical_change = PracticalChange.MEANINGFUL_INCREASE
