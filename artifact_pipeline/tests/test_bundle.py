@@ -39,7 +39,9 @@ def test_build_write_and_verify_round_trip(tmp_path: Path) -> None:
     index = p0_bundle().write(tmp_path / "b")
     again = verify_bundle(tmp_path / "b")
     assert index == again
-    assert len(index["entries"]) == len(P0_SYNTHETIC_SET)
+    # the input manifest is a provenance source, not a bundle file
+    assert len(index["entries"]) == len(P0_SYNTHETIC_SET) - 1
+    assert len(index["replay_manifests"]) == len(index["entries"]) and index["replay_manifests_missing"] == []
     assert index["label"].startswith("[SYNTHETIC DEV FIXTURE]")
     size = index["size_report"]
     assert size["total_gzip_bytes"] == sum(e["gzip_bytes"] for e in index["entries"])
@@ -206,7 +208,7 @@ def test_cli_builds_and_reports(tmp_path: Path, capsys) -> None:
                  "--classification", SYN])
     assert code == 0
     report = json.loads(capsys.readouterr().out)
-    assert report["entries"] == len(P0_SYNTHETIC_SET) and report["within_p0_target"] is True
+    assert report["entries"] == len(P0_SYNTHETIC_SET) - 1 and report["within_p0_target"] is True
     assert (tmp_path / "cli" / INDEX_NAME).exists()
 
 
@@ -222,3 +224,76 @@ def test_bundle_refuses_an_artifact_from_another_contract_version() -> None:
     old = comp.model_construct(**{**comp.__dict__, "contract_version": "1.3.0"})
     with pytest.raises(BundleError, match="contract"):
         Bundle(bundle_version="v", data_classification=SYN).add(old)
+
+
+# ----------------------------------------------- replay manifests (P5-B format, contract 1.5.0)
+from contracts.schemas import ProvenanceManifest, assert_manifest_describes  # noqa: E402
+
+
+def test_every_bundle_file_gets_a_bound_replay_manifest(tmp_path: Path) -> None:
+    index = p0_bundle().write(tmp_path / "b")
+    by_path = {e["path"]: e for e in index["entries"]}
+    for m in index["replay_manifests"]:
+        man = ProvenanceManifest.model_validate_json((tmp_path / "b" / m["path"]).read_bytes())
+        e = by_path[m["describes"]]
+        art = MODEL_BY_FAMILY[e["family"]].model_validate_json((tmp_path / "b" / e["path"]).read_bytes())
+        assert_manifest_describes(man, art, e["family"])
+        [part] = man.partitions
+        assert part.file_path == e["path"] and part.sha256_checksum == e["sha256"]
+        assert part.cache_key_sha256 == e["cache_key_digest"] and man.total_file_size_bytes == e["bytes"]
+        assert part.sensor is None
+        assert man.fixture_label == "[SYNTHETIC DEV FIXTURE]"
+
+
+def test_replay_manifest_never_claims_more_than_the_certification(tmp_path: Path) -> None:
+    index = p0_bundle().write(tmp_path / "b")
+    claims = {m["family"]: ProvenanceManifest.model_validate_json((tmp_path / "b" / m["path"]).read_bytes())
+              .partitions[0].coverage_status for m in index["replay_manifests"]}
+    assert claims["calendar"] == "complete"  # the fixture's SYNTHETIC-TEST-ONLY certification
+    assert all(v == "unverified" for f, v in claims.items() if f != "calendar")
+
+
+def test_unverified_calendar_gets_an_unverified_manifest(tmp_path: Path) -> None:
+    b = Bundle(bundle_version="v", data_classification=SYN)
+    prov = json.loads((FIXTURES / "sample_manifest.json").read_text(encoding="utf-8"))
+    prov["partitions"][0]["coverage_status"] = "unverified"
+    b.add(ProvenanceManifest.model_validate_json(json.dumps(prov)))
+    b.add(model("sample_calendar_unverified_footprint.json"))
+    index = b.write(tmp_path / "b")
+    [m] = index["replay_manifests"]
+    man = ProvenanceManifest.model_validate_json((tmp_path / "b" / m["path"]).read_bytes())
+    assert man.partitions[0].coverage_status == "unverified"
+
+
+def test_input_manifest_claiming_complete_for_an_unverified_calendar_is_refused(tmp_path: Path) -> None:
+    b = Bundle(bundle_version="v", data_classification=SYN)
+    b.add(model("sample_manifest.json"))
+    b.add(model("sample_calendar_unverified_footprint.json"))
+    with pytest.raises(Exception, match="certification"):
+        b.write(tmp_path / "b")
+
+
+def test_no_provenance_means_no_manifest_and_a_listed_gap(tmp_path: Path) -> None:
+    b = Bundle(bundle_version="v", data_classification=SYN)
+    b.add(model("sample_calendar.json"))
+    index = b.write(tmp_path / "b")
+    assert index["replay_manifests"] == []
+    assert index["replay_manifests_missing"][0]["reason"].startswith("no provenance")
+    assert not (tmp_path / "b" / "manifests").exists()
+
+
+def test_conflicting_provenance_for_one_geometry_is_refused() -> None:
+    b = Bundle(bundle_version="v", data_classification=SYN)
+    b.add(model("sample_manifest.json"))
+    other = json.loads((FIXTURES / "sample_manifest.json").read_text(encoding="utf-8"))
+    other["boundary_version"] = "2"
+    with pytest.raises(BundleError, match="conflicting provenance"):
+        b.add(ProvenanceManifest.model_validate_json(json.dumps(other)))
+
+
+def test_verify_detects_a_tampered_replay_manifest(tmp_path: Path) -> None:
+    index = p0_bundle().write(tmp_path / "b")
+    p = tmp_path / "b" / index["replay_manifests"][0]["path"]
+    p.write_bytes(p.read_bytes().replace(b'"unverified"', b'"complete"').replace(b'"complete"', b'"complete"', 1))
+    with pytest.raises(BundleError, match="replay manifest"):
+        verify_bundle(tmp_path / "b")

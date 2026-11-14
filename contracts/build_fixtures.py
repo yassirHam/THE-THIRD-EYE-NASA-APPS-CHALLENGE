@@ -675,7 +675,8 @@ def manifest() -> dict:
         "total_file_size_bytes": 2000, "compressed_bundle_size_bytes": 800,
         "partitions": [{
             "file_path": "synthetic/calendar.json", "geometry_id": GEO, "period_spec": PERIOD,
-            "method_id": "same_sensor_calendar", "policy_id": POLICY, "sensor": "MODIS_Aqua",
+            # A calendar file holds both same-sensor series, so the partition names no single sensor.
+            "method_id": "same_sensor_calendar", "policy_id": POLICY, "sensor": None,
             "cache_key_sha256": CacheKey(
                 artifact_version="synthetic-v1", geometry_id=GEO, period_spec=PERIOD,
                 method_id="same_sensor_calendar", policy_id=POLICY,
