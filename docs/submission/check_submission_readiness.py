@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -47,6 +48,10 @@ ONE_PAGE = SUBMISSION_DIR / "ONE_PAGE_RESULTS.md"
 DEMO = SUBMISSION_DIR / "DEMO_SCRIPT.md"
 CHECKLIST = SUBMISSION_DIR / "PORTAL_CHECKLIST.md"
 FIXTURES_DIR = ROOT / "contracts" / "fixtures"
+# Fixture values of the CURRENT contract are read from this git ref (P4-B review checkpoint), in
+# addition to any older contracts/fixtures on this branch. Override with
+# $env:SUBMISSION_CONTRACT_REF. If the ref is unreadable the leak check FAILS.
+CONTRACT_REF = os.environ.get("SUBMISSION_CONTRACT_REF", "8edec4676b26237c81b11140587ad0989d28ba22")
 
 REQUIRED_FILES = [CAPTURE, ONE_PAGE, DEMO, CHECKLIST, Path(__file__).resolve()]
 
@@ -341,8 +346,18 @@ def check_hashes(docs: list[Path], report: Report) -> list[str]:
     return problems
 
 
+# Calendar structure (day counts, week and month numbers) is not a sample finding; contract
+# 1.3.0+ fixtures carry such small integers (7, 27, 30, 31) on every period record.
+STRUCTURAL_KEYS = {
+    "coordinates", "days_in_period", "days_with_file", "included_day_count", "week_number", "month",
+    "year", "iso_year", "target_year", "minimum_year_count", "reference_start_year",
+    "reference_end_year", "normal_season_start_month", "normal_season_end_month", "peak_median_month",
+    "eligible_prior_years",
+}
+
+
 def _fixture_values(obj, sink: set[str], key: str = "") -> None:
-    if key == "coordinates":
+    if key in STRUCTURAL_KEYS:
         return
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -368,12 +383,35 @@ def _fixture_values(obj, sink: set[str], key: str = "") -> None:
             sink.add(obj)
 
 
+def _fixture_texts() -> tuple[list[str], str]:
+    """Fixture JSON texts from local contracts/ (may be an older version on this branch) AND the
+    current contract ref. The ref must be readable; otherwise nothing is returned."""
+    local = [p.read_text(encoding="utf-8") for p in sorted(FIXTURES_DIR.glob("*.json"))]
+    try:
+        names = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-tree", "--name-only", f"{CONTRACT_REF}:contracts/fixtures"],
+            capture_output=True, text=True, check=True, timeout=30,
+        ).stdout.split()
+        texts = [subprocess.run(
+            ["git", "-C", str(ROOT), "show", f"{CONTRACT_REF}:contracts/fixtures/{n}"],
+            capture_output=True, text=True, encoding="utf-8", check=True, timeout=30,
+        ).stdout for n in names if n.endswith(".json")]
+    except (OSError, subprocess.SubprocessError):
+        return [], f"git ref {CONTRACT_REF[:12]} (unreadable)"
+    if not texts:
+        return [], f"git ref {CONTRACT_REF[:12]} (no fixtures)"
+    return local + texts, f"contracts/fixtures + git ref {CONTRACT_REF[:12]}"
+
+
 def check_fixture_leaks(docs: list[Path]) -> list[str]:
     values: set[str] = set()
-    for fixture in sorted(FIXTURES_DIR.glob("*.json")):
+    texts, source = _fixture_texts()
+    if not texts:
+        return [f"no contract fixtures readable from {source}; fetch P4-B or set SUBMISSION_CONTRACT_REF"]
+    for text in texts:
         try:
-            _fixture_values(json.loads(fixture.read_text(encoding="utf-8")), values)
-        except (json.JSONDecodeError, UnicodeDecodeError):
+            _fixture_values(json.loads(text), values)
+        except json.JSONDecodeError:
             continue
     problems = []
     for doc in docs:
