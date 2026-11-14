@@ -98,6 +98,8 @@ class PeriodObs:
         other than the S-NPP cutoff (e.g. an in-progress month).  It can mark
         a period partial; it cannot mark an S-NPP period complete.
     policy: support policy; rates never mix policies.
+    block_id: optional identifier for geographic block/footprint; used for
+        whole-area baseline calculations to verify all required blocks are present.
     """
 
     sensor: SensorID
@@ -108,6 +110,7 @@ class PeriodObs:
     week_number: Optional[int] = None
     is_partial: bool = False
     policy: PolicyID = "own_support"
+    block_id: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.D < 0:
@@ -235,12 +238,19 @@ def compute_rate(obs: PeriodObs) -> RateResult:
     return _result(SCALE * obs.D / obs.O, RateStatus.AVAILABLE, [])
 
 
-def pooled_rate(observations: list[PeriodObs]) -> Optional[float]:
+def pooled_rate(
+    observations: list[PeriodObs],
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> Optional[float]:
     """
     1000 * sum(D) / sum(O) across available observations.
 
     Raises ValueError when records mix sensors, policies or period types.
     Returns None when no available observation exists.
+    
+    If required_blocks is provided, verifies that every required block
+    is present and has usable observations (O > 0). If any required block
+    has O=0 or is missing, returns None (available=False).
     """
     if not observations:
         return None
@@ -254,6 +264,20 @@ def pooled_rate(observations: list[PeriodObs]) -> Optional[float]:
         raise ValueError(f"pooled_rate received mixed policies {sorted(policies)}.")
     if len(period_types) > 1:
         raise ValueError("pooled_rate received both monthly and weekly records.")
+
+    # Verify block completeness if required_blocks is provided
+    if required_blocks is not None:
+        available_blocks = {o.block_id for o in observations if o.block_id is not None}
+        missing_blocks = set(required_blocks) - available_blocks
+        if missing_blocks:
+            return None  # Some required blocks are missing
+        
+        # Check each required block has O > 0
+        for block in required_blocks:
+            block_obs = [o for o in observations if o.block_id == block]
+            total_block_O = sum(o.O for o in block_obs)
+            if total_block_O == 0:
+                return None  # Required block has no usable observations
 
     total_D = 0
     total_O = 0

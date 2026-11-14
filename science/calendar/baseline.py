@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from datetime import date
 from enum import Enum
 from typing import Optional
 
@@ -154,6 +155,7 @@ def compute_month_baseline(
     target_year: int,
     all_obs: list[PeriodObs],
     config: BaselineConfig,
+    required_blocks: Optional[tuple[str, ...]] = None,
 ) -> MonthBaseline:
     """Baseline for one calendar month and target year under a frozen config."""
     last_year = min(target_year - 1, config.eligible_end_year)
@@ -197,7 +199,33 @@ def compute_month_baseline(
             missing.append(yr)
             reasons.append(f"{yr}: partial or after-cessation record present.")
             continue
-        total_O = sum(r.O for r in recs)
+        
+        # Check block completeness if required_blocks is provided
+        recs_available = [r for r in recs if r.is_available]
+        if required_blocks is not None:
+            # Group by block_id
+            blocks_present = {r.block_id for r in recs_available if r.block_id is not None}
+            missing_blocks = set(required_blocks) - blocks_present
+            if missing_blocks:
+                missing.append(yr)
+                reasons.append(f"{yr}: missing blocks {sorted(missing_blocks)}.")
+                continue
+            
+            # Check each required block has O > 0
+            blocks_ok = True
+            for block in required_blocks:
+                block_recs = [r for r in recs_available if r.block_id == block]
+                total_block_O = sum(r.O for r in block_recs)
+                if total_block_O == 0:
+                    missing.append(yr)
+                    reasons.append(f"{yr}: block {block} has O=0.")
+                    blocks_ok = False
+                    break
+            
+            if not blocks_ok:
+                continue
+        
+        total_O = sum(r.O for r in recs_available)
         if total_O < config.min_support_O:
             missing.append(yr)
             reasons.append(
@@ -205,10 +233,10 @@ def compute_month_baseline(
                 f"{config.min_support_O}."
             )
             continue
-        rate = pooled_rate(recs)
-        if rate is None:  # unreachable while min_support_O >= 1
+        rate = pooled_rate(recs_available, required_blocks=required_blocks)
+        if rate is None:  # Can happen if required_blocks check failed in pooled_rate
             missing.append(yr)
-            reasons.append(f"{yr}: no available records.")
+            reasons.append(f"{yr}: no available records after block check.")
             continue
         rates[yr] = rate
 
@@ -239,6 +267,7 @@ def label_unusual(
     target_year: int,
     calendar_month: int,
     baseline: MonthBaseline,
+    required_blocks: Optional[tuple[str, ...]] = None,
 ) -> UnusualLabel:
     """Unusual = target rate strictly above the baseline's 90th percentile."""
     if baseline.target_year != target_year or baseline.calendar_month != calendar_month:
@@ -270,6 +299,23 @@ def label_unusual(
     if any(o.is_period_partial or o.is_after_cessation for o in relevant):
         return _label("target_partial", p90=baseline.p90_rate,
                       reason="Target month is partial or after S-NPP cessation.")
+    
+    # Verify block completeness if required_blocks is provided
+    if required_blocks is not None:
+        available_blocks = {o.block_id for o in relevant if o.block_id is not None}
+        missing_blocks = set(required_blocks) - available_blocks
+        if missing_blocks:
+            return _label("target_unavailable", p90=baseline.p90_rate,
+                          reason=f"Missing required blocks: {sorted(missing_blocks)}")
+        
+        # Check each required block has O > 0
+        for block in required_blocks:
+            block_recs = [o for o in relevant if o.block_id == block]
+            total_block_O = sum(o.O for o in block_recs)
+            if total_block_O == 0:
+                return _label("target_unavailable", p90=baseline.p90_rate,
+                              reason=f"Block {block} has O=0.")
+    
     total_O = sum(o.O for o in relevant)
     if total_O == 0:
         return _label("target_unavailable", p90=baseline.p90_rate,
@@ -279,7 +325,7 @@ def label_unusual(
                       reason=f"Target O = {total_O} below registered minimum "
                              f"{baseline.min_support_O}.")
 
-    rate = pooled_rate(relevant)
+    rate = pooled_rate(relevant, required_blocks=required_blocks)
     p90 = baseline.p90_rate
     return _label("labeled", rate=rate, p90=p90,
                   unusual=rate > p90)  # type: ignore[operator]
@@ -350,3 +396,216 @@ def derive_normal_season(
         tied_peak_months=tied, interior_nonqualifying_months=interior,
         missing_months=[], reasons=reasons,
     )
+
+
+# ---------------------------------------------------------------------------
+# Weekly baseline
+# ---------------------------------------------------------------------------
+def compute_week_baseline(
+    week_number: int,
+    target_year: int,
+    all_obs: list[PeriodObs],
+    config: BaselineConfig,
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> MonthBaseline:
+    """
+    Weekly baseline following the same rules as monthly baselines.
+    
+    Week number is an ISO week (1-53). For weekly records, PeriodObs.year
+    is the ISO week-year.
+    
+    Returns MonthBaseline for consistency (same structure, different semantics).
+    The calendar_month field in the result contains the week number (1-53).
+    """
+    # Validate week_number
+    if not (1 <= week_number <= 53):
+        raise ValueError(f"week_number must be 1-53, got {week_number}")
+    
+    # Validate target_year is valid for ISO week-year
+    try:
+        date.fromisocalendar(target_year, week_number, 1)
+    except ValueError as exc:
+        raise ValueError(
+            f"week_number {week_number} is not a valid ISO week "
+            f"for ISO week-year {target_year}."
+        ) from exc
+    
+    last_year = min(target_year - 1, config.eligible_end_year)
+    required = list(range(config.eligible_start_year, last_year + 1))
+
+    def _result(status, median=None, p90=None, used=None, missing=None, reasons=None):
+        used = used or []
+        return MonthBaseline(
+            calendar_month=week_number,  # Store week number in calendar_month
+            target_year=target_year,
+            sensor=config.sensor, policy=config.policy,
+            min_support_O=config.min_support_O,
+            median_rate=median, p90_rate=p90, n_years=len(used),
+            eligible_years=used, required_years=required,
+            missing_years=missing or [], status=status, reasons=reasons or [],
+        )
+
+    if len(required) < config.min_years:
+        return _result(BaselineStatus.INSUFFICIENT_BASELINE, reasons=[
+            f"Registered span gives {len(required)} prior year(s) "
+            f"({required}) for target {target_year}; minimum is "
+            f"{config.min_years}.  Insufficient baseline."
+        ])
+
+    required_set = set(required)
+    by_year: dict[int, list[PeriodObs]] = {}
+    for o in all_obs:
+        if (o.sensor == config.sensor and o.policy == config.policy
+                and o.week_number == week_number and o.year in required_set):
+            by_year.setdefault(o.year, []).append(o)
+
+    missing: list[int] = []
+    reasons: list[str] = []
+    rates: dict[int, float] = {}
+    for yr in required:
+        recs = by_year.get(yr, [])
+        if not recs:
+            missing.append(yr)
+            reasons.append(f"{yr}: no records.")
+            continue
+        if any(r.is_period_partial or r.is_after_cessation for r in recs):
+            missing.append(yr)
+            reasons.append(f"{yr}: partial or after-cessation record present.")
+            continue
+        
+        # Check block completeness if required_blocks is provided
+        recs_available = [r for r in recs if r.is_available]
+        if required_blocks is not None:
+            # Group by block_id
+            blocks_present = {r.block_id for r in recs_available if r.block_id is not None}
+            missing_blocks = set(required_blocks) - blocks_present
+            if missing_blocks:
+                missing.append(yr)
+                reasons.append(f"{yr}: missing blocks {sorted(missing_blocks)}.")
+                continue
+            
+            # Check each required block has O > 0
+            blocks_ok = True
+            for block in required_blocks:
+                block_recs = [r for r in recs_available if r.block_id == block]
+                total_block_O = sum(r.O for r in block_recs)
+                if total_block_O == 0:
+                    missing.append(yr)
+                    reasons.append(f"{yr}: block {block} has O=0.")
+                    blocks_ok = False
+                    break
+            
+            if not blocks_ok:
+                continue
+        
+        total_O = sum(r.O for r in recs_available)
+        if total_O < config.min_support_O:
+            missing.append(yr)
+            reasons.append(
+                f"{yr}: summed O = {total_O} below registered minimum "
+                f"{config.min_support_O}."
+            )
+            continue
+        rate = pooled_rate(recs_available, required_blocks=required_blocks)
+        if rate is None:  # Can happen if required_blocks check failed in pooled_rate
+            missing.append(yr)
+            reasons.append(f"{yr}: no available records after block check.")
+            continue
+        rates[yr] = rate
+
+    if missing:
+        reasons.insert(0, (
+            f"Required prior years {missing} lack complete records with "
+            f"registered support for {config.sensor}/{config.policy} week "
+            f"{week_number}, target {target_year}.  Baseline unavailable; "
+            "remaining years are not used on their own."
+        ))
+        return _result(BaselineStatus.MISSING_REQUIRED_YEARS,
+                       used=sorted(rates), missing=missing, reasons=reasons)
+
+    sorted_rates = sorted(rates.values())
+    return _result(
+        BaselineStatus.AVAILABLE,
+        median=_median(sorted_rates),
+        p90=_nearest_rank_percentile(sorted_rates, 90.0),
+        used=sorted(rates),
+    )
+
+
+def label_unusual_week(
+    target_obs: list[PeriodObs],
+    target_year: int,
+    week_number: int,
+    baseline: MonthBaseline,
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> UnusualLabel:
+    """
+    Label a week as unusual if its rate is strictly above the baseline's 90th percentile.
+    
+    Follows the same rules as label_unusual but operates on ISO weeks.
+    The baseline.calendar_month field contains the week number (1-53).
+    """
+    # Validate week_number
+    if not (1 <= week_number <= 53):
+        raise ValueError(f"week_number must be 1-53, got {week_number}")
+    
+    baseline_week = baseline.calendar_month
+    if baseline_week != week_number:
+        raise ValueError(
+            f"Baseline was computed for week {baseline_week}, not {week_number}."
+        )
+
+    def _label(status, rate=None, p90=None, unusual=False, reason=""):
+        return UnusualLabel(
+            calendar_month=week_number,  # Store week number in calendar_month
+            target_year=target_year,
+            sensor=baseline.sensor, policy=baseline.policy,
+            is_unusual=unusual, target_rate=rate, p90_rate=p90,
+            status=status, reason=reason,
+        )
+
+    if baseline.status != BaselineStatus.AVAILABLE:
+        return _label("baseline_unavailable",
+                      reason=f"Baseline status is {baseline.status.value}.")
+
+    relevant = [
+        o for o in target_obs
+        if o.sensor == baseline.sensor and o.policy == baseline.policy
+        and o.year == target_year and o.week_number == week_number
+    ]
+    if not relevant:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="No target records.")
+    if any(o.is_period_partial or o.is_after_cessation for o in relevant):
+        return _label("target_partial", p90=baseline.p90_rate,
+                      reason="Target week is partial or after S-NPP cessation.")
+    
+    # Verify block completeness if required_blocks is provided
+    if required_blocks is not None:
+        available_blocks = {o.block_id for o in relevant if o.block_id is not None}
+        missing_blocks = set(required_blocks) - available_blocks
+        if missing_blocks:
+            return _label("target_unavailable", p90=baseline.p90_rate,
+                          reason=f"Missing required blocks: {sorted(missing_blocks)}")
+        
+        # Check each required block has O > 0
+        for block in required_blocks:
+            block_recs = [o for o in relevant if o.block_id == block]
+            total_block_O = sum(o.O for o in block_recs)
+            if total_block_O == 0:
+                return _label("target_unavailable", p90=baseline.p90_rate,
+                              reason=f"Block {block} has O=0.")
+    
+    total_O = sum(o.O for o in relevant)
+    if total_O == 0:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="Target O = 0; unavailable, not zero.")
+    if total_O < baseline.min_support_O:
+        return _label("target_insufficient_support", p90=baseline.p90_rate,
+                      reason=f"Target O = {total_O} below registered minimum "
+                             f"{baseline.min_support_O}.")
+
+    rate = pooled_rate(relevant, required_blocks=required_blocks)
+    p90 = baseline.p90_rate
+    return _label("labeled", rate=rate, p90=p90,
+                  unusual=rate > p90)  # type: ignore[operator]

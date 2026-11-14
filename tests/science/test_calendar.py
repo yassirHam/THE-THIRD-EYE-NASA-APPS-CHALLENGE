@@ -35,8 +35,10 @@ from science.calendar.baseline import (
     _median,
     _nearest_rank_percentile,
     compute_month_baseline,
+    compute_week_baseline,
     derive_normal_season,
     label_unusual,
+    label_unusual_week,
 )
 
 
@@ -48,6 +50,18 @@ def _mo(sensor, year, month, D, O, partial=False, policy="own_support"):
 def _wk(sensor, year, week, D, O, partial=False):
     return PeriodObs(sensor=sensor, year=year, D=D, O=O, week_number=week,
                      is_partial=partial)
+
+
+def _mo_block(sensor, year, month, D, O, block_id, partial=False, policy="own_support"):
+    """PeriodObs with block_id for footprint/area tests."""
+    return PeriodObs(sensor=sensor, year=year, D=D, O=O, month=month,
+                     is_partial=partial, policy=policy, block_id=block_id)
+
+
+def _wk_block(sensor, year, week, D, O, block_id, partial=False):
+    """PeriodObs with block_id for weekly footprint/area tests."""
+    return PeriodObs(sensor=sensor, year=year, D=D, O=O, week_number=week,
+                     is_partial=partial, block_id=block_id)
 
 
 def _cfg(sensor="MODIS_Aqua", start=2016, end=2024, min_years=3,
@@ -274,6 +288,46 @@ class TestStatistics:
 
 
 # ---------------------------------------------------------------------------
+# PeriodObs with block_id (finding 1)
+# ---------------------------------------------------------------------------
+class TestPeriodObsBlock:
+    def test_block_id_optional(self):
+        # Without block_id
+        o1 = _mo("MODIS_Aqua", 2016, 7, 10, 100)
+        assert o1.block_id is None
+        # With block_id
+        o2 = _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A")
+        assert o2.block_id == "BLOCK_A"
+
+    def test_pooled_rate_with_required_blocks(self):
+        # Two blocks, each with O > 0 -> should succeed
+        obs = [
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 60, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 40, "BLOCK_B"),
+        ]
+        result = pooled_rate(obs, required_blocks=("BLOCK_A", "BLOCK_B"))
+        # Total: 20 / 100 * 1000 = 200.0
+        assert result == pytest.approx(200.0)
+
+    def test_pooled_rate_missing_block_returns_none(self):
+        # Missing BLOCK_B
+        obs = [
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+        ]
+        result = pooled_rate(obs, required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert result is None
+
+    def test_pooled_rate_block_with_O_zero_returns_none(self):
+        # BLOCK_B has O=0
+        obs = [
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2016, 7, 0, 0, "BLOCK_B"),
+        ]
+        result = pooled_rate(obs, required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
 # Monthly baseline: required years (finding 2)
 # ---------------------------------------------------------------------------
 class TestMonthBaseline:
@@ -368,6 +422,53 @@ class TestMonthBaseline:
         with pytest.raises(ValueError):
             _cfg(season_start=13)
 
+    def test_block_completeness_required_for_baseline(self):
+        # Prepare observations with all required years and block support
+        # Each year has both BLOCK_A and BLOCK_B
+        obs = [
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 500, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2017, 7, 50, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2017, 7, 50, 500, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2018, 7, 80, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2018, 7, 80, 500, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2019, 7, 54, 60, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2019, 7, 54, 60, "BLOCK_B"),
+        ]
+        # Without required_blocks, should work (summed O=5600 >= 100)
+        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100))
+        assert bl.status == BaselineStatus.AVAILABLE
+        
+        # With required_blocks, both must be present with O > 0
+        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100),
+                                     required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert bl.status == BaselineStatus.AVAILABLE
+        
+        # Missing BLOCK_B in all years -> unavailable for each year
+        obs_no_b = [o for o in obs if o.block_id != "BLOCK_B"]
+        bl = compute_month_baseline(7, 2020, obs_no_b, _cfg(min_support=100),
+                                     required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2016, 2017, 2018, 2019]
+
+    def test_block_with_O_zero_makes_baseline_unavailable(self):
+        # Prepare observations with all required years
+        # BLOCK_B has O=0 for all years
+        obs = [
+            _mo_block("MODIS_Aqua", 2016, 7, 10, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2016, 7, 0, 0, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2017, 7, 50, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2017, 7, 0, 0, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2018, 7, 80, 500, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2018, 7, 0, 0, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2019, 7, 54, 60, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2019, 7, 0, 0, "BLOCK_B"),
+        ]
+        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100),
+                                     required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2016, 2017, 2018, 2019]
+
 
 # ---------------------------------------------------------------------------
 # Unusual labels
@@ -414,6 +515,167 @@ class TestLabelUnusual:
     def test_baseline_target_mismatch_raises(self, bl):
         with pytest.raises(ValueError, match="computed for"):
             label_unusual([_mo("MODIS_Aqua", 2021, 7, 99, 1000)], 2021, 7, bl)
+
+    def test_block_completeness_required_for_label(self, bl):
+        # Test that label_unusual respects required_blocks
+        # Target rate 100 > p90=90 -> unusual if blocks are complete
+        target = [
+            _mo_block("MODIS_Aqua", 2020, 7, 91, 60, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2020, 7, 91, 40, "BLOCK_B"),
+        ]
+        lab = label_unusual(target, 2020, 7, bl, required_blocks=("BLOCK_A", "BLOCK_B"))
+        # Rate = 1000 * 182 / 100 = 1820.0 > 90 -> unusual
+        assert lab.status == "labeled" and lab.is_unusual and lab.target_rate == pytest.approx(1820.0)
+        
+        # Missing BLOCK_B -> unavailable for label
+        target_no_b = [o for o in target if o.block_id != "BLOCK_B"]
+        lab = label_unusual(target_no_b, 2020, 7, bl, required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert lab.status == "target_unavailable" and not lab.is_unusual
+
+
+# ---------------------------------------------------------------------------
+# Weekly baseline (finding 2)
+# ---------------------------------------------------------------------------
+class TestWeekBaseline:
+    """
+    Weekly baseline follows the same rules as monthly baseline.
+    Config: eligible 2016-2024, min_years 3, min_support_O 100.
+    Target 2020 week 28 -> required years 2016, 2017, 2018, 2019.
+    Asymmetric fixture rates: 10, 50, 80, 90 -> median 65.0, p90 90.0.
+    """
+    
+    @pytest.fixture()
+    def asym_weekly(self):
+        # Week 28 in 2026 starts 2026-07-13 (Monday)
+        return [_wk("MODIS_Aqua", y, 28, d, 1000)
+                for y, d in ((2016, 10), (2017, 50), (2018, 80), (2019, 90))]
+
+    def test_available_weekly_baseline(self, asym_weekly):
+        bl = compute_week_baseline(28, 2020, asym_weekly, _cfg())
+        assert bl.status == BaselineStatus.AVAILABLE
+        assert bl.required_years == [2016, 2017, 2018, 2019]
+        assert bl.calendar_month == 28  # Week number stored in calendar_month
+        assert bl.median_rate == pytest.approx(65.0)
+        assert bl.p90_rate == pytest.approx(90.0)
+        assert bl.missing_years == []
+
+    def test_absent_required_year_makes_weekly_baseline_unavailable(self, asym_weekly):
+        # Drop 2017
+        obs = [o for o in asym_weekly if o.year != 2017]
+        bl = compute_week_baseline(28, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2017]
+        assert bl.median_rate is None and bl.p90_rate is None
+
+    def test_O_zero_required_year_makes_weekly_baseline_unavailable(self, asym_weekly):
+        obs = [o for o in asym_weekly if o.year != 2018] + [_wk("MODIS_Aqua", 2018, 28, 0, 0)]
+        bl = compute_week_baseline(28, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2018]
+
+    def test_under_supported_year_makes_weekly_baseline_unavailable(self, asym_weekly):
+        obs = [o for o in asym_weekly if o.year != 2019] + [_wk("MODIS_Aqua", 2019, 28, 1, 50)]
+        bl = compute_week_baseline(28, 2020, obs, _cfg(min_support=100))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2019]
+
+    def test_partial_required_year_makes_weekly_baseline_unavailable(self, asym_weekly):
+        obs = [o for o in asym_weekly if o.year != 2016] + [_wk("MODIS_Aqua", 2016, 28, 10, 1000, partial=True)]
+        bl = compute_week_baseline(28, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2016]
+
+    def test_short_span_is_insufficient_weekly(self):
+        # Target 2018 -> required 2016, 2017 -> 2 < 3
+        obs = [_wk("MODIS_Aqua", y, 28, 10, 1000) for y in (2016, 2017, 2018)]
+        bl = compute_week_baseline(28, 2018, obs, _cfg())
+        assert bl.status == BaselineStatus.INSUFFICIENT_BASELINE
+        assert bl.required_years == [2016, 2017]
+
+    def test_invalid_week_number_raises(self):
+        with pytest.raises(ValueError, match="must be 1-53"):
+            compute_week_baseline(0, 2020, [], _cfg())
+        with pytest.raises(ValueError, match="not a valid ISO week"):
+            compute_week_baseline(53, 2025, [], _cfg())  # 2025 has 52 weeks
+
+
+class TestLabelUnusualWeek:
+    """Weekly version of label_unusual tests."""
+
+    @pytest.fixture()
+    def bl_week(self):
+        obs = [_wk("MODIS_Aqua", y, 28, d, 1000)
+               for y, d in ((2016, 10), (2017, 50), (2018, 80), (2019, 90))]
+        return compute_week_baseline(28, 2020, obs, _cfg())  # p90 = 90.0
+
+    def test_strictly_above(self, bl_week):
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 91, 1000)], 2020, 28, bl_week)
+        assert lab.status == "labeled" and lab.is_unusual
+
+    def test_tie_not_unusual(self, bl_week):
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 90, 1000)], 2020, 28, bl_week)
+        assert lab.status == "labeled" and not lab.is_unusual
+
+    def test_target_O_zero(self, bl_week):
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 0, 0)], 2020, 28, bl_week)
+        assert lab.status == "target_unavailable" and lab.target_rate is None
+
+    def test_target_under_support(self, bl_week):
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 10, 50)], 2020, 28, bl_week)
+        assert lab.status == "target_insufficient_support" and not lab.is_unusual
+
+    def test_target_partial(self, bl_week):
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 99, 1000, partial=True)], 2020, 28, bl_week)
+        assert lab.status == "target_partial" and not lab.is_unusual
+
+    def test_unavailable_baseline(self):
+        bl = compute_week_baseline(28, 2020, [], _cfg())
+        lab = label_unusual_week([_wk("MODIS_Aqua", 2020, 28, 99, 1000)], 2020, 28, bl)
+        assert lab.status == "baseline_unavailable" and not lab.is_unusual
+
+    def test_baseline_target_mismatch_raises(self, bl_week):
+        with pytest.raises(ValueError, match="computed for"):
+            label_unusual_week([_wk("MODIS_Aqua", 2020, 29, 99, 1000)], 2020, 29, bl_week)
+
+    def test_block_completeness_for_weekly(self, bl_week):
+        # With block_id
+        target = [
+            _wk_block("MODIS_Aqua", 2020, 28, 91, 60, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2020, 28, 91, 40, "BLOCK_B"),
+        ]
+        lab = label_unusual_week(target, 2020, 28, bl_week, required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert lab.status == "labeled" and lab.is_unusual
+        
+        # Missing BLOCK_B
+        target_no_b = [o for o in target if o.block_id != "BLOCK_B"]
+        lab = label_unusual_week(target_no_b, 2020, 28, bl_week, required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert lab.status == "target_unavailable" and not lab.is_unusual
+
+    def test_weekly_baseline_with_blocks(self):
+        # Prepare observations with all required years and block support
+        # Each year has both BLOCK_A and BLOCK_B with O=500 each (total O=1000)
+        obs = [
+            _wk_block("MODIS_Aqua", 2016, 28, 10, 500, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2016, 28, 10, 500, "BLOCK_B"),
+            _wk_block("MODIS_Aqua", 2017, 28, 50, 500, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2017, 28, 50, 500, "BLOCK_B"),
+            _wk_block("MODIS_Aqua", 2018, 28, 80, 500, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2018, 28, 80, 500, "BLOCK_B"),
+            _wk_block("MODIS_Aqua", 2019, 28, 54, 60, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2019, 28, 54, 60, "BLOCK_B"),
+        ]
+        bl = compute_week_baseline(28, 2020, obs, _cfg(min_support=100),
+                                     required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert bl.status == BaselineStatus.AVAILABLE
+        # Rates: 2016=20.0, 2017=100.0, 2018=160.0, 2019=900.0 -> median (100+160)/2=130.0
+        assert bl.median_rate == pytest.approx(130.0)
+        
+        # Missing BLOCK_B -> unavailable
+        obs_no_b = [o for o in obs if o.block_id != "BLOCK_B"]
+        bl = compute_week_baseline(28, 2020, obs_no_b, _cfg(min_support=100),
+                                     required_blocks=("BLOCK_A", "BLOCK_B"))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2016, 2017, 2018, 2019]
 
     def test_zero_baseline(self):
         obs = [_mo("MODIS_Aqua", y, 2, 0, 1000) for y in (2016, 2017, 2018)]
