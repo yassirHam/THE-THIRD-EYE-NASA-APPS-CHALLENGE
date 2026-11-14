@@ -1,773 +1,511 @@
 """
-Unit tests for science/calendar/rates.py and science/calendar/baseline.py
+Unit tests for science/calendar/rates.py and science/calendar/baseline.py.
 
-ALL expected values computed by hand from spec equations.
-No outputs copied from the implementation under test.
+Expected values are hand-computed from the plan's equations, not copied from
+the implementation.  All data below are synthetic fixtures.
 
-Scientific authority:
-  THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt  §3A, §4
-  contracts/schemas/calendar.py
-
-Invariants tested:
-  1.  R = 1000 * sum(D) / sum(O), sums before division.
-  2.  O = 0 → unavailable, never zero fire.
-  3.  is_partial=True → unavailable / PARTIAL_MONTH status.
-  4.  S-NPP November 2026 is always partial (snpp_month_is_partial).
-  5.  S-NPP October 2026 is NOT partial (last complete month).
-  6.  MODIS_Aqua and VIIRS_SNPP records are never mixed into one rate series.
-  7.  Baseline: eligible prior years only; target year excluded.
-  8.  Per-year rate from pooled D/O; O=0 years excluded from n, not counted.
-  9.  Median: lower-median nearest-rank.
-  10. 90th percentile: nearest-rank ceil(0.9*n).
-  11. Unusual: strictly above p90; equal to p90 is NOT unusual.
-  12. Median = 0: absolute difference valid; percentage change undefined.
-  13. n < min_years → INSUFFICIENT_BASELINE.
-  14. Normal season: contiguous run of qualifying months containing the peak.
-  15. Normal season wraps correctly around year end.
-  16. pooled_rate: sums D and O before dividing; skips unavailable observations.
+Hand-checked calendar facts used here:
+  2026-11-02 is a Monday; it starts ISO week 45 of 2026.
+  ISO week 44 of 2026 = 2026-10-26 to 2026-11-02 00:00 UTC (ends before cutoff).
+  ISO week 45 of 2026 = 2026-11-02 to 2026-11-09 (contains 15:40 UTC cutoff).
+  ISO week 46 of 2026 starts 2026-11-09 (after cessation).
+  2026 has 53 ISO weeks (1 January 2026 is a Thursday); 2025 has 52.
 """
 from __future__ import annotations
+
+from datetime import datetime, timezone
 
 import pytest
 
 from science.calendar.rates import (
-    PeriodObs,
-    RateStatus,
-    SCALE,
+    SNPP_CESSATION,
     SNPP_CESSATION_UTC,
     SNPP_LAST_COMPLETE_MONTH,
+    CutoffStatus,
+    PeriodObs,
+    RateStatus,
     compute_rate,
+    period_bounds_utc,
     pooled_rate,
 )
 from science.calendar.baseline import (
     BaselineConfig,
     BaselineStatus,
     MonthBaseline,
-    NormalSeason,
+    _median,
+    _nearest_rank_percentile,
     compute_month_baseline,
     derive_normal_season,
     label_unusual,
-    _lower_median,
-    _nearest_rank_percentile,
 )
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def _mo(sensor, year, month, D, O, partial=False):
-    return PeriodObs(sensor=sensor, year=year, D=D, O=O,
-                     month=month, is_partial=partial)
+def _mo(sensor, year, month, D, O, partial=False, policy="own_support"):
+    return PeriodObs(sensor=sensor, year=year, D=D, O=O, month=month,
+                     is_partial=partial, policy=policy)
 
 
 def _wk(sensor, year, week, D, O, partial=False):
-    return PeriodObs(sensor=sensor, year=year, D=D, O=O,
-                     week_number=week, is_partial=partial)
+    return PeriodObs(sensor=sensor, year=year, D=D, O=O, week_number=week,
+                     is_partial=partial)
 
 
-AQUA_CFG = BaselineConfig(
-    sensor="MODIS_Aqua",
-    eligible_start_year=2003,
-    eligible_end_year=2024,
-    min_years=3,
-    normal_season_threshold_fraction=0.25,
-)
-VIIRS_CFG = BaselineConfig(
-    sensor="VIIRS_SNPP",
-    eligible_start_year=2016,
-    eligible_end_year=2024,
-    min_years=3,
-    normal_season_threshold_fraction=0.25,
-)
+def _cfg(sensor="MODIS_Aqua", start=2016, end=2024, min_years=3,
+         min_support=100, fraction=0.25, season_start=1, policy="own_support"):
+    return BaselineConfig(
+        sensor=sensor, eligible_start_year=start, eligible_end_year=end,
+        min_years=min_years, min_support_O=min_support,
+        normal_season_threshold_fraction=fraction,
+        season_year_start_month=season_start, policy=policy,
+    )
 
 
 # ---------------------------------------------------------------------------
-# 1.  PeriodObs validation
+# PeriodObs validation
 # ---------------------------------------------------------------------------
 class TestPeriodObs:
-    def test_valid_monthly(self):
-        o = _mo("MODIS_Aqua", 2016, 7, D=10, O=100)
-        assert o.is_available is True
+    def test_valid_monthly_and_weekly(self):
+        assert _mo("MODIS_Aqua", 2016, 7, 10, 100).is_available
+        assert _wk("VIIRS_SNPP", 2017, 32, 5, 50).is_available
 
-    def test_valid_weekly(self):
-        o = _wk("VIIRS_SNPP", 2017, 32, D=5, O=50)
-        assert o.is_available is True
+    def test_O_zero_is_unavailable(self):
+        assert not _mo("MODIS_Aqua", 2016, 7, 0, 0).is_available
 
-    def test_O_zero_D_zero_is_unavailable(self):
-        o = _mo("MODIS_Aqua", 2016, 7, D=0, O=0)
-        assert o.is_available is False
-
-    def test_O_zero_D_nonzero_raises(self):
+    def test_O_zero_D_positive_raises(self):
         with pytest.raises(ValueError, match="O = 0"):
-            _mo("MODIS_Aqua", 2016, 7, D=5, O=0)
+            _mo("MODIS_Aqua", 2016, 7, 5, 0)
 
-    def test_negative_D_raises(self):
+    def test_negative_counts_raise(self):
         with pytest.raises(ValueError, match="D must be"):
-            _mo("MODIS_Aqua", 2016, 7, D=-1, O=100)
-
-    def test_negative_O_raises(self):
+            _mo("MODIS_Aqua", 2016, 7, -1, 100)
         with pytest.raises(ValueError, match="O must be"):
-            _mo("MODIS_Aqua", 2016, 7, D=0, O=-1)
+            _mo("MODIS_Aqua", 2016, 7, 0, -1)
 
-    def test_neither_month_nor_week_raises(self):
+    def test_month_or_week_required_exclusively(self):
         with pytest.raises(ValueError, match="month or week_number"):
             PeriodObs(sensor="MODIS_Aqua", year=2016, D=5, O=100)
-
-    def test_both_month_and_week_raises(self):
         with pytest.raises(ValueError, match="not both"):
             PeriodObs(sensor="MODIS_Aqua", year=2016, D=5, O=100,
                       month=7, week_number=28)
 
-    def test_partial_obs_is_not_available(self):
-        o = _mo("VIIRS_SNPP", 2026, 11, D=50, O=1000, partial=True)
-        assert o.is_available is False
+    def test_invalid_iso_week_raises(self):
+        # 2025 has 52 ISO weeks
+        with pytest.raises(ValueError, match="not a valid ISO week"):
+            _wk("MODIS_Aqua", 2025, 53, 0, 100)
 
-    def test_partial_obs_with_O_zero_still_unavailable(self):
-        o = _mo("VIIRS_SNPP", 2026, 11, D=0, O=0, partial=True)
-        assert o.is_available is False
+    def test_week_53_valid_in_2026(self):
+        assert _wk("MODIS_Aqua", 2026, 53, 0, 100).is_available
 
 
 # ---------------------------------------------------------------------------
-# 2.  S-NPP cutoff: snpp_month_is_partial
+# Period bounds
 # ---------------------------------------------------------------------------
-class TestSnppCutoff:
-    """
-    October 2026 is the last complete S-NPP month.
-    November 2026 is partial because data ceased 2026-11-02T15:40:00Z.
-    """
+class TestPeriodBounds:
+    def test_month_bounds(self):
+        s, e = period_bounds_utc(2026, month=11)
+        assert s == datetime(2026, 11, 1, tzinfo=timezone.utc)
+        assert e == datetime(2026, 12, 1, tzinfo=timezone.utc)
 
-    def test_october_2026_is_not_partial(self):
-        assert PeriodObs.snpp_month_is_partial(2026, 10) is False
+    def test_december_rolls_year(self):
+        s, e = period_bounds_utc(2026, month=12)
+        assert e == datetime(2027, 1, 1, tzinfo=timezone.utc)
 
-    def test_november_2026_is_partial(self):
-        assert PeriodObs.snpp_month_is_partial(2026, 11) is True
+    def test_iso_week_45_2026(self):
+        s, e = period_bounds_utc(2026, week_number=45)
+        assert s == datetime(2026, 11, 2, tzinfo=timezone.utc)
+        assert e == datetime(2026, 11, 9, tzinfo=timezone.utc)
 
-    def test_december_2026_would_be_partial(self):
-        assert PeriodObs.snpp_month_is_partial(2026, 12) is True
+    def test_iso_week_1_2026_starts_in_2025(self):
+        # 1 Jan 2026 is Thursday -> ISO week 1 starts Monday 29 Dec 2025
+        s, _ = period_bounds_utc(2026, week_number=1)
+        assert s == datetime(2025, 12, 29, tzinfo=timezone.utc)
 
-    def test_any_2027_month_is_partial(self):
-        for m in range(1, 13):
-            assert PeriodObs.snpp_month_is_partial(2027, m) is True
 
-    def test_september_2026_is_not_partial(self):
-        assert PeriodObs.snpp_month_is_partial(2026, 9) is False
-
-    def test_any_pre_2026_month_is_not_partial(self):
-        for year in [2015, 2020, 2025]:
-            for month in [1, 6, 12]:
-                assert PeriodObs.snpp_month_is_partial(year, month) is False
-
-    def test_cessation_constant_is_correct(self):
+# ---------------------------------------------------------------------------
+# S-NPP cutoff enforced from record bounds (finding 1)
+# ---------------------------------------------------------------------------
+class TestSnppCutoffEnforced:
+    def test_constants(self):
         assert SNPP_CESSATION_UTC == "2026-11-02T15:40:00Z"
-
-    def test_last_complete_month_constant(self):
+        assert SNPP_CESSATION == datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
         assert SNPP_LAST_COMPLETE_MONTH == (2026, 10)
 
+    def test_unflagged_november_2026_is_partial(self):
+        o = _mo("VIIRS_SNPP", 2026, 11, D=50, O=1000)  # is_partial not set
+        assert o.cutoff_status == CutoffStatus.PARTIAL
+        assert not o.is_available
+        r = compute_rate(o)
+        assert r.status == RateStatus.PARTIAL_MONTH
+        assert r.fire_activity_index is None
+
+    def test_october_2026_is_complete(self):
+        o = _mo("VIIRS_SNPP", 2026, 10, D=50, O=1000)
+        assert o.cutoff_status == CutoffStatus.COMPLETE
+        assert compute_rate(o).fire_activity_index == pytest.approx(50.0)
+
+    def test_december_2026_is_after_cessation(self):
+        o = _mo("VIIRS_SNPP", 2026, 12, D=0, O=1000)
+        assert o.cutoff_status == CutoffStatus.AFTER_CESSATION
+        r = compute_rate(o)
+        assert r.status == RateStatus.AFTER_CESSATION
+        assert r.fire_activity_index is None
+
+    def test_2027_is_after_cessation(self):
+        for m in (1, 6, 12):
+            assert _mo("VIIRS_SNPP", 2027, m, 0, 10).is_after_cessation
+
+    def test_weekly_cutoff_boundaries(self):
+        w44 = _wk("VIIRS_SNPP", 2026, 44, D=10, O=100)
+        w45 = _wk("VIIRS_SNPP", 2026, 45, D=10, O=100)
+        w46 = _wk("VIIRS_SNPP", 2026, 46, D=10, O=100)
+        assert w44.cutoff_status == CutoffStatus.COMPLETE
+        assert compute_rate(w44).fire_activity_index == pytest.approx(100.0)
+        assert w45.cutoff_status == CutoffStatus.PARTIAL
+        assert compute_rate(w45).status == RateStatus.PARTIAL_WEEK
+        assert w46.cutoff_status == CutoffStatus.AFTER_CESSATION
+        assert compute_rate(w46).status == RateStatus.AFTER_CESSATION
+
+    def test_cutoff_not_applied_to_other_sensors(self):
+        aqua = _mo("MODIS_Aqua", 2026, 11, D=50, O=1000)
+        noaa = _mo("VIIRS_NOAA20", 2026, 12, D=50, O=1000)
+        assert aqua.cutoff_status == CutoffStatus.NOT_APPLICABLE
+        assert noaa.cutoff_status == CutoffStatus.NOT_APPLICABLE
+        assert compute_rate(aqua).fire_activity_index == pytest.approx(50.0)
+        assert compute_rate(noaa).fire_activity_index == pytest.approx(50.0)
+
+    def test_caller_flag_cannot_make_snpp_partial_complete(self):
+        o = _mo("VIIRS_SNPP", 2026, 11, D=50, O=1000, partial=False)
+        assert o.is_period_partial
+
+    def test_pooled_rate_excludes_unflagged_partial_snpp(self):
+        # Only Oct 2026 contributes: 1000 * 50 / 500 = 100.0
+        obs = [_mo("VIIRS_SNPP", 2026, 10, 50, 500),
+               _mo("VIIRS_SNPP", 2026, 11, 999, 9999)]
+        assert pooled_rate(obs) == pytest.approx(100.0)
+
+    def test_caller_flagged_partial_month_other_sensor(self):
+        r = compute_rate(_mo("MODIS_Aqua", 2026, 11, 5, 100, partial=True))
+        assert r.status == RateStatus.PARTIAL_MONTH
+        assert r.fire_activity_index is None
+
 
 # ---------------------------------------------------------------------------
-# 3.  compute_rate
+# compute_rate and pooled_rate
 # ---------------------------------------------------------------------------
-class TestComputeRate:
-    def test_normal_rate(self):
-        # R = 1000 * 50 / 500 = 100.0
-        o = _mo("MODIS_Aqua", 2016, 7, D=50, O=500)
-        r = compute_rate(o)
-        assert r.status == RateStatus.AVAILABLE
-        assert r.fire_activity_index == pytest.approx(100.0)
+class TestRates:
+    def test_rate(self):
+        # 1000 * 50 / 500 = 100.0
+        assert compute_rate(_mo("MODIS_Aqua", 2016, 7, 50, 500)).fire_activity_index == pytest.approx(100.0)
 
-    def test_zero_D_valid_O_gives_zero_rate(self):
-        # Valid zero-detection month: D=0, O>0 → R = 0.0
-        o = _mo("MODIS_Aqua", 2016, 7, D=0, O=1000)
-        r = compute_rate(o)
+    def test_valid_zero_detection(self):
+        r = compute_rate(_mo("MODIS_Aqua", 2016, 7, 0, 1000))
         assert r.status == RateStatus.AVAILABLE
         assert r.fire_activity_index == pytest.approx(0.0)
 
-    def test_O_zero_gives_unavailable(self):
-        o = _mo("VIIRS_SNPP", 2017, 8, D=0, O=0)
-        r = compute_rate(o)
+    def test_O_zero_unavailable(self):
+        r = compute_rate(_mo("VIIRS_SNPP", 2017, 8, 0, 0))
         assert r.status == RateStatus.UNAVAILABLE
         assert r.fire_activity_index is None
 
-    def test_partial_snpp_month_gives_partial_month_status(self):
-        # November 2026 S-NPP — marked partial
-        o = _mo("VIIRS_SNPP", 2026, 11, D=5, O=100, partial=True)
-        r = compute_rate(o)
-        assert r.status == RateStatus.PARTIAL_MONTH
-        assert r.fire_activity_index is None
-        assert any("ceased" in reason.lower() or "partial" in reason.lower()
-                   for reason in r.reasons)
-
-    def test_partial_non_snpp_gives_unavailable(self):
-        o = _mo("MODIS_Aqua", 2026, 11, D=5, O=100, partial=True)
-        r = compute_rate(o)
-        assert r.status == RateStatus.UNAVAILABLE
-        assert r.fire_activity_index is None
-
-    def test_partial_O_zero_still_partial_month(self):
-        """Even O=0 partial S-NPP month: partial guard fires first."""
-        o = _mo("VIIRS_SNPP", 2026, 11, D=0, O=0, partial=True)
-        r = compute_rate(o)
-        assert r.status == RateStatus.PARTIAL_MONTH
-        assert r.fire_activity_index is None
-
-    def test_weekly_rate(self):
-        # R = 1000 * 20 / 200 = 100.0
-        o = _wk("VIIRS_SNPP", 2018, 32, D=20, O=200)
-        r = compute_rate(o)
-        assert r.status == RateStatus.AVAILABLE
-        assert r.fire_activity_index == pytest.approx(100.0)
-
-
-# ---------------------------------------------------------------------------
-# 4.  pooled_rate — sums before division
-# ---------------------------------------------------------------------------
-class TestPooledRate:
-    def test_single_obs(self):
-        # 1000 * 50 / 500 = 100.0
-        assert pooled_rate([_mo("MODIS_Aqua", 2016, 7, 50, 500)]) == pytest.approx(100.0)
-
-    def test_two_obs_sums_before_divide(self):
-        # D=10, O=900 → rate  11.11…
-        # D=10, O=100 → rate 100.0
-        # Average-of-rates = 55.55…; pooled = 1000*20/1000 = 20.0
-        obs = [
-            _mo("MODIS_Aqua", 2016, 7, D=10, O=900),
-            _mo("MODIS_Aqua", 2016, 8, D=10, O=100),
-        ]
+    def test_sums_before_division(self):
+        # (10/900, 10/100) -> pooled 1000*20/1000 = 20.0, not mean-of-rates 55.6
+        obs = [_mo("MODIS_Aqua", 2016, 7, 10, 900), _mo("MODIS_Aqua", 2016, 7, 10, 100)]
         assert pooled_rate(obs) == pytest.approx(20.0)
 
-    def test_all_unavailable_returns_none(self):
-        obs = [_mo("MODIS_Aqua", 2016, 7, D=0, O=0),
-               _mo("MODIS_Aqua", 2017, 7, D=0, O=0)]
-        assert pooled_rate(obs) is None
-
-    def test_partial_obs_excluded(self):
-        # Partial obs (D=999, O=9999) must be excluded; only the available
-        # obs contributes: 1000 * 50 / 500 = 100.0
-        obs = [
-            _mo("VIIRS_SNPP", 2026, 10, D=50, O=500),
-            _mo("VIIRS_SNPP", 2026, 11, D=999, O=9999, partial=True),
-        ]
-        assert pooled_rate(obs) == pytest.approx(100.0)
-
-    def test_empty_list_returns_none(self):
+    def test_all_unavailable_and_empty(self):
+        assert pooled_rate([_mo("MODIS_Aqua", 2016, 7, 0, 0)]) is None
         assert pooled_rate([]) is None
 
 
 # ---------------------------------------------------------------------------
-# 5.  Baseline helper functions
+# Same-sensor / same-policy enforcement (finding 3)
 # ---------------------------------------------------------------------------
-class TestBaselineHelpers:
-    """
-    Hand-computed expected values:
+class TestPoolingHomogeneity:
+    def test_mixed_sensors_raise(self):
+        with pytest.raises(ValueError, match="mixed sensors"):
+            pooled_rate([_mo("MODIS_Aqua", 2016, 7, 10, 100),
+                         _mo("VIIRS_SNPP", 2016, 7, 10, 100)])
 
-    _lower_median:
-      [1]        → 1          (n=1)
-      [1,2]      → 1          (n=2, even: sorted[0])
-      [1,2,3]    → 2          (n=3, odd:  sorted[1])
-      [1,2,3,4]  → 2          (n=4, even: sorted[1])
-      [1,2,3,4,5]→ 3          (n=5, odd:  sorted[2])
+    def test_mixed_policies_raise(self):
+        with pytest.raises(ValueError, match="mixed policies"):
+            pooled_rate([_mo("MODIS_Aqua", 2016, 7, 10, 100),
+                         _mo("MODIS_Aqua", 2016, 7, 10, 100, policy="common_support")])
 
-    _nearest_rank_percentile at p=90:
-      n=1: rank=ceil(0.9)=1   → sorted[0]
-      n=2: rank=ceil(1.8)=2   → sorted[1]
-      n=3: rank=ceil(2.7)=3   → sorted[2]
-      n=4: rank=ceil(3.6)=4   → sorted[3]
-      n=5: rank=ceil(4.5)=5   → sorted[4]
-      n=10:rank=ceil(9.0)=9   → sorted[8]
-    """
+    def test_mixed_period_types_raise(self):
+        with pytest.raises(ValueError, match="monthly and weekly"):
+            pooled_rate([_mo("MODIS_Aqua", 2016, 7, 10, 100),
+                         _wk("MODIS_Aqua", 2016, 28, 10, 100)])
 
-    def test_lower_median_n1(self):
-        assert _lower_median([5.0]) == pytest.approx(5.0)
-
-    def test_lower_median_n2(self):
-        assert _lower_median([3.0, 7.0]) == pytest.approx(3.0)
-
-    def test_lower_median_n3(self):
-        assert _lower_median([1.0, 2.0, 3.0]) == pytest.approx(2.0)
-
-    def test_lower_median_n4(self):
-        assert _lower_median([1.0, 2.0, 3.0, 4.0]) == pytest.approx(2.0)
-
-    def test_lower_median_n5(self):
-        assert _lower_median([1.0, 2.0, 3.0, 4.0, 5.0]) == pytest.approx(3.0)
-
-    def test_p90_n1(self):
-        # rank = ceil(0.9) = 1; value = sorted[0]
-        assert _nearest_rank_percentile([10.0], 90.0) == pytest.approx(10.0)
-
-    def test_p90_n2(self):
-        # rank = ceil(1.8) = 2; value = sorted[1] = 20.0
-        assert _nearest_rank_percentile([10.0, 20.0], 90.0) == pytest.approx(20.0)
-
-    def test_p90_n3(self):
-        # rank = ceil(2.7) = 3; value = sorted[2] = 30.0
-        assert _nearest_rank_percentile([10.0, 20.0, 30.0], 90.0) == pytest.approx(30.0)
-
-    def test_p90_n5(self):
-        # rank = ceil(4.5) = 5; value = sorted[4] = 50.0
-        assert _nearest_rank_percentile([10.0, 20.0, 30.0, 40.0, 50.0], 90.0) == pytest.approx(50.0)
-
-    def test_p90_n10(self):
-        # rank = ceil(9.0) = 9; value = sorted[8] = 90.0
-        vals = [float(x * 10) for x in range(1, 11)]  # [10,20,...,100]
-        assert _nearest_rank_percentile(vals, 90.0) == pytest.approx(90.0)
-
-
-# ---------------------------------------------------------------------------
-# 6.  compute_month_baseline
-# ---------------------------------------------------------------------------
-class TestComputeMonthBaseline:
-    """
-    Fixture: MODIS Aqua, month=7 (July), target_year=2020.
-    Eligible prior years: 2003-2019 (from config eligible_start_year=2003).
-
-    Use years 2016, 2017, 2018 to keep it manageable:
-      2016: D=100, O=1000 → R = 100.0
-      2017: D=200, O=2000 → R = 100.0
-      2018: D=150, O=1500 → R = 100.0
-      sorted rates = [100.0, 100.0, 100.0]
-      median (n=3, odd): sorted[1] = 100.0
-      p90 (n=3): rank=ceil(2.7)=3, sorted[2] = 100.0
-
-    Asymmetric fixture for distinct median/p90:
-      2016: D=10,  O=1000 → R = 10.0
-      2017: D=50,  O=1000 → R = 50.0
-      2018: D=80,  O=1000 → R = 80.0
-      2019: D=90,  O=1000 → R = 90.0
-      sorted rates = [10.0, 50.0, 80.0, 90.0], n=4
-      lower-median (n=4, even): sorted[1] = 50.0
-      p90 (n=4): rank=ceil(3.6)=4, sorted[3] = 90.0
-    """
-
-    @pytest.fixture()
-    def uniform_obs(self):
-        return [
-            _mo("MODIS_Aqua", 2016, 7, D=100, O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=200, O=2000),
-            _mo("MODIS_Aqua", 2018, 7, D=150, O=1500),
-        ]
-
-    @pytest.fixture()
-    def asym_obs(self):
-        return [
-            _mo("MODIS_Aqua", 2016, 7, D=10,  O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=50,  O=1000),
-            _mo("MODIS_Aqua", 2018, 7, D=80,  O=1000),
-            _mo("MODIS_Aqua", 2019, 7, D=90,  O=1000),
-        ]
-
-    def test_uniform_median_and_p90(self, uniform_obs):
-        bl = compute_month_baseline(7, 2020, uniform_obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.AVAILABLE
-        assert bl.median_rate == pytest.approx(100.0)
-        assert bl.p90_rate == pytest.approx(100.0)
-        assert bl.n_years == 3
-
-    def test_asym_median_and_p90(self, asym_obs):
-        # median = 50.0, p90 = 90.0
-        bl = compute_month_baseline(7, 2020, asym_obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.AVAILABLE
-        assert bl.median_rate == pytest.approx(50.0)
-        assert bl.p90_rate == pytest.approx(90.0)
-        assert bl.n_years == 4
-
-    def test_target_year_excluded(self, uniform_obs):
-        """Target year 2018's obs must not enter the baseline."""
-        all_obs = uniform_obs + [_mo("MODIS_Aqua", 2018, 7, D=9999, O=1000)]
-        # 2018 is the target year — using target_year=2018 means only 2016,2017 eligible
-        bl = compute_month_baseline(7, 2018, all_obs, AQUA_CFG)
-        # n=2 < min_years=3 → INSUFFICIENT
-        assert bl.status == BaselineStatus.INSUFFICIENT_BASELINE
-
-    def test_later_years_excluded(self, uniform_obs):
-        """Years >= target_year must be excluded."""
-        future_obs = [
-            _mo("MODIS_Aqua", 2021, 7, D=9999, O=1000),
-            _mo("MODIS_Aqua", 2022, 7, D=9999, O=1000),
-        ]
-        bl = compute_month_baseline(7, 2020, uniform_obs + future_obs, AQUA_CFG)
-        # 2021 and 2022 must not enter; n still 3
-        assert bl.n_years == 3
-        assert bl.median_rate == pytest.approx(100.0)
-
-    def test_O_zero_year_excluded_from_n(self):
-        """A year with O=0 must not be counted in n or enter the median."""
-        obs = [
-            _mo("MODIS_Aqua", 2016, 7, D=100, O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=0,   O=0),    # unavailable
-            _mo("MODIS_Aqua", 2018, 7, D=200, O=2000),
-            _mo("MODIS_Aqua", 2019, 7, D=300, O=3000),
-        ]
-        # Rates: 2016→100.0, 2017→excluded, 2018→100.0, 2019→100.0
-        # sorted = [100.0, 100.0, 100.0], n=3
-        bl = compute_month_baseline(7, 2020, obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.AVAILABLE
-        assert bl.n_years == 3
-        assert 2017 not in bl.eligible_years
-
-    def test_insufficient_n_returns_insufficient(self):
-        obs = [
-            _mo("MODIS_Aqua", 2016, 7, D=100, O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=100, O=1000),
-            # only 2 years; min_years=3
-        ]
-        bl = compute_month_baseline(7, 2020, obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.INSUFFICIENT_BASELINE
-        assert bl.median_rate is None
-        assert bl.p90_rate is None
-
-    def test_no_obs_returns_no_available_years(self):
-        bl = compute_month_baseline(7, 2020, [], AQUA_CFG)
-        assert bl.status == BaselineStatus.NO_AVAILABLE_YEARS
-
-    def test_wrong_month_obs_excluded(self):
-        """Observations for a different month must not enter the baseline."""
-        obs = [
-            _mo("MODIS_Aqua", 2016, 8, D=100, O=1000),  # month 8, not 7
-            _mo("MODIS_Aqua", 2017, 8, D=100, O=1000),
-            _mo("MODIS_Aqua", 2018, 8, D=100, O=1000),
-        ]
-        bl = compute_month_baseline(7, 2020, obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.NO_AVAILABLE_YEARS
-
-    def test_cross_sensor_obs_excluded(self):
-        """VIIRS observations must not enter an Aqua baseline."""
-        viirs_obs = [
-            _mo("VIIRS_SNPP", 2016, 7, D=100, O=1000),
-            _mo("VIIRS_SNPP", 2017, 7, D=100, O=1000),
-            _mo("VIIRS_SNPP", 2018, 7, D=100, O=1000),
-        ]
-        bl = compute_month_baseline(7, 2020, viirs_obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.NO_AVAILABLE_YEARS
-
-
-# ---------------------------------------------------------------------------
-# 7.  label_unusual
-# ---------------------------------------------------------------------------
-class TestLabelUnusual:
-    """
-    Fixture — target_year=2020, month=7, sensor=MODIS_Aqua:
-      Baseline (pre-computed): median=50.0, p90=90.0
-      (uses asym fixture from above)
-
-    Unusual threshold: strictly > 90.0
-      target rate  91.0 → unusual
-      target rate  90.0 → NOT unusual (tie is not unusual)
-      target rate  50.0 → NOT unusual
-    """
-
-    @pytest.fixture()
-    def baseline_90(self):
-        """MonthBaseline with p90=90.0 (from asymmetric fixture)."""
-        obs = [
-            _mo("MODIS_Aqua", 2016, 7, D=10,  O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=50,  O=1000),
-            _mo("MODIS_Aqua", 2018, 7, D=80,  O=1000),
-            _mo("MODIS_Aqua", 2019, 7, D=90,  O=1000),
-        ]
-        return compute_month_baseline(7, 2020, obs, AQUA_CFG)
-
-    def test_strictly_above_p90_is_unusual(self, baseline_90):
-        # D=91, O=1000 → R=91.0 > 90.0 → unusual
-        target = [_mo("MODIS_Aqua", 2020, 7, D=91, O=1000)]
-        label = label_unusual(target, 2020, 7, baseline_90)
-        assert label.is_unusual is True
-        assert label.status == "labeled"
-        assert label.target_rate == pytest.approx(91.0)
-
-    def test_equal_to_p90_is_not_unusual(self, baseline_90):
-        # D=90, O=1000 → R=90.0 == p90=90.0 → NOT unusual (tie rule)
-        target = [_mo("MODIS_Aqua", 2020, 7, D=90, O=1000)]
-        label = label_unusual(target, 2020, 7, baseline_90)
-        assert label.is_unusual is False
-        assert label.status == "labeled"
-        assert label.target_rate == pytest.approx(90.0)
-
-    def test_below_p90_is_not_unusual(self, baseline_90):
-        target = [_mo("MODIS_Aqua", 2020, 7, D=50, O=1000)]
-        label = label_unusual(target, 2020, 7, baseline_90)
-        assert label.is_unusual is False
-
-    def test_target_O_zero_gives_target_unavailable(self, baseline_90):
-        target = [_mo("MODIS_Aqua", 2020, 7, D=0, O=0)]
-        label = label_unusual(target, 2020, 7, baseline_90)
-        assert label.is_unusual is False
-        assert label.status == "target_unavailable"
-        assert label.target_rate is None
-
-    def test_unavailable_baseline_gives_baseline_unavailable(self):
-        bl = MonthBaseline(
-            calendar_month=7,
-            sensor="MODIS_Aqua",
-            median_rate=None,
-            p90_rate=None,
-            n_years=0,
-            eligible_years=[],
-            status=BaselineStatus.INSUFFICIENT_BASELINE,
-            reasons=["only 2 years"],
-        )
-        target = [_mo("MODIS_Aqua", 2020, 7, D=100, O=1000)]
-        label = label_unusual(target, 2020, 7, bl)
-        assert label.is_unusual is False
-        assert label.status == "baseline_unavailable"
-
-    def test_median_zero_p90_zero_tie_not_unusual(self):
-        """
-        When p90 = 0.0 and target rate = 0.0, the tie rule says not unusual.
-        When target rate > 0.0, it is unusual (strictly above 0.0).
-        """
-        obs = [
-            _mo("MODIS_Aqua", 2016, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2017, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2018, 2, D=0, O=1000),
-        ]
-        bl = compute_month_baseline(2, 2020, obs, AQUA_CFG)
-        assert bl.status == BaselineStatus.AVAILABLE
-        assert bl.median_rate == pytest.approx(0.0)
-        assert bl.p90_rate == pytest.approx(0.0)
-
-        # Target rate = 0.0: tie — not unusual
-        label_zero = label_unusual(
-            [_mo("MODIS_Aqua", 2020, 2, D=0, O=1000)], 2020, 2, bl
-        )
-        assert label_zero.is_unusual is False
-
-        # Target rate > 0.0: unusual (strictly above 0.0)
-        label_pos = label_unusual(
-            [_mo("MODIS_Aqua", 2020, 2, D=1, O=1000)], 2020, 2, bl
-        )
-        assert label_pos.is_unusual is True
-
-
-# ---------------------------------------------------------------------------
-# 8.  Normal season
-# ---------------------------------------------------------------------------
-class TestNormalSeason:
-    """
-    Fixture: 12 baselines for MODIS_Aqua with known median rates.
-
-    Peak fire months: July (month 7) and August (month 8) are highest.
-    With threshold_fraction=0.25 of peak, only months with median >= 25%
-    of peak qualify.
-
-    Hand-computed fixture rates (target_year=2020):
-      Jan–Mar: median  5.0  (below threshold if peak>=20)
-      Apr–Jun: median 20.0
-      Jul:     median 80.0  ← peak
-      Aug:     median 60.0
-      Sep:     median 25.0  (threshold = 0.25*80 = 20.0 → qualifies)
-      Oct–Dec: median  5.0
-
-    Qualifying months (>= 20.0): Apr, May, Jun, Jul, Aug, Sep
-    Contiguous run containing Jul: Apr-Sep (months 4-9)
-    peak_month = 7 (July)
-    """
-
-    def _make_baselines(self, monthly_rates: dict[int, float]) -> dict[int, MonthBaseline]:
-        """Build MonthBaseline stubs with pre-set median and p90."""
-        result = {}
-        for m, rate in monthly_rates.items():
-            result[m] = MonthBaseline(
-                calendar_month=m,
-                sensor="MODIS_Aqua",
-                median_rate=rate,
-                p90_rate=rate * 1.1,  # p90 not tested here
-                n_years=5,
-                eligible_years=[2015, 2016, 2017, 2018, 2019],
-                status=BaselineStatus.AVAILABLE,
-            )
-        return result
-
-    def test_normal_season_start_end_peak(self):
-        rates = {
-            1: 5.0, 2: 5.0, 3: 5.0,
-            4: 20.0, 5: 20.0, 6: 20.0,
-            7: 80.0, 8: 60.0, 9: 25.0,
-            10: 5.0, 11: 5.0, 12: 5.0,
-        }
-        bls = self._make_baselines(rates)
-        cfg = BaselineConfig(
-            sensor="MODIS_Aqua",
-            eligible_start_year=2003,
-            eligible_end_year=2019,
-            min_years=3,
-            normal_season_threshold_fraction=0.25,
-        )
-        season = derive_normal_season(bls, cfg)
-        assert season.status == "available"
-        assert season.peak_month == 7
-        # threshold = 0.25 * 80.0 = 20.0
-        # qualifying: Apr(20), May(20), Jun(20), Jul(80), Aug(60), Sep(25)
-        assert season.start_month == 4
-        assert season.end_month == 9
-
-    def test_no_baselines_gives_insufficient(self):
-        cfg = BaselineConfig(
-            sensor="MODIS_Aqua",
-            eligible_start_year=2003,
-            eligible_end_year=2019,
-            min_years=3,
-            normal_season_threshold_fraction=0.25,
-        )
-        season = derive_normal_season({}, cfg)
-        assert season.status == "insufficient_baseline"
-        assert season.peak_month is None
-
-    def test_single_peak_month(self):
-        """When only one month has a positive median, season is that month."""
-        rates = {m: 0.0 for m in range(1, 13)}
-        rates[8] = 50.0
-        bls = self._make_baselines(rates)
-        # Months with rate >= 0.25*50 = 12.5: only month 8
-        cfg = BaselineConfig(
-            sensor="MODIS_Aqua",
-            eligible_start_year=2003,
-            eligible_end_year=2019,
-            min_years=3,
-            normal_season_threshold_fraction=0.25,
-        )
-        season = derive_normal_season(bls, cfg)
-        assert season.status == "available"
-        assert season.peak_month == 8
-        assert season.start_month == 8
-        assert season.end_month == 8
-
-    def test_year_boundary_wrap(self):
-        """
-        Season that spans Dec→Jan (Southern Hemisphere dry-season example):
-          Peak month: January (month 1), median=80
-          Qualifying: Nov(20), Dec(60), Jan(80), Feb(60), Mar(20)
-          threshold = 0.25*80 = 20.0
-          Contiguous run from Jan: Nov-Mar wrapping through Dec.
-
-        Expected: start=11, end=3 (wrapping season).
-        """
-        rates = {m: 5.0 for m in range(1, 13)}
-        rates.update({11: 20.0, 12: 60.0, 1: 80.0, 2: 60.0, 3: 20.0})
-        bls = self._make_baselines(rates)
-        cfg = BaselineConfig(
-            sensor="MODIS_Aqua",
-            eligible_start_year=2003,
-            eligible_end_year=2019,
-            min_years=3,
-            normal_season_threshold_fraction=0.25,
-        )
-        season = derive_normal_season(bls, cfg)
-        assert season.status == "available"
-        assert season.peak_month == 1
-        # Wrapping season: start=11 (Nov), end=3 (Mar)
-        assert season.start_month == 11
-        assert season.end_month == 3
-
-    def test_insufficient_baseline_months_excluded_from_season(self):
-        """
-        Months with INSUFFICIENT_BASELINE must not contribute to season
-        derivation; they are treated as unavailable.
-        """
-        bls: dict[int, MonthBaseline] = {}
-        # July has insufficient baseline; surrounding months are available.
-        for m, rate in {6: 30.0, 8: 30.0}.items():
-            bls[m] = MonthBaseline(
-                calendar_month=m,
-                sensor="MODIS_Aqua",
-                median_rate=rate,
-                p90_rate=rate * 1.1,
-                n_years=5,
-                eligible_years=[2015, 2016, 2017, 2018, 2019],
-                status=BaselineStatus.AVAILABLE,
-            )
-        bls[7] = MonthBaseline(
-            calendar_month=7,
-            sensor="MODIS_Aqua",
-            median_rate=None,
-            p90_rate=None,
-            n_years=2,
-            eligible_years=[2015, 2016],
-            status=BaselineStatus.INSUFFICIENT_BASELINE,
-            reasons=["only 2 years"],
-        )
-        cfg = BaselineConfig(
-            sensor="MODIS_Aqua",
-            eligible_start_year=2003,
-            eligible_end_year=2019,
-            min_years=3,
-            normal_season_threshold_fraction=0.25,
-        )
-        season = derive_normal_season(bls, cfg)
-        # Only June and August are available; they are not contiguous
-        # (July is a gap); season may resolve to one of them or be fragmented
-        assert season.status == "available"
-        # peak should be one of the available months (rate=30.0 for both)
-        assert season.peak_month in (6, 8)
-
-
-# ---------------------------------------------------------------------------
-# 9.  Cross-sensor rate isolation
-# ---------------------------------------------------------------------------
-class TestCrossSensorIsolation:
-    """
-    MODIS Aqua and VIIRS S-NPP observations must never be pooled into the
-    same rate.  pooled_rate and compute_month_baseline silently accept
-    mixed sensor lists (the caller is responsible for filtering), so we
-    test the boundary: a baseline computed with only Aqua records must
-    not be affected by VIIRS records passed alongside.
-    """
-
-    def test_baseline_ignores_wrong_sensor_records(self):
-        viirs_obs = [
-            _mo("VIIRS_SNPP", 2016, 7, D=9999, O=1000),
-            _mo("VIIRS_SNPP", 2017, 7, D=9999, O=1000),
-            _mo("VIIRS_SNPP", 2018, 7, D=9999, O=1000),
-        ]
-        aqua_obs = [
-            _mo("MODIS_Aqua", 2016, 7, D=10, O=1000),
-            _mo("MODIS_Aqua", 2017, 7, D=10, O=1000),
-            _mo("MODIS_Aqua", 2018, 7, D=10, O=1000),
-        ]
-        bl = compute_month_baseline(7, 2020, aqua_obs + viirs_obs, AQUA_CFG)
-        # Rate for each Aqua year = 10.0; median = 10.0
+    def test_baseline_filters_other_sensor_and_policy(self):
+        aqua = [_mo("MODIS_Aqua", y, 7, 10, 1000) for y in (2016, 2017, 2018)]
+        noise = ([_mo("VIIRS_SNPP", y, 7, 999, 1000) for y in (2016, 2017, 2018)]
+                 + [_mo("MODIS_Aqua", y, 7, 999, 1000, policy="common_support")
+                    for y in (2016, 2017, 2018)])
+        bl = compute_month_baseline(7, 2019, aqua + noise, _cfg())
         assert bl.status == BaselineStatus.AVAILABLE
         assert bl.median_rate == pytest.approx(10.0)
-        assert bl.n_years == 3  # only 3 Aqua years
+        assert bl.n_years == 3
 
 
 # ---------------------------------------------------------------------------
-# 10. Median = 0 edge case
+# Median and percentile (finding 4)
 # ---------------------------------------------------------------------------
-class TestMedianZero:
+class TestStatistics:
     """
-    When all baseline years have D=0 with O>0, median rate = 0 and p90 = 0.
-    The plan says: 'if the median is zero, report the absolute difference only;
-    percentage change is undefined.'
-
-    This module only computes the rates; the undefined-percentage rule is
-    enforced by the presentation/template layer.  We verify here that:
-      - median_rate = 0.0 (not None)
-      - p90_rate = 0.0 (not None)
-      - status = AVAILABLE (zero is a valid observed rate)
-      - Labeling still works: target rate > 0.0 is unusual (strictly above 0.0)
+    Conventional median: [5]->5; [3,7]->5; [1,2,3]->2; [1,2,3,4]->2.5;
+                         [10,50,80,90]->65.
+    Nearest-rank p90, rank = ceil(0.9 n): n=1->1, 2->2, 3->3, 4->4, 5->5, 10->9.
     """
 
-    def test_all_zero_rates_gives_zero_median_and_p90(self):
-        obs = [
-            _mo("MODIS_Aqua", 2016, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2017, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2018, 2, D=0, O=1000),
-        ]
-        bl = compute_month_baseline(2, 2020, obs, AQUA_CFG)
+    @pytest.mark.parametrize("vals,expected", [
+        ([5.0], 5.0), ([3.0, 7.0], 5.0), ([1.0, 2.0, 3.0], 2.0),
+        ([1.0, 2.0, 3.0, 4.0], 2.5), ([10.0, 50.0, 80.0, 90.0], 65.0),
+    ])
+    def test_median(self, vals, expected):
+        assert _median(vals) == pytest.approx(expected)
+
+    @pytest.mark.parametrize("vals,expected", [
+        ([10.0], 10.0), ([10.0, 20.0], 20.0), ([10.0, 20.0, 30.0], 30.0),
+        ([10.0, 20.0, 30.0, 40.0, 50.0], 50.0),
+        ([float(10 * k) for k in range(1, 11)], 90.0),
+    ])
+    def test_p90_nearest_rank(self, vals, expected):
+        assert _nearest_rank_percentile(vals, 90.0) == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Monthly baseline: required years (finding 2)
+# ---------------------------------------------------------------------------
+class TestMonthBaseline:
+    """
+    Config: eligible 2016-2024, min_years 3, min_support_O 100.
+    Target 2020 -> required years 2016, 2017, 2018, 2019.
+    Asymmetric fixture rates: 10, 50, 80, 90 -> median 65.0, p90 90.0.
+    """
+
+    @pytest.fixture()
+    def asym(self):
+        return [_mo("MODIS_Aqua", y, 7, d, 1000)
+                for y, d in ((2016, 10), (2017, 50), (2018, 80), (2019, 90))]
+
+    def test_available_baseline(self, asym):
+        bl = compute_month_baseline(7, 2020, asym, _cfg())
         assert bl.status == BaselineStatus.AVAILABLE
-        assert bl.median_rate == pytest.approx(0.0)
-        assert bl.p90_rate == pytest.approx(0.0)
+        assert bl.required_years == [2016, 2017, 2018, 2019]
+        assert bl.median_rate == pytest.approx(65.0)
+        assert bl.p90_rate == pytest.approx(90.0)
+        assert bl.missing_years == []
 
-    def test_zero_baseline_target_above_zero_is_unusual(self):
-        obs = [
-            _mo("MODIS_Aqua", 2016, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2017, 2, D=0, O=1000),
-            _mo("MODIS_Aqua", 2018, 2, D=0, O=1000),
-        ]
-        bl = compute_month_baseline(2, 2020, obs, AQUA_CFG)
-        target = [_mo("MODIS_Aqua", 2020, 2, D=1, O=1000)]
-        label = label_unusual(target, 2020, 2, bl)
-        # 1.0 > 0.0 → unusual
-        assert label.is_unusual is True
+    def test_absent_required_year_makes_baseline_unavailable(self, asym):
+        # Drop 2017: three years remain (>= min_years), but 2017 is required.
+        obs = [o for o in asym if o.year != 2017]
+        bl = compute_month_baseline(7, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2017]
+        assert bl.median_rate is None and bl.p90_rate is None
+
+    def test_O_zero_required_year_makes_baseline_unavailable(self, asym):
+        obs = [o for o in asym if o.year != 2018] + [_mo("MODIS_Aqua", 2018, 7, 0, 0)]
+        bl = compute_month_baseline(7, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2018]
+
+    def test_under_supported_year_makes_baseline_unavailable(self, asym):
+        obs = [o for o in asym if o.year != 2019] + [_mo("MODIS_Aqua", 2019, 7, 1, 50)]
+        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2019]
+
+    def test_support_summed_across_blocks(self, asym):
+        # 2019 split into two blocks of O=60: summed 120 >= 100 -> supported.
+        # Rate 1000*(54+54)/120 = 900.0
+        obs = [o for o in asym if o.year != 2019] + [
+            _mo("MODIS_Aqua", 2019, 7, 54, 60), _mo("MODIS_Aqua", 2019, 7, 54, 60)]
+        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100))
+        assert bl.status == BaselineStatus.AVAILABLE
+        # rates 10, 50, 80, 900 -> median (50+80)/2 = 65.0, p90 = 900.0
+        assert bl.median_rate == pytest.approx(65.0)
+        assert bl.p90_rate == pytest.approx(900.0)
+
+    def test_partial_required_year_makes_baseline_unavailable(self, asym):
+        obs = [o for o in asym if o.year != 2016] + [_mo("MODIS_Aqua", 2016, 7, 10, 1000, partial=True)]
+        bl = compute_month_baseline(7, 2020, obs, _cfg())
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2016]
+
+    def test_short_span_is_insufficient(self):
+        # Target 2018 -> required 2016, 2017 -> 2 < 3
+        obs = [_mo("MODIS_Aqua", y, 7, 10, 1000) for y in (2016, 2017, 2018)]
+        bl = compute_month_baseline(7, 2018, obs, _cfg())
+        assert bl.status == BaselineStatus.INSUFFICIENT_BASELINE
+        assert bl.required_years == [2016, 2017]
+
+    def test_target_and_later_years_never_enter(self, asym):
+        extra = [_mo("MODIS_Aqua", y, 7, 999, 1000) for y in (2020, 2021, 2022)]
+        bl = compute_month_baseline(7, 2020, asym + extra, _cfg())
+        assert bl.eligible_years == [2016, 2017, 2018, 2019]
+        assert bl.median_rate == pytest.approx(65.0)
+
+    def test_eligible_end_year_caps_span(self):
+        # Target 2022, end 2019 -> required 2016-2019 only
+        obs = [_mo("MODIS_Aqua", y, 7, 10, 1000) for y in range(2016, 2022)]
+        bl = compute_month_baseline(7, 2022, obs, _cfg(end=2019))
+        assert bl.required_years == [2016, 2017, 2018, 2019]
+        assert bl.status == BaselineStatus.AVAILABLE
+
+    def test_snpp_baseline_rejects_unflagged_partial_year(self):
+        # Target 2027, VIIRS_SNPP, Nov: required 2016-2026; 2026-11 is partial.
+        obs = [_mo("VIIRS_SNPP", y, 11, 10, 1000) for y in range(2016, 2027)]
+        bl = compute_month_baseline(11, 2027, obs, _cfg(sensor="VIIRS_SNPP", end=2026))
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2026]
+
+    def test_config_rejects_bad_values(self):
+        with pytest.raises(ValueError):
+            _cfg(min_support=0)
+        with pytest.raises(ValueError):
+            _cfg(fraction=0.0)
+        with pytest.raises(ValueError):
+            _cfg(season_start=13)
+
+
+# ---------------------------------------------------------------------------
+# Unusual labels
+# ---------------------------------------------------------------------------
+class TestLabelUnusual:
+    @pytest.fixture()
+    def bl(self):
+        obs = [_mo("MODIS_Aqua", y, 7, d, 1000)
+               for y, d in ((2016, 10), (2017, 50), (2018, 80), (2019, 90))]
+        return compute_month_baseline(7, 2020, obs, _cfg())  # p90 = 90.0
+
+    def test_strictly_above(self, bl):
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 91, 1000)], 2020, 7, bl)
+        assert lab.status == "labeled" and lab.is_unusual
+
+    def test_tie_not_unusual(self, bl):
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 90, 1000)], 2020, 7, bl)
+        assert lab.status == "labeled" and not lab.is_unusual
+
+    def test_target_O_zero(self, bl):
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 0, 0)], 2020, 7, bl)
+        assert lab.status == "target_unavailable" and lab.target_rate is None
+
+    def test_target_under_support(self, bl):
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 10, 50)], 2020, 7, bl)
+        assert lab.status == "target_insufficient_support" and not lab.is_unusual
+
+    def test_target_partial(self, bl):
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 99, 1000, partial=True)], 2020, 7, bl)
+        assert lab.status == "target_partial" and not lab.is_unusual
+
+    def test_unflagged_snpp_november_2026_target_is_partial(self):
+        obs = [_mo("VIIRS_SNPP", y, 11, 10, 1000) for y in range(2016, 2026)]
+        bl = compute_month_baseline(11, 2026, obs, _cfg(sensor="VIIRS_SNPP"))
+        assert bl.status == BaselineStatus.AVAILABLE
+        lab = label_unusual([_mo("VIIRS_SNPP", 2026, 11, 500, 1000)], 2026, 11, bl)
+        assert lab.status == "target_partial" and not lab.is_unusual
+
+    def test_unavailable_baseline(self):
+        bl = compute_month_baseline(7, 2020, [], _cfg())
+        lab = label_unusual([_mo("MODIS_Aqua", 2020, 7, 99, 1000)], 2020, 7, bl)
+        assert lab.status == "baseline_unavailable" and not lab.is_unusual
+
+    def test_baseline_target_mismatch_raises(self, bl):
+        with pytest.raises(ValueError, match="computed for"):
+            label_unusual([_mo("MODIS_Aqua", 2021, 7, 99, 1000)], 2021, 7, bl)
+
+    def test_zero_baseline(self):
+        obs = [_mo("MODIS_Aqua", y, 2, 0, 1000) for y in (2016, 2017, 2018)]
+        bl = compute_month_baseline(2, 2019, obs, _cfg())
+        assert bl.median_rate == pytest.approx(0.0) and bl.p90_rate == pytest.approx(0.0)
+        assert not label_unusual([_mo("MODIS_Aqua", 2019, 2, 0, 1000)], 2019, 2, bl).is_unusual
+        assert label_unusual([_mo("MODIS_Aqua", 2019, 2, 1, 1000)], 2019, 2, bl).is_unusual
+
+
+# ---------------------------------------------------------------------------
+# Normal season (finding 5)
+# ---------------------------------------------------------------------------
+def _stub(month, median, status=BaselineStatus.AVAILABLE, sensor="MODIS_Aqua",
+          target_year=2020, policy="own_support"):
+    ok = status == BaselineStatus.AVAILABLE
+    return MonthBaseline(
+        calendar_month=month, target_year=target_year, sensor=sensor, policy=policy,
+        min_support_O=100, median_rate=median if ok else None,
+        p90_rate=median if ok else None, n_years=4 if ok else 0,
+        eligible_years=[2016, 2017, 2018, 2019] if ok else [],
+        required_years=[2016, 2017, 2018, 2019],
+        missing_years=[] if ok else [2017], status=status,
+    )
+
+
+def _season(medians: dict[int, float], **cfg_kw):
+    bls = {m: _stub(m, r) for m, r in medians.items()}
+    return derive_normal_season(bls, _cfg(**cfg_kw))
+
+
+class TestNormalSeason:
+    BASE = {1: 5.0, 2: 5.0, 3: 5.0, 4: 20.0, 5: 20.0, 6: 20.0,
+            7: 80.0, 8: 60.0, 9: 25.0, 10: 5.0, 11: 5.0, 12: 5.0}
+
+    def test_first_and_last_qualifying(self):
+        # threshold 0.25*80 = 20 -> qualifying 4..9
+        s = _season(self.BASE)
+        assert (s.status, s.start_month, s.end_month, s.peak_month) == ("available", 4, 9, 7)
+        assert s.threshold_rate == pytest.approx(20.0)
+        assert s.interior_nonqualifying_months == []
+
+    def test_noncontiguous_uses_first_and_last_and_reports_gaps(self):
+        med = {m: 1.0 for m in range(1, 13)}
+        med.update({4: 30.0, 7: 100.0, 9: 40.0})  # threshold 25
+        s = _season(med)
+        assert (s.start_month, s.end_month, s.peak_month) == (4, 9, 7)
+        assert s.interior_nonqualifying_months == [5, 6, 8]
+
+    def test_missing_month_gives_insufficient_baseline(self):
+        bls = {m: _stub(m, r) for m, r in self.BASE.items()}
+        bls[2] = _stub(2, 0.0, status=BaselineStatus.MISSING_REQUIRED_YEARS)
+        del bls[11]
+        s = derive_normal_season(bls, _cfg())
+        assert s.status == "insufficient_baseline"
+        assert s.missing_months == [2, 11]
+        assert s.start_month is None and s.peak_month is None
+
+    def test_calendar_year_boundary_rule(self):
+        # Qualifying {11,12,1,2,3}; season-year starts January -> span 1..12
+        med = {m: 5.0 for m in range(1, 13)}
+        med.update({11: 20.0, 12: 60.0, 1: 80.0, 2: 60.0, 3: 20.0})
+        s = _season(med, season_start=1)
+        assert (s.start_month, s.end_month, s.peak_month) == (1, 12, 1)
+        assert s.interior_nonqualifying_months == [4, 5, 6, 7, 8, 9, 10]
+
+    def test_registered_july_boundary_rule(self):
+        med = {m: 5.0 for m in range(1, 13)}
+        med.update({11: 20.0, 12: 60.0, 1: 80.0, 2: 60.0, 3: 20.0})
+        s = _season(med, season_start=7)
+        assert (s.start_month, s.end_month, s.peak_month) == (11, 3, 1)
+        assert s.interior_nonqualifying_months == []
+
+    def test_peak_tie_takes_earliest_in_order(self):
+        med = {m: 1.0 for m in range(1, 13)}
+        med.update({6: 50.0, 8: 50.0})
+        s = _season(med)
+        assert s.peak_month == 6 and s.tied_peak_months == [6, 8]
+        s7 = _season(med, season_start=7)
+        assert s7.peak_month == 8 and s7.tied_peak_months == [8, 6]
+
+    def test_all_zero_medians_give_no_season(self):
+        s = _season({m: 0.0 for m in range(1, 13)})
+        assert s.status == "no_detected_activity" and s.start_month is None
+
+    def test_sensor_mismatch_raises(self):
+        bls = {m: _stub(m, 5.0) for m in range(1, 13)}
+        bls[3] = _stub(3, 5.0, sensor="VIIRS_SNPP")
+        with pytest.raises(ValueError, match="config is"):
+            derive_normal_season(bls, _cfg())
+
+    def test_mixed_target_years_raise(self):
+        bls = {m: _stub(m, 5.0) for m in range(1, 13)}
+        bls[3] = _stub(3, 5.0, target_year=2021)
+        with pytest.raises(ValueError, match="mix target years"):
+            derive_normal_season(bls, _cfg())

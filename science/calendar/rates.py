@@ -1,27 +1,36 @@
 """
-Historical fire-activity rate calculation — same-sensor calendar.
+Historical fire-activity rate calculation - same-sensor calendar.
 
 Scientific authority:
-  THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt  §3A, §4
+  THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt  Sections 3A, 4
   contracts/schemas/calendar.py
 
-GUARDRAILS (non-negotiable):
+GUARDRAILS (enforced in this module, not delegated to callers):
 - R = 1000 * sum(D) / sum(O).  Sums of D and O BEFORE division.
 - O = 0 is UNAVAILABLE; never coerced to zero fire.
-- Monthly and weekly rates are SAME-SENSOR ONLY.  MODIS Aqua and
-  VIIRS S-NPP / NOAA-20 are never joined into one rate series without
-  a separately evaluated mapping at that resolution.
-- S-NPP (VNP14A1) archive ends at 2026-11-02T15:40:00Z.  No S-NPP
-  month after that cutoff may be computed as a normal or complete value.
-  November 2026 is a partial month and is never presented as a full
-  normal month.
-- A partial month (is_partial_month=True) is always is_unavailable=True
-  for rate purposes; it may show raw D/O counts but not a comparable rate.
+- Rates are same-sensor and same-policy.  pooled_rate() raises if records
+  from different sensors, policies or period types are passed together.
+- S-NPP cutoff.  Every VIIRS_SNPP record is classified against the
+  cessation instant from its own calendar bounds, whatever the caller sets
+  in is_partial:
+    complete         period ends at or before the cutoff
+    partial          period straddles the cutoff (November 2026; ISO week
+                     45 of 2026)
+    after_cessation  period starts at or after the cutoff
+  Partial and after-cessation periods never produce a comparable rate.
+- Period boundaries (frozen):
+    monthly: first day 00:00 UTC to first day of next month 00:00 UTC
+    weekly:  ISO 8601 weeks in UTC, Monday 00:00 to next Monday 00:00;
+             PeriodObs.year is the ISO week-year for weekly records.
+
+Limit: SNPP_CESSATION is the NOAA/NESDIS notice time.  The plan requires P2 to
+confirm the last VNP14A1 date in the actual collection; if that date is
+earlier, this constant must be updated in a reviewed commit.
 """
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Literal, Optional
 
@@ -30,12 +39,47 @@ from typing import Literal, Optional
 # ---------------------------------------------------------------------------
 SCALE: float = 1000.0
 
-# Exact S-NPP cessation timestamp (UTC).
+SNPP_CESSATION: datetime = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
 SNPP_CESSATION_UTC: str = "2026-11-02T15:40:00Z"
-# No S-NPP data covers any date after this calendar month is partial.
-SNPP_LAST_COMPLETE_MONTH: tuple[int, int] = (2026, 10)  # October 2026
+SNPP_LAST_COMPLETE_MONTH: tuple[int, int] = (2026, 10)
+WEEK_DEFINITION: str = "iso_8601_utc"
 
 SensorID = Literal["MODIS_Aqua", "VIIRS_SNPP", "VIIRS_NOAA20"]
+PolicyID = Literal["own_support", "common_support"]
+
+
+class CutoffStatus(str, Enum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    AFTER_CESSATION = "after_cessation"
+    NOT_APPLICABLE = "not_applicable"  # sensor has no registered cessation
+
+
+def period_bounds_utc(
+    year: int, month: Optional[int] = None, week_number: Optional[int] = None
+) -> tuple[datetime, datetime]:
+    """Return [start, end) of a monthly or ISO-week period in UTC."""
+    if month is not None:
+        start = datetime(year, month, 1, tzinfo=timezone.utc)
+        if month == 12:
+            end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
+        else:
+            end = datetime(year, month + 1, 1, tzinfo=timezone.utc)
+        return start, end
+    if week_number is not None:
+        monday = date.fromisocalendar(year, week_number, 1)
+        start = datetime(monday.year, monday.month, monday.day, tzinfo=timezone.utc)
+        return start, start + timedelta(days=7)
+    raise ValueError("period_bounds_utc needs month or week_number.")
+
+
+def snpp_cutoff_status(start: datetime, end: datetime) -> CutoffStatus:
+    """Classify a [start, end) period against the S-NPP cessation instant."""
+    if end <= SNPP_CESSATION:
+        return CutoffStatus.COMPLETE
+    if start >= SNPP_CESSATION:
+        return CutoffStatus.AFTER_CESSATION
+    return CutoffStatus.PARTIAL
 
 
 # ---------------------------------------------------------------------------
@@ -44,28 +88,26 @@ SensorID = Literal["MODIS_Aqua", "VIIRS_SNPP", "VIIRS_NOAA20"]
 @dataclass(frozen=True)
 class PeriodObs:
     """
-    Aggregate D and O for one sensor in one calendar period (year/month or
-    year/week).
+    Aggregate D and O for one sensor, policy and calendar period.
 
     D: detected fire-cell-days (non-negative integer).
-    O: usable land-cell-days denominator.
-        O = 0 means the period is UNAVAILABLE; D must be 0.
-    sensor: one of the three named platforms.
-    year / month / week_number: calendar address.  week_number is None
-        for monthly records; month is None for weekly records.
-    is_partial: True when the period is known to be incomplete — specifically,
-        any S-NPP period that overlaps the 2026-11-02 cessation, or any
-        in-progress period where only part of the calendar window was observed.
-        A partial period is always treated as unavailable for rate comparison.
+    O: usable land-cell-days.  O = 0 means unavailable; D must then be 0.
+    month / week_number: exactly one must be set.  For weekly records, year
+        is the ISO week-year.
+    is_partial: caller flag for periods known to be incomplete for reasons
+        other than the S-NPP cutoff (e.g. an in-progress month).  It can mark
+        a period partial; it cannot mark an S-NPP period complete.
+    policy: support policy; rates never mix policies.
     """
 
     sensor: SensorID
     year: int
     D: int
     O: int
-    month: Optional[int] = None       # 1-12; None for weekly records
-    week_number: Optional[int] = None  # 1-53; None for monthly records
+    month: Optional[int] = None
+    week_number: Optional[int] = None
     is_partial: bool = False
+    policy: PolicyID = "own_support"
 
     def __post_init__(self) -> None:
         if self.D < 0:
@@ -83,54 +125,63 @@ class PeriodObs:
             raise ValueError("Set month OR week_number, not both.")
         if self.month is not None and not (1 <= self.month <= 12):
             raise ValueError(f"month must be 1-12, got {self.month}")
-        if self.week_number is not None and not (1 <= self.week_number <= 53):
-            raise ValueError(f"week_number must be 1-53, got {self.week_number}")
+        if self.week_number is not None:
+            try:
+                date.fromisocalendar(self.year, self.week_number, 1)
+            except ValueError as exc:
+                raise ValueError(
+                    f"week_number {self.week_number} is not a valid ISO week "
+                    f"for ISO week-year {self.year}."
+                ) from exc
+
+    @property
+    def period_type(self) -> str:
+        return "month" if self.month is not None else "week"
+
+    @property
+    def bounds_utc(self) -> tuple[datetime, datetime]:
+        return period_bounds_utc(self.year, self.month, self.week_number)
+
+    @property
+    def cutoff_status(self) -> CutoffStatus:
+        if self.sensor != "VIIRS_SNPP":
+            return CutoffStatus.NOT_APPLICABLE
+        return snpp_cutoff_status(*self.bounds_utc)
+
+    @property
+    def is_after_cessation(self) -> bool:
+        return self.cutoff_status == CutoffStatus.AFTER_CESSATION
+
+    @property
+    def is_period_partial(self) -> bool:
+        """Partial by caller flag or by straddling the S-NPP cutoff."""
+        return self.is_partial or self.cutoff_status == CutoffStatus.PARTIAL
 
     @property
     def is_available(self) -> bool:
-        """True when the period has usable observations and is not partial."""
-        return self.O > 0 and not self.is_partial
-
-    @staticmethod
-    def snpp_month_is_partial(year: int, month: int) -> bool:
-        """
-        Return True when a VIIRS_SNPP monthly record is for a partial month.
-
-        November 2026 is partial because S-NPP data ceased on 2026-11-02.
-        No SNPP month after October 2026 is complete.
-        """
-        # S-NPP last complete month is October 2026 (year=2026, month=10).
-        # November 2026 (2026, 11) is partial.
-        # Any month in 2027+ would also be partial (no data), but those
-        # records should not exist in the VNP14A1 archive.
-        if year > 2026:
-            return True
-        if year == 2026 and month >= 11:
-            return True
-        return False
+        """Usable for a comparable rate: O > 0, complete and before cessation."""
+        return (
+            self.O > 0
+            and not self.is_period_partial
+            and not self.is_after_cessation
+        )
 
 
 # ---------------------------------------------------------------------------
 # Rate calculation
 # ---------------------------------------------------------------------------
 class RateStatus(str, Enum):
-    AVAILABLE = "available"          # R computed from O > 0
-    UNAVAILABLE = "unavailable"      # O = 0 or period is partial
-    PARTIAL_MONTH = "partial_month"  # specifically the S-NPP Nov-2026 case
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"          # O = 0
+    PARTIAL_MONTH = "partial_month"
+    PARTIAL_WEEK = "partial_week"
+    AFTER_CESSATION = "after_cessation"  # S-NPP record has ended
 
 
 @dataclass
 class RateResult:
-    """
-    Fire-activity rate for one sensor/period.
-
-    fire_activity_index: 1000 * D / O when status == AVAILABLE; else None.
-    status: AVAILABLE, UNAVAILABLE, or PARTIAL_MONTH.
-    D, O: raw counts as supplied.
-    reasons: human-readable explanations for non-AVAILABLE status.
-    """
-
     sensor: SensorID
+    policy: PolicyID
     year: int
     month: Optional[int]
     week_number: Optional[int]
@@ -143,84 +194,69 @@ class RateResult:
 
 def compute_rate(obs: PeriodObs) -> RateResult:
     """
-    Compute R = 1000 * D / O for a single period observation.
-
-    Returns RateResult with fire_activity_index = None when O = 0 or the
-    period is partial.  Partial S-NPP months produce status = PARTIAL_MONTH.
+    R = 1000 * D / O for one period.  Status precedence:
+    after_cessation > partial > O = 0 > available.
     """
-    reasons: list[str] = []
+    def _result(rate: Optional[float], status: RateStatus, reasons: list[str]) -> RateResult:
+        return RateResult(
+            sensor=obs.sensor, policy=obs.policy, year=obs.year,
+            month=obs.month, week_number=obs.week_number,
+            D=obs.D, O=obs.O, fire_activity_index=rate,
+            status=status, reasons=reasons,
+        )
 
-    # Partial-month guard (highest priority — applies before O check)
-    if obs.is_partial:
-        if obs.sensor == "VIIRS_SNPP" and obs.month is not None:
-            status = RateStatus.PARTIAL_MONTH
-            reasons.append(
-                f"VIIRS_SNPP month {obs.year}-{obs.month:02d} is a partial "
-                f"month (S-NPP data ceased {SNPP_CESSATION_UTC}).  "
-                "This month is never shown as a complete normal value."
+    label = (
+        f"{obs.sensor} {obs.year}-{obs.month:02d}" if obs.month is not None
+        else f"{obs.sensor} {obs.year}-W{obs.week_number:02d}"
+    )
+
+    if obs.is_after_cessation:
+        return _result(None, RateStatus.AFTER_CESSATION, [
+            f"{label} starts after the S-NPP cessation ({SNPP_CESSATION_UTC}). "
+            "S-NPP record ends; no value is shown for this period."
+        ])
+
+    if obs.is_period_partial:
+        status = RateStatus.PARTIAL_MONTH if obs.month is not None else RateStatus.PARTIAL_WEEK
+        if obs.cutoff_status == CutoffStatus.PARTIAL:
+            reason = (
+                f"{label} straddles the S-NPP cessation ({SNPP_CESSATION_UTC}); "
+                "it is a partial period and never a complete normal value."
             )
         else:
-            status = RateStatus.UNAVAILABLE
-            reasons.append(
-                f"Period {obs.year} month={obs.month} week={obs.week_number} "
-                "is marked partial; rate is unavailable."
-            )
-        return RateResult(
-            sensor=obs.sensor,
-            year=obs.year,
-            month=obs.month,
-            week_number=obs.week_number,
-            D=obs.D,
-            O=obs.O,
-            fire_activity_index=None,
-            status=status,
-            reasons=reasons,
-        )
+            reason = f"{label} is flagged partial; no comparable rate is shown."
+        return _result(None, status, [reason])
 
-    # Missing observation guard
     if obs.O == 0:
-        reasons.append(
-            f"O = 0 for {obs.sensor} {obs.year} "
-            f"month={obs.month} week={obs.week_number}: "
-            "period is unavailable (no usable land-cell-days)."
-        )
-        return RateResult(
-            sensor=obs.sensor,
-            year=obs.year,
-            month=obs.month,
-            week_number=obs.week_number,
-            D=obs.D,
-            O=obs.O,
-            fire_activity_index=None,
-            status=RateStatus.UNAVAILABLE,
-            reasons=reasons,
-        )
+        return _result(None, RateStatus.UNAVAILABLE, [
+            f"O = 0 for {label}: no usable land-cell-days; unavailable, not zero."
+        ])
 
-    r = SCALE * obs.D / obs.O
-    return RateResult(
-        sensor=obs.sensor,
-        year=obs.year,
-        month=obs.month,
-        week_number=obs.week_number,
-        D=obs.D,
-        O=obs.O,
-        fire_activity_index=r,
-        status=RateStatus.AVAILABLE,
-        reasons=[],
-    )
+    return _result(SCALE * obs.D / obs.O, RateStatus.AVAILABLE, [])
 
 
 def pooled_rate(observations: list[PeriodObs]) -> Optional[float]:
     """
-    1000 * sum(D) / sum(O) across all available observations.
+    1000 * sum(D) / sum(O) across available observations.
 
-    Returns None when no available observations exist.
-
-    All observations must be from the same sensor.  The caller is responsible
-    for filtering; this function does not enforce sensor homogeneity.
+    Raises ValueError when records mix sensors, policies or period types.
+    Returns None when no available observation exists.
     """
-    total_D: int = 0
-    total_O: int = 0
+    if not observations:
+        return None
+    sensors = {o.sensor for o in observations}
+    policies = {o.policy for o in observations}
+    period_types = {o.period_type for o in observations}
+    if len(sensors) > 1:
+        raise ValueError(f"pooled_rate received mixed sensors {sorted(sensors)}; "
+                         "rates are same-sensor only.")
+    if len(policies) > 1:
+        raise ValueError(f"pooled_rate received mixed policies {sorted(policies)}.")
+    if len(period_types) > 1:
+        raise ValueError("pooled_rate received both monthly and weekly records.")
+
+    total_D = 0
+    total_O = 0
     for obs in observations:
         if obs.is_available:
             total_D += obs.D

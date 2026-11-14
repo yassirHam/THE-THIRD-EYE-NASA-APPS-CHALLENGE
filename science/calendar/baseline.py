@@ -1,35 +1,34 @@
 """
-Seasonal baseline computation — same-sensor, same-calendar-month.
+Seasonal baseline, unusual-month labels and normal season - same sensor
+and same policy.
 
 Scientific authority:
-  THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt  §3A
+  THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt
+    WEEKEND BUILD BRIEF (registered prior years "must be present with minimum
+    support or the baseline is unavailable") and Section 3A.
 
-Spec rules implemented here:
-  - Eligible prior years: same sensor, years strictly before the target
-    year, within the registered start/end span, excluding the target year
-    and all later years.
-  - Per-year monthly rate R_y = 1000 * sum(D) / sum(O) for each eligible
-    year y.  Missing (O = 0) years contribute no rate — they are not
-    counted in n and do not enter the sorted array.  Partially observed
-    months are also excluded.
-  - Median: nearest-rank, middle value of sorted array (len // 2 for even
-    n; (len-1)//2 for odd n, i.e. lower median).  Spec says "median";
-    we use the standard lower-median nearest-rank: sorted[n//2] for even,
-    sorted[(n-1)//2] for odd.  For n=1 the median equals the single value.
-  - 90th percentile: nearest-rank, rank = ceil(0.90 * n), 1-indexed.
-    Value is sorted_values[rank - 1].
-  - Unusual: strictly above the 90th percentile.  A value equal to the
-    percentile is NOT unusual.
-  - If the median rate is zero, the absolute difference is the only valid
-    comparison; percentage change is undefined.
-  - No baseline crosses sensors.
-  - Minimum eligible-year count is registered before outcome inspection;
-    if n < min_years the baseline is INSUFFICIENT.
-  - Normal season: for each calendar month compute the median rate across
-    eligible prior years.  The normal season is the contiguous run
-    containing the peak-median month, bounded by months whose median
-    crosses the registered threshold fraction of the peak median.
-    All season parameters are frozen before outcome inspection.
+Rules implemented:
+  - Required years for a target year T are every year from
+    eligible_start_year through min(T - 1, eligible_end_year).  T and later
+    years never enter.  If that span has fewer than min_years years the
+    baseline is INSUFFICIENT_BASELINE.
+  - Every required year must be present with complete, pre-cessation records
+    whose summed O meets min_support_O.  One missing, partial or
+    under-supported year makes the baseline MISSING_REQUIRED_YEARS; years are
+    never silently dropped.
+  - Each year's rate is 1000 * sum(D) / sum(O) over that year's records.
+  - Median: conventional median (mean of the two middle values for even n).
+  - 90th percentile: nearest rank, rank = ceil(0.90 * n), 1-indexed.
+  - Unusual: strictly above the 90th percentile; ties are not unusual.
+  - Normal season: needs an AVAILABLE baseline for all 12 months, otherwise
+    insufficient baseline.  Season start/end are the first and last
+    qualifying months in the frozen season-year order (starting at
+    season_year_start_month).  Non-qualifying months inside the span are
+    reported, not hidden.  Peak ties go to the earliest month in that order.
+    A peak median of 0 yields no season.
+
+All BaselineConfig parameters except policy are required so they must be
+registered explicitly before outcomes are inspected; none has a code default.
 """
 from __future__ import annotations
 
@@ -38,33 +37,34 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-from science.calendar.rates import PeriodObs, pooled_rate, SCALE
+from science.calendar.rates import PeriodObs, PolicyID, SensorID, pooled_rate
 
 
 # ---------------------------------------------------------------------------
-# Configuration — frozen before outcome inspection
+# Configuration - frozen before outcome inspection
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class BaselineConfig:
-    """
-    Parameters frozen before any outcomes are inspected.
-
-    sensor: which platform these baselines apply to.
-    eligible_start_year: earliest year that may enter the baseline.
-    eligible_end_year: last year that may enter the baseline (inclusive).
-        For the VIIRS era, 2016 is the first usable year; for Aqua, 2003.
-    min_years: minimum number of years with available rates required to
-        produce a baseline; if n < min_years → INSUFFICIENT_BASELINE.
-    normal_season_threshold_fraction: fraction of peak-month median that
-        a month's median must meet or exceed to qualify as part of the
-        normal season.  Frozen before outcomes.
-    """
-
-    sensor: str
+    sensor: SensorID
     eligible_start_year: int
     eligible_end_year: int
-    min_years: int = 3
-    normal_season_threshold_fraction: float = 0.25
+    min_years: int
+    min_support_O: int
+    normal_season_threshold_fraction: float
+    season_year_start_month: int
+    policy: PolicyID = "own_support"
+
+    def __post_init__(self) -> None:
+        if self.eligible_end_year < self.eligible_start_year:
+            raise ValueError("eligible_end_year must be >= eligible_start_year.")
+        if self.min_years < 1:
+            raise ValueError("min_years must be >= 1.")
+        if self.min_support_O < 1:
+            raise ValueError("min_support_O must be >= 1 (O = 0 is never support).")
+        if not (0.0 < self.normal_season_threshold_fraction <= 1.0):
+            raise ValueError("normal_season_threshold_fraction must be in (0, 1].")
+        if not (1 <= self.season_year_start_month <= 12):
+            raise ValueError("season_year_start_month must be 1-12.")
 
 
 # ---------------------------------------------------------------------------
@@ -72,29 +72,23 @@ class BaselineConfig:
 # ---------------------------------------------------------------------------
 class BaselineStatus(str, Enum):
     AVAILABLE = "available"
-    INSUFFICIENT_BASELINE = "insufficient_baseline"  # n < min_years
-    NO_AVAILABLE_YEARS = "no_available_years"         # all prior years O=0
+    INSUFFICIENT_BASELINE = "insufficient_baseline"    # span shorter than min_years
+    MISSING_REQUIRED_YEARS = "missing_required_years"  # a required year lacks support
 
 
 @dataclass
 class MonthBaseline:
-    """
-    Baseline statistics for one calendar month within one sensor era.
-
-    median_rate: lower-median of per-year rates.  None when status != AVAILABLE.
-    p90_rate: 90th-percentile nearest-rank rate.  None when status != AVAILABLE.
-    n_years: count of eligible years with available rates.
-    eligible_years: sorted list of years that contributed rates.
-    status: AVAILABLE, INSUFFICIENT_BASELINE, or NO_AVAILABLE_YEARS.
-    reasons: human-readable explanations for non-AVAILABLE status.
-    """
-
-    calendar_month: int   # 1-12
-    sensor: str
+    calendar_month: int
+    target_year: int
+    sensor: SensorID
+    policy: PolicyID
+    min_support_O: int
     median_rate: Optional[float]
     p90_rate: Optional[float]
     n_years: int
-    eligible_years: list[int]
+    eligible_years: list[int]   # years whose rates entered the statistics
+    required_years: list[int]
+    missing_years: list[int]
     status: BaselineStatus
     reasons: list[str] = field(default_factory=list)
 
@@ -102,20 +96,14 @@ class MonthBaseline:
 @dataclass
 class UnusualLabel:
     """
-    Unusual-period label for one target year/month.
-
-    is_unusual: True when the target rate is STRICTLY above p90_rate.
-                False when equal to or below p90_rate, or when
-                baseline/target are unavailable.
-    target_rate: the rate being tested.  None when unavailable.
-    p90_rate: the threshold.  None when baseline unavailable.
-    status: 'labeled' | 'insufficient_baseline' | 'target_unavailable' |
-            'baseline_unavailable'
+    status: 'labeled' | 'baseline_unavailable' | 'target_unavailable' |
+            'target_partial' | 'target_insufficient_support'
+    is_unusual is True only when status == 'labeled' and rate > p90.
     """
-
     calendar_month: int
     target_year: int
-    sensor: str
+    sensor: SensorID
+    policy: PolicyID
     is_unusual: bool
     target_rate: Optional[float]
     p90_rate: Optional[float]
@@ -125,55 +113,41 @@ class UnusualLabel:
 
 @dataclass
 class NormalSeason:
-    """
-    Normal season definition — frozen before outcome inspection.
-
-    start_month / end_month: first and last calendar months of the season
-        (inclusive, 1-indexed), or None when the season cannot be determined.
-    peak_month: calendar month with the highest median rate, or None.
-    status: 'available' | 'insufficient_baseline' | 'no_peak'
-    """
-
-    sensor: str
+    """status: 'available' | 'insufficient_baseline' | 'no_detected_activity'"""
+    sensor: SensorID
+    policy: PolicyID
     start_month: Optional[int]
     end_month: Optional[int]
     peak_month: Optional[int]
     status: str
+    threshold_rate: Optional[float] = None
+    tied_peak_months: list[int] = field(default_factory=list)
+    interior_nonqualifying_months: list[int] = field(default_factory=list)
+    missing_months: list[int] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Statistics
 # ---------------------------------------------------------------------------
-def _nearest_rank_percentile(sorted_values: list[float], p: float) -> float:
-    """
-    Nearest-rank percentile.  p in [0, 100].
-    rank = ceil(p/100 * n), 1-indexed; return sorted_values[rank-1].
-    Requires len(sorted_values) >= 1.
-    """
+def _median(sorted_values: list[float]) -> float:
+    """Conventional median of a non-empty sorted list."""
     n = len(sorted_values)
-    rank = math.ceil(p / 100.0 * n)
-    rank = max(1, min(rank, n))  # clamp to valid range
+    mid = n // 2
+    if n % 2 == 1:
+        return sorted_values[mid]
+    return (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
+
+
+def _nearest_rank_percentile(sorted_values: list[float], p: float) -> float:
+    """Nearest-rank percentile: sorted_values[ceil(p/100 * n) - 1]."""
+    n = len(sorted_values)
+    rank = max(1, min(math.ceil(p / 100.0 * n), n))
     return sorted_values[rank - 1]
 
 
-def _lower_median(sorted_values: list[float]) -> float:
-    """
-    Lower median of a non-empty sorted list.
-    For even n: sorted[(n//2) - 1]  (lower of the two middle values).
-    For odd  n: sorted[n//2].
-    For n=1:    sorted[0].
-    """
-    n = len(sorted_values)
-    if n == 1:
-        return sorted_values[0]
-    if n % 2 == 0:
-        return sorted_values[n // 2 - 1]
-    return sorted_values[n // 2]
-
-
 # ---------------------------------------------------------------------------
-# Core baseline computation
+# Monthly baseline
 # ---------------------------------------------------------------------------
 def compute_month_baseline(
     calendar_month: int,
@@ -181,111 +155,84 @@ def compute_month_baseline(
     all_obs: list[PeriodObs],
     config: BaselineConfig,
 ) -> MonthBaseline:
-    """
-    Compute the seasonal baseline for one calendar month in one sensor era.
+    """Baseline for one calendar month and target year under a frozen config."""
+    last_year = min(target_year - 1, config.eligible_end_year)
+    required = list(range(config.eligible_start_year, last_year + 1))
 
-    Parameters
-    ----------
-    calendar_month:
-        Calendar month (1-12) for which to compute the baseline.
-    target_year:
-        The year being assessed.  Excluded from the baseline along with
-        all later years.
-    all_obs:
-        All monthly PeriodObs for this sensor, any year, any month.
-        The function filters to the correct month and eligible years.
-    config:
-        Frozen baseline parameters.
+    def _result(status, median=None, p90=None, used=None, missing=None, reasons=None):
+        used = used or []
+        return MonthBaseline(
+            calendar_month=calendar_month, target_year=target_year,
+            sensor=config.sensor, policy=config.policy,
+            min_support_O=config.min_support_O,
+            median_rate=median, p90_rate=p90, n_years=len(used),
+            eligible_years=used, required_years=required,
+            missing_years=missing or [], status=status, reasons=reasons or [],
+        )
 
-    Returns
-    -------
-    MonthBaseline with status AVAILABLE when n >= config.min_years,
-    INSUFFICIENT_BASELINE when 0 < n < min_years, or NO_AVAILABLE_YEARS
-    when no eligible year has usable observations for this month.
-    """
+    if len(required) < config.min_years:
+        return _result(BaselineStatus.INSUFFICIENT_BASELINE, reasons=[
+            f"Registered span gives {len(required)} prior year(s) "
+            f"({required}) for target {target_year}; minimum is "
+            f"{config.min_years}.  Insufficient baseline."
+        ])
+
+    required_set = set(required)
+    by_year: dict[int, list[PeriodObs]] = {}
+    for o in all_obs:
+        if (o.sensor == config.sensor and o.policy == config.policy
+                and o.month == calendar_month and o.year in required_set):
+            by_year.setdefault(o.year, []).append(o)
+
+    missing: list[int] = []
     reasons: list[str] = []
+    rates: dict[int, float] = {}
+    for yr in required:
+        recs = by_year.get(yr, [])
+        if not recs:
+            missing.append(yr)
+            reasons.append(f"{yr}: no records.")
+            continue
+        if any(r.is_period_partial or r.is_after_cessation for r in recs):
+            missing.append(yr)
+            reasons.append(f"{yr}: partial or after-cessation record present.")
+            continue
+        total_O = sum(r.O for r in recs)
+        if total_O < config.min_support_O:
+            missing.append(yr)
+            reasons.append(
+                f"{yr}: summed O = {total_O} below registered minimum "
+                f"{config.min_support_O}."
+            )
+            continue
+        rate = pooled_rate(recs)
+        if rate is None:  # unreachable while min_support_O >= 1
+            missing.append(yr)
+            reasons.append(f"{yr}: no available records.")
+            continue
+        rates[yr] = rate
 
-    # Filter: correct sensor, correct month, eligible year range, before target
-    eligible_obs = [
-        o for o in all_obs
-        if o.sensor == config.sensor
-        and o.month == calendar_month
-        and config.eligible_start_year <= o.year < target_year
-        and o.year <= config.eligible_end_year
-    ]
+    if missing:
+        reasons.insert(0, (
+            f"Required prior years {missing} lack complete records with "
+            f"registered support for {config.sensor}/{config.policy} month "
+            f"{calendar_month}, target {target_year}.  Baseline unavailable; "
+            "remaining years are not used on their own."
+        ))
+        return _result(BaselineStatus.MISSING_REQUIRED_YEARS,
+                       used=sorted(rates), missing=missing, reasons=reasons)
 
-    # Group by year — one rate per eligible year
-    years_seen: dict[int, list[PeriodObs]] = {}
-    for o in eligible_obs:
-        years_seen.setdefault(o.year, []).append(o)
-
-    # Compute per-year pooled rate; skip years with no available obs
-    per_year_rates: list[tuple[int, float]] = []
-    for yr, yr_obs in sorted(years_seen.items()):
-        r = pooled_rate(yr_obs)
-        if r is not None:
-            per_year_rates.append((yr, r))
-        # Years where every obs has O=0 or is_partial are silently skipped;
-        # they are not counted in n and do not widen the baseline.
-
-    n = len(per_year_rates)
-    eligible_years = [yr for yr, _ in per_year_rates]
-    rates = [r for _, r in per_year_rates]
-
-    if n == 0:
-        reasons.append(
-            f"No eligible years with usable observations (O > 0) for "
-            f"sensor={config.sensor}, month={calendar_month}, "
-            f"target_year={target_year}."
-        )
-        return MonthBaseline(
-            calendar_month=calendar_month,
-            sensor=config.sensor,
-            median_rate=None,
-            p90_rate=None,
-            n_years=0,
-            eligible_years=[],
-            status=BaselineStatus.NO_AVAILABLE_YEARS,
-            reasons=reasons,
-        )
-
-    if n < config.min_years:
-        reasons.append(
-            f"Only {n} eligible year(s) available; minimum required is "
-            f"{config.min_years}.  Baseline is INSUFFICIENT for "
-            f"sensor={config.sensor}, month={calendar_month}, "
-            f"target_year={target_year}.  "
-            f"Available years: {eligible_years}."
-        )
-        return MonthBaseline(
-            calendar_month=calendar_month,
-            sensor=config.sensor,
-            median_rate=None,
-            p90_rate=None,
-            n_years=n,
-            eligible_years=eligible_years,
-            status=BaselineStatus.INSUFFICIENT_BASELINE,
-            reasons=reasons,
-        )
-
-    sorted_rates = sorted(rates)
-    median = _lower_median(sorted_rates)
-    p90 = _nearest_rank_percentile(sorted_rates, 90.0)
-
-    return MonthBaseline(
-        calendar_month=calendar_month,
-        sensor=config.sensor,
-        median_rate=median,
-        p90_rate=p90,
-        n_years=n,
-        eligible_years=eligible_years,
-        status=BaselineStatus.AVAILABLE,
-        reasons=[],
+    sorted_rates = sorted(rates.values())
+    return _result(
+        BaselineStatus.AVAILABLE,
+        median=_median(sorted_rates),
+        p90=_nearest_rank_percentile(sorted_rates, 90.0),
+        used=sorted(rates),
     )
 
 
 # ---------------------------------------------------------------------------
-# Unusual-period labeling
+# Unusual-month label
 # ---------------------------------------------------------------------------
 def label_unusual(
     target_obs: list[PeriodObs],
@@ -293,226 +240,113 @@ def label_unusual(
     calendar_month: int,
     baseline: MonthBaseline,
 ) -> UnusualLabel:
-    """
-    Label whether a target year/month is unusual relative to its baseline.
+    """Unusual = target rate strictly above the baseline's 90th percentile."""
+    if baseline.target_year != target_year or baseline.calendar_month != calendar_month:
+        raise ValueError(
+            f"Baseline was computed for {baseline.target_year}-"
+            f"{baseline.calendar_month:02d}, not {target_year}-{calendar_month:02d}."
+        )
 
-    Unusual means the target rate is STRICTLY above the 90th-percentile
-    threshold.  A rate equal to the threshold is NOT unusual (spec §3A).
+    def _label(status, rate=None, p90=None, unusual=False, reason=""):
+        return UnusualLabel(
+            calendar_month=calendar_month, target_year=target_year,
+            sensor=baseline.sensor, policy=baseline.policy,
+            is_unusual=unusual, target_rate=rate, p90_rate=p90,
+            status=status, reason=reason,
+        )
 
-    If the baseline is unavailable or the target has O = 0, the label
-    is not assigned and the status explains why.
+    if baseline.status != BaselineStatus.AVAILABLE:
+        return _label("baseline_unavailable",
+                      reason=f"Baseline status is {baseline.status.value}.")
 
-    Parameters
-    ----------
-    target_obs:
-        Monthly PeriodObs for the target year and month (same sensor).
-        May be a list with multiple spatial blocks (they will be pooled).
-    target_year:
-        Year being assessed.
-    calendar_month:
-        Month being assessed.
-    baseline:
-        Pre-computed MonthBaseline for this month/sensor.
-    """
-    sensor = baseline.sensor
-
-    # Filter target obs to available records for this year/month/sensor
     relevant = [
         o for o in target_obs
-        if o.sensor == sensor
-        and o.year == target_year
-        and o.month == calendar_month
+        if o.sensor == baseline.sensor and o.policy == baseline.policy
+        and o.year == target_year and o.month == calendar_month
     ]
+    if not relevant:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="No target records.")
+    if any(o.is_period_partial or o.is_after_cessation for o in relevant):
+        return _label("target_partial", p90=baseline.p90_rate,
+                      reason="Target month is partial or after S-NPP cessation.")
+    total_O = sum(o.O for o in relevant)
+    if total_O == 0:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="Target O = 0; unavailable, not zero.")
+    if total_O < baseline.min_support_O:
+        return _label("target_insufficient_support", p90=baseline.p90_rate,
+                      reason=f"Target O = {total_O} below registered minimum "
+                             f"{baseline.min_support_O}.")
 
-    target_rate = pooled_rate(relevant)
-
-    # Baseline must be available
-    if baseline.status != BaselineStatus.AVAILABLE:
-        return UnusualLabel(
-            calendar_month=calendar_month,
-            target_year=target_year,
-            sensor=sensor,
-            is_unusual=False,
-            target_rate=target_rate,
-            p90_rate=None,
-            status="baseline_unavailable",
-            reason=(
-                f"Baseline is {baseline.status.value} for "
-                f"sensor={sensor}, month={calendar_month}.  "
-                "Cannot assign unusual label."
-            ),
-        )
-
-    # Target must be available
-    if target_rate is None:
-        return UnusualLabel(
-            calendar_month=calendar_month,
-            target_year=target_year,
-            sensor=sensor,
-            is_unusual=False,
-            target_rate=None,
-            p90_rate=baseline.p90_rate,
-            status="target_unavailable",
-            reason=(
-                f"Target rate for {sensor} {target_year}-{calendar_month:02d} "
-                "is unavailable (O = 0 or no usable observations).  "
-                "Cannot assign unusual label."
-            ),
-        )
-
-    p90 = baseline.p90_rate  # type: ignore[assignment]
-    is_unusual = target_rate > p90  # strictly above; ties are not unusual
-
-    return UnusualLabel(
-        calendar_month=calendar_month,
-        target_year=target_year,
-        sensor=sensor,
-        is_unusual=is_unusual,
-        target_rate=target_rate,
-        p90_rate=p90,
-        status="labeled",
-        reason="",
-    )
+    rate = pooled_rate(relevant)
+    p90 = baseline.p90_rate
+    return _label("labeled", rate=rate, p90=p90,
+                  unusual=rate > p90)  # type: ignore[operator]
 
 
 # ---------------------------------------------------------------------------
-# Normal-season derivation
+# Normal season
 # ---------------------------------------------------------------------------
 def derive_normal_season(
     all_baselines: dict[int, MonthBaseline],
     config: BaselineConfig,
 ) -> NormalSeason:
-    """
-    Derive the normal season from the 12 monthly baselines.
+    """Normal season from 12 monthly baselines under the frozen rules above."""
+    target_years = set()
+    for m, bl in all_baselines.items():
+        if bl.sensor != config.sensor or bl.policy != config.policy:
+            raise ValueError(f"Baseline for month {m} is {bl.sensor}/{bl.policy}, "
+                             f"config is {config.sensor}/{config.policy}.")
+        if bl.calendar_month != m:
+            raise ValueError(f"Baseline keyed {m} is for month {bl.calendar_month}.")
+        target_years.add(bl.target_year)
+    if len(target_years) > 1:
+        raise ValueError(f"Baselines mix target years {sorted(target_years)}.")
 
-    Algorithm (frozen, applied before outcome inspection):
-      1. Find the calendar month with the highest median rate among
-         months whose baseline is AVAILABLE.  That is the peak month.
-      2. Months qualify for the normal season if their median rate is
-         >= config.normal_season_threshold_fraction * peak_median.
-      3. The normal season is the contiguous run of qualifying months
-         that includes the peak month.  Month adjacency wraps around
-         the year end (month 12 is adjacent to month 1).
-      4. If no peak can be identified, or no qualifying run includes the
-         peak, status is 'no_peak'.
+    def _none(status, reasons, missing=None):
+        return NormalSeason(sensor=config.sensor, policy=config.policy,
+                            start_month=None, end_month=None, peak_month=None,
+                            status=status, missing_months=missing or [],
+                            reasons=reasons)
 
-    Parameters
-    ----------
-    all_baselines:
-        Dict mapping calendar_month (1-12) to MonthBaseline for this sensor.
-        May be incomplete; missing months are treated as unavailable.
-    config:
-        Frozen parameters including normal_season_threshold_fraction.
+    missing = [
+        m for m in range(1, 13)
+        if m not in all_baselines
+        or all_baselines[m].status != BaselineStatus.AVAILABLE
+    ]
+    if missing:
+        return _none("insufficient_baseline", [
+            f"Months {missing} lack an available baseline; first and last "
+            "qualifying months cannot be determined."
+        ], missing)
 
-    Returns
-    -------
-    NormalSeason with start_month, end_month, peak_month when available.
-    """
+    order = [((config.season_year_start_month - 1 + i) % 12) + 1 for i in range(12)]
+    medians = {m: all_baselines[m].median_rate for m in order}
+    peak_median = max(medians.values())  # type: ignore[type-var]
+    if peak_median <= 0.0:  # type: ignore[operator]
+        return _none("no_detected_activity", [
+            "Every monthly median rate is 0; no fire season is defined."
+        ])
+
+    tied = [m for m in order if medians[m] == peak_median]
+    threshold = config.normal_season_threshold_fraction * peak_median  # type: ignore[operator]
+    qualifying = [m for m in order if medians[m] >= threshold]  # type: ignore[operator]
+    start, end = qualifying[0], qualifying[-1]
+    span = order[order.index(start): order.index(end) + 1]
+    interior = [m for m in span if m not in qualifying]
+
     reasons: list[str] = []
-
-    # Collect available median rates
-    available: dict[int, float] = {}
-    for m in range(1, 13):
-        bl = all_baselines.get(m)
-        if bl is not None and bl.status == BaselineStatus.AVAILABLE and bl.median_rate is not None:
-            available[m] = bl.median_rate
-
-    if not available:
-        reasons.append(
-            "No calendar month has an available baseline; "
-            "normal season cannot be determined."
-        )
-        return NormalSeason(
-            sensor=config.sensor,
-            start_month=None,
-            end_month=None,
-            peak_month=None,
-            status="insufficient_baseline",
-            reasons=reasons,
-        )
-
-    # Find peak month (highest median; ties broken by lower month number)
-    peak_month = min(available, key=lambda m: (-available[m], m))
-    peak_median = available[peak_month]
-
-    threshold = config.normal_season_threshold_fraction * peak_median
-
-    # Qualifying months: median >= threshold
-    qualifying: set[int] = {m for m, r in available.items() if r >= threshold}
-
-    if peak_month not in qualifying:
-        reasons.append(
-            f"Peak month {peak_month} does not meet its own threshold "
-            "(threshold fraction may be > 1.0, which is a configuration error)."
-        )
-        return NormalSeason(
-            sensor=config.sensor,
-            start_month=None,
-            end_month=None,
-            peak_month=peak_month,
-            status="no_peak",
-            reasons=reasons,
-        )
-
-    # Find the contiguous run including peak_month (wrap-around allowed)
-    # Walk outward from peak_month in both directions
-    season_months: set[int] = {peak_month}
-    # Walk backward
-    m = peak_month
-    for _ in range(11):
-        prev = 12 if m == 1 else m - 1
-        if prev in qualifying:
-            season_months.add(prev)
-            m = prev
-        else:
-            break
-    # Walk forward
-    m = peak_month
-    for _ in range(11):
-        nxt = 1 if m == 12 else m + 1
-        if nxt in qualifying:
-            season_months.add(nxt)
-            m = nxt
-        else:
-            break
-
-    # Express as start/end month (non-wrapping if possible; wrap if season
-    # crosses year boundary).
-    sorted_months = sorted(season_months)
-    # Check for year-boundary wrap: gaps in sorted list indicate a wrap
-    is_contiguous = all(
-        sorted_months[i + 1] - sorted_months[i] == 1
-        for i in range(len(sorted_months) - 1)
-    )
-    if is_contiguous:
-        start_month = sorted_months[0]
-        end_month = sorted_months[-1]
-    else:
-        # Wrap: season straddles Dec→Jan
-        # start = first month after the gap, end = last month before the gap
-        gaps = [
-            i for i in range(len(sorted_months) - 1)
-            if sorted_months[i + 1] - sorted_months[i] > 1
-        ]
-        # There should be exactly one gap for a simple wrap
-        if len(gaps) == 1:
-            g = gaps[0]
-            start_month = sorted_months[g + 1]
-            end_month = sorted_months[g]
-        else:
-            # Multiple gaps — season is fragmented; take the run containing peak
-            start_month = peak_month
-            end_month = peak_month
-            reasons.append(
-                "Season months are non-contiguous with multiple gaps; "
-                "season reduced to peak month only."
-            )
-
+    if len(tied) > 1:
+        reasons.append(f"Peak median tied across months {tied}; earliest in "
+                       "season-year order selected.")
+    if interior:
+        reasons.append(f"Months {interior} inside the season fall below the "
+                       "qualifying threshold.")
     return NormalSeason(
-        sensor=config.sensor,
-        start_month=start_month,
-        end_month=end_month,
-        peak_month=peak_month,
-        status="available",
-        reasons=reasons,
+        sensor=config.sensor, policy=config.policy,
+        start_month=start, end_month=end, peak_month=tied[0],
+        status="available", threshold_rate=threshold,
+        tied_peak_months=tied, interior_nonqualifying_months=interior,
+        missing_months=[], reasons=reasons,
     )
