@@ -324,6 +324,14 @@ def compute_all_metrics(cases: Sequence[CaseResult], baseline_id: str) -> EvalMe
             f"{n_abstentions} abstention(s); excluded from error denominators, "
             "reported in coverage tally."
         )
+    # Always emit at least one entry so failures_and_limitations is never empty.
+    # An empty list would be rejected by any schema that enforces min_length=1,
+    # and a clean run is itself a scope/limitation note worth recording.
+    if not failures:
+        failures.append(
+            "Evaluation scope: primary region only; "
+            "transferability to other biomes and sensor eras is unvalidated."
+        )
 
     return EvalMetrics(
         baseline_id=baseline_id,
@@ -373,16 +381,24 @@ def _scoreable(cases: Sequence[CaseResult]) -> list[CaseResult]:
 def _denom_description(
     cases: Sequence[CaseResult], n_scoreable: int, metric_name: str
 ) -> str:
-    """Human-readable denominator string for the headline table."""
+    """Human-readable denominator string for the headline table.
+
+    Per Section 9A, blocks, regions, and test years must all appear alongside
+    case counts.  Blocks are listed explicitly; callers must never present N
+    cases as N independent tests when multiple blocks share a region.
+    """
     n_total = len(cases)
     years = sorted({c.year for c in cases})
     regions = sorted({c.region_id for c in cases})
+    blocks = sorted({c.block_id for c in cases})
     n_abs = sum(1 for c in cases if c.is_abstention)
     n_no_ref = sum(1 for c in cases if not c.has_usable_reference)
     year_str = ", ".join(str(y) for y in years) if years else "none"
     region_str = ", ".join(regions) if regions else "none"
+    block_str = ", ".join(blocks) if blocks else "none"
     return (
         f"{n_scoreable} of {n_total} registered cases "
         f"({metric_name}; {n_abs} abstentions, {n_no_ref} unavailable references excluded); "
-        f"test years: {year_str}; regions: {region_str}"
+        f"test years: {year_str}; regions: {region_str}; "
+        f"blocks: {block_str} (not independent within a region)"
     )

@@ -218,21 +218,40 @@ def predict_baseline_c(
     ]
     n_usable = len(usable_idx)
 
-    unavailable = n_usable == 0
-    has_usable_pred = n_usable > 0
-
-    if unavailable or n_usable < min_independent_blocks:
-        # Too few blocks → abstain (unavailable with abstention flag)
+    # --- Branch 1: truly unavailable (zero usable blocks, O=0 on all blocks) ---
+    # unavailable ≠ abstention: the method cannot issue any prediction at all.
+    if n_usable == 0:
         return CaseResult(
             case_id=case_id,
             reference_value=reference_value,
             predicted_value=None,
-            is_abstention=True,
+            is_abstention=False,        # unavailable, not an abstention
             reference_direction=reference_direction,
             predicted_direction=None,
             practical_margin_tau=practical_margin_tau,
             has_usable_reference=has_usable_reference,
-            has_usable_prediction=has_usable_pred,
+            has_usable_prediction=False,
+            outage_flag=outage_flag,
+            year=year,
+            block_id=block_id,
+            region_id=region_id,
+        )
+
+    # --- Branch 2: data exists but insufficient independent blocks to run bootstrap ---
+    # Enough O>0 blocks exist, so we have usable predictions in principle, but the
+    # bootstrap requires at least min_independent_blocks to form a valid CI.
+    # This IS an abstention: the method has data but cannot issue a confident answer.
+    if n_usable < min_independent_blocks:
+        return CaseResult(
+            case_id=case_id,
+            reference_value=reference_value,
+            predicted_value=None,
+            is_abstention=True,         # method withholds answer due to insufficient blocks
+            reference_direction=reference_direction,
+            predicted_direction=None,
+            practical_margin_tau=practical_margin_tau,
+            has_usable_reference=has_usable_reference,
+            has_usable_prediction=True, # data present, but bootstrap cannot run
             outage_flag=outage_flag,
             year=year,
             block_id=block_id,
@@ -259,6 +278,8 @@ def predict_baseline_c(
         bootstrap_effects.append(effect)
 
     if len(bootstrap_effects) < 2:
+        # Bootstrap produced too few non-zero-O resamples to form a CI.
+        # This is an abstention (data present, CI not computable), not unavailable.
         return CaseResult(
             case_id=case_id,
             reference_value=reference_value,
@@ -268,7 +289,7 @@ def predict_baseline_c(
             predicted_direction=None,
             practical_margin_tau=practical_margin_tau,
             has_usable_reference=has_usable_reference,
-            has_usable_prediction=False,
+            has_usable_prediction=True,  # blocks exist; bootstrap itself failed
             outage_flag=outage_flag,
             year=year,
             block_id=block_id,

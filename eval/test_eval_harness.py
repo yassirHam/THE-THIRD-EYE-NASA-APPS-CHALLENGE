@@ -456,9 +456,10 @@ class TestBaselineC:
         )
 
     def test_abstains_when_fewer_than_min_blocks(self) -> None:
-        """Single block with min=2 → abstain. SYNTHETIC."""
+        """Single usable block with min=2 → abstain; data IS present (F-02). SYNTHETIC."""
         c = self._build(min_blocks=2)  # only 1 block provided
         assert c.is_abstention
+        assert c.has_usable_prediction  # data present; bootstrap refused, not unavailable
 
     def test_negative_a_h_raises(self) -> None:
         """Non-positive a_H raises. SYNTHETIC."""
@@ -480,14 +481,17 @@ class TestBaselineC:
             self._build(bvd=[100, 200], bvo=[1000], bad=[80], bao=[1000])
 
     def test_all_zero_obs_abstains(self) -> None:
-        """O=0 on all blocks → no usable blocks → abstains. SYNTHETIC."""
+        """O=0 on all blocks → no usable blocks → UNAVAILABLE (not abstention). SYNTHETIC."""
         c = self._build(bvo=[0], bao=[0], min_blocks=1)
-        assert c.is_abstention
+        assert not c.is_abstention          # F-02 fix: unavailable ≠ abstention
+        assert not c.has_usable_prediction  # correctly marked unavailable
+        assert c.predicted_value is None
 
     def test_abstains_with_one_block_and_min_two(self) -> None:
-        """min_independent_blocks=2 but only one block → abstain. SYNTHETIC."""
+        """min_independent_blocks=2 but only one usable block → ABSTENTION (data present). SYNTHETIC."""
         c = self._build(bvd=[100], bvo=[1000], bad=[80], bao=[1000], min_blocks=2)
-        assert c.is_abstention
+        assert c.is_abstention             # F-02 fix: data exists, CI cannot form → abstain
+        assert c.has_usable_prediction     # data IS present
 
 
 # ===========================================================================
@@ -852,7 +856,104 @@ class TestHeadlineMetric:
 
 
 # ===========================================================================
-# 12. Firewall — eval never imports from science/ or pipeline/
+# 12. Verdict findings regression tests (F-01, F-02, F-03)
+# ===========================================================================
+
+class TestVerdictFindings:
+    """Regression tests for P5 Round-1 verdict findings. SYNTHETIC."""
+
+    # F-01: _denom_description must include block counts alongside regions/years
+    def test_f01_denom_description_includes_blocks(self) -> None:
+        """Denominator string must name blocks explicitly (F-01). SYNTHETIC."""
+        from eval.metrics import _denom_description
+        cases = [
+            _scoreable_case(10.0, 11.0, case_id="c1", block_id="BLK-A"),
+            _scoreable_case(10.0, 12.0, case_id="c2", block_id="BLK-B"),
+        ]
+        desc = _denom_description(cases, 2, "MAE")
+        assert "BLK-A" in desc or "block" in desc.lower(), (
+            "F-01: denominator description must include block IDs"
+        )
+        assert "BLK-B" in desc or "block" in desc.lower()
+
+    def test_f01_denom_description_includes_test_years_and_regions(self) -> None:
+        """Denominator must also carry regions and test years (F-01 completeness). SYNTHETIC."""
+        from eval.metrics import _denom_description
+        cases = [
+            _case(year=2020, region_id="REG-X", block_id="B1"),
+            _case(year=2021, region_id="REG-X", block_id="B2", case_id="c2"),
+        ]
+        desc = _denom_description(cases, 2, "MAE")
+        assert "2020" in desc
+        assert "2021" in desc
+        assert "REG-X" in desc
+
+    # F-02: Baseline C — unavailable (O=0) must NOT be an abstention
+    def test_f02_baseline_c_zero_obs_is_unavailable_not_abstention(self) -> None:
+        """O=0 on all blocks → has_usable_prediction=False, is_abstention=False (F-02). SYNTHETIC."""
+        c = predict_baseline_c(
+            block_viirs_d=[0], block_viirs_o=[0],
+            block_aqua_d_baseline=[0], block_aqua_o_baseline=[0],
+            a_h=1.5, n_replicates=200, confidence_level=0.90,
+            min_independent_blocks=1, practical_margin_tau=1.0,
+            rng_seed=42,
+            case_id="F02-UNV", year=2020, block_id="B1", region_id="R1",
+            reference_value=10.0, reference_direction=1,
+            has_usable_reference=True, outage_flag=False,
+        )
+        assert not c.is_abstention, (
+            "F-02: when O=0 on all blocks (n_usable=0), "
+            "is_abstention must be False (unavailable != abstention)"
+        )
+        assert not c.has_usable_prediction
+        assert c.predicted_value is None
+
+    def test_f02_baseline_c_insufficient_blocks_is_abstention(self) -> None:
+        """n_usable < min_blocks but > 0 → is_abstention=True, has_usable_prediction=True (F-02). SYNTHETIC."""
+        c = predict_baseline_c(
+            block_viirs_d=[100], block_viirs_o=[1000],
+            block_aqua_d_baseline=[80], block_aqua_o_baseline=[1000],
+            a_h=1.5, n_replicates=200, confidence_level=0.90,
+            min_independent_blocks=3,  # requires 3 but only 1 usable block
+            practical_margin_tau=1.0, rng_seed=42,
+            case_id="F02-ABS", year=2020, block_id="B1", region_id="R1",
+            reference_value=10.0, reference_direction=1,
+            has_usable_reference=True, outage_flag=False,
+        )
+        assert c.is_abstention, (
+            "F-02: when usable blocks < min_independent_blocks, "
+            "method abstains (data present but CI cannot form)"
+        )
+        assert c.has_usable_prediction, (
+            "F-02: data IS present; this is an abstention, not unavailable"
+        )
+
+    # F-03: failures_and_notes must never be empty
+    def test_f03_failures_never_empty_on_clean_run(self) -> None:
+        """EvalMetrics.failures_and_notes must have >= 1 entry even on a clean run (F-03). SYNTHETIC."""
+        cases = [
+            _scoreable_case(10.0, 11.0, case_id="c1"),
+            _scoreable_case(10.0, 9.5, case_id="c2"),
+        ]
+        em = compute_all_metrics(cases, "clean_baseline")
+        assert len(em.failures_and_notes) >= 1, (
+            "F-03: failures_and_notes must contain at least one scope/limitation note "
+            "even when no failures occurred"
+        )
+
+    def test_f03_failures_still_populated_when_issues_exist(self) -> None:
+        """Failures list is populated normally when real issues exist (F-03 regression). SYNTHETIC."""
+        cases = [
+            _case(has_usable_reference=False, reference_value=None, case_id="u1"),
+            _case(outage_flag=True, case_id="u2"),
+        ]
+        em = compute_all_metrics(cases, "issues_baseline")
+        assert any("unavailable reference" in n for n in em.failures_and_notes)
+        assert any("outage" in n.lower() or "2020" in n for n in em.failures_and_notes)
+
+
+# ===========================================================================
+# 13. Firewall — eval never imports from science/ or pipeline/
 # ===========================================================================
 
 class TestFirewall:
