@@ -100,6 +100,11 @@ class PeriodObs:
     policy: support policy; rates never mix policies.
     block_id: optional identifier for geographic block/footprint; used for
         whole-area baseline calculations to verify all required blocks are present.
+    coverage_state: P2's per-sensor period coverage state (handoff b18ed3e,
+        r9-P2.md): 'complete', 'partial' or 'unavailable'; 'not_reported' when P2
+        supplied none.  'partial' or 'unavailable' makes the period partial, so it
+        never yields a comparable rate and a required baseline year containing it
+        is reported missing, never pooled.
     """
 
     sensor: SensorID
@@ -111,8 +116,13 @@ class PeriodObs:
     is_partial: bool = False
     policy: PolicyID = "own_support"
     block_id: Optional[str] = None
+    coverage_state: str = "not_reported"
 
     def __post_init__(self) -> None:
+        if self.coverage_state not in ("complete", "partial", "unavailable", "not_reported"):
+            raise ValueError(f"Unknown coverage_state {self.coverage_state!r}.")
+        if self.coverage_state == "unavailable" and (self.O != 0 or self.D != 0):
+            raise ValueError("coverage_state 'unavailable' (no file) cannot carry D or O; use D = O = 0.")
         if self.D < 0:
             raise ValueError(f"D must be >= 0, got {self.D}")
         if self.O < 0:
@@ -164,8 +174,9 @@ class PeriodObs:
 
     @property
     def is_period_partial(self) -> bool:
-        """Partial by caller flag or by straddling the S-NPP cutoff."""
-        return self.is_partial or self.cutoff_status == CutoffStatus.PARTIAL
+        """Partial by caller flag, by P2 coverage state, or by straddling the S-NPP cutoff."""
+        return (self.is_partial or self.coverage_state in ("partial", "unavailable")
+                or self.cutoff_status == CutoffStatus.PARTIAL)
 
     @property
     def is_available(self) -> bool:

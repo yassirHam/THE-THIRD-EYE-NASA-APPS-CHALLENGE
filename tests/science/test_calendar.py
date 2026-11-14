@@ -1084,3 +1084,41 @@ class TestExcludedAndSealedYears:
         bl = compute_week_baseline(27, 2023, wk, cfg)
         assert bl.status == BaselineStatus.AVAILABLE
         assert bl.excluded_years == [2020, 2021] and 2020 not in bl.required_years
+
+
+# ---------------------------------------------------------------------------
+# P2 r9 coverage state (handoff b18ed3e).  Synthetic values only.
+# ---------------------------------------------------------------------------
+class TestCoverageState:
+    def test_partial_coverage_never_yields_a_rate(self):
+        r = PeriodObs(sensor="MODIS_Aqua", year=2023, D=5, O=500, month=7, coverage_state="partial")
+        assert r.is_period_partial and not r.is_available
+
+    def test_default_not_reported_keeps_existing_behaviour(self):
+        r = PeriodObs(sensor="MODIS_Aqua", year=2023, D=5, O=500, month=7)
+        assert r.coverage_state == "not_reported" and r.is_available
+
+    def test_partial_required_year_from_p2_is_missing_not_pooled(self):
+        cfg = _cfg(start=2016, end=2019, min_years=3)
+        obs = _years("MODIS_Aqua", [2016, 2018, 2019]) + [
+            PeriodObs(sensor="MODIS_Aqua", year=2017, D=10, O=1000, month=7, coverage_state="partial")]
+        bl = compute_month_baseline(7, 2020, obs, cfg)
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS and bl.missing_years == [2017]
+        assert bl.median_rate is None and bl.p90_rate is None
+
+    def test_partial_target_week_gets_no_label(self):
+        cfg = _cfg(start=2016, end=2019, min_years=3)
+        hist = [_wk("MODIS_Aqua", y, 27, 5, 500) for y in (2016, 2017, 2018, 2019)]
+        target = [PeriodObs(sensor="MODIS_Aqua", year=2023, D=50, O=500, week_number=27, coverage_state="partial")]
+        bl = compute_week_baseline(27, 2023, hist, cfg)
+        assert bl.status == BaselineStatus.AVAILABLE
+        lab = label_unusual_week(target, 2023, 27, bl)
+        assert lab.is_unusual is False and lab.status != "labeled"
+
+    def test_unavailable_coverage_cannot_carry_counts(self):
+        with pytest.raises(ValueError, match="no file"):
+            PeriodObs(sensor="MODIS_Aqua", year=2023, D=0, O=10, month=7, coverage_state="unavailable")
+
+    def test_unknown_coverage_state_rejected(self):
+        with pytest.raises(ValueError, match="coverage_state"):
+            PeriodObs(sensor="MODIS_Aqua", year=2023, D=0, O=10, month=7, coverage_state="mostly")
