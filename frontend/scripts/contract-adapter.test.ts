@@ -133,6 +133,10 @@ test('cache serves only an exact five-field match', () => {
   assert.throws(() => cache.set('comparison', key, 'b'), IdentityMismatch)
 })
 
-test('wrong contract version is refused', () => {
+test('wrong or missing contract version is refused', () => {
   assert.throws(() => calendarEntries({ ...cal(), contract_version: '1.3.0' }), IdentityMismatch)
+  const { contract_version: _v, ...versionless } = cal()
+  assert.throws(() => calendarEntries(versionless), IdentityMismatch)
+  const old = { ...load('sample_comparison_normal.json'), contract_version: '1.1.0' }
+  assert.throws(() => areaFromArtifacts(option(PRIMARY), cal(), old), IdentityMismatch)
 })

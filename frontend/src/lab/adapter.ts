@@ -95,7 +95,8 @@ function entry(rec: MonthRecord | WeekRecord, period: string, label: string, res
 
 /** All monthly and weekly entries, one sensor per series, never merged across sensors. */
 export function calendarEntries(cal: CalendarArtifact): CalendarEntry[] {
-  if (cal.contract_version !== undefined && cal.contract_version !== CONTRACT_VERSION) throw new IdentityMismatch(`contract ${cal.contract_version} is not ${CONTRACT_VERSION}`)
+  // Required since contract 1.4.0 (8edec46): a missing or older version is refused, never assumed.
+  if (cal.contract_version !== CONTRACT_VERSION) throw new IdentityMismatch(`contract ${String(cal.contract_version)} is not ${CONTRACT_VERSION}`)
   const out: CalendarEntry[] = []
   for (const s of cal.monthly_series) for (const r of s.records) {
     const e = entry(r, `${r.year}-${String(r.month).padStart(2, '0')}`, `${MONTHS[r.month - 1]} ${r.year}`, 'month')
@@ -134,6 +135,7 @@ const SENSITIVITY: Record<ComparisonResult['sensitivity_status'], string> = {
  * comparison only attaches to an evaluated area with the same method, policy and period. */
 export function areaFromArtifacts(option: RegionSelectorOption, calendar?: CalendarArtifact, comparison?: ComparisonResult): AreaView & { access: ComparisonAccess } {
   if (calendar && calendar.geometry_id !== option.geometry_id) throw new IdentityMismatch('calendar belongs to another area')
+  if (comparison && comparison.contract_version !== CONTRACT_VERSION) throw new IdentityMismatch('comparison is not contract ' + CONTRACT_VERSION)
   if (comparison && comparison.geometry_id !== option.geometry_id) throw new IdentityMismatch('comparison belongs to another area; factors are never inherited')
   const evaluated = option.comparison_access_status === 'evaluated_comparison'
   if (comparison && !evaluated) throw new IdentityMismatch('this area has no evaluated comparison')
