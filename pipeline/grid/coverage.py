@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Mapping, Optional
 
-__all__ = ["PeriodCoverage", "period_coverage"]
+__all__ = ["PeriodCoverage", "period_coverage", "footprint_evidence_summary"]
 
 
 @dataclass(frozen=True)
@@ -126,3 +126,37 @@ def period_coverage(
         certifiable_complete=state == "complete" and evidence == "cell_level",
         missing_days=missing,
     )
+
+
+def footprint_evidence_summary(geometry_id: str, results: list[PeriodCoverage]) -> dict:
+    """Reproducible evidence summary for P2's footprint certification decision.
+
+    It never certifies by itself: `certification_ref` and `certified_at` stay for the P2
+    human to add. `supports_status` is the strongest status the evidence allows:
+    - complete   : every period is complete with cell-level evidence;
+    - partial    : cell-level evidence exists for every period but some are not complete
+                   (coverage_fraction = processed / expected over all periods);
+    - unverified : any period lacks cell-level evidence, or there are no periods.
+    """
+    if not results:
+        return {"geometry_id": geometry_id, "supports_status": "unverified", "footprint_evidence": "none",
+                "periods": 0, "periods_certifiable": 0, "coverage_fraction": None,
+                "note": "no period evidence supplied"}
+    cell = all(r.footprint_evidence == "cell_level" for r in results)
+    certifiable = sum(r.certifiable_complete for r in results)
+    fraction = None
+    status = "unverified"
+    if cell:
+        processed = sum((r.coverage or 0.0) * r.days_with_file for r in results)
+        expected = sum(r.expected_days for r in results)
+        fraction = processed / expected if expected else None
+        status = "complete" if certifiable == len(results) else "partial"
+    return {
+        "geometry_id": geometry_id,
+        "supports_status": status,
+        "footprint_evidence": "cell_level" if cell else "day_level",
+        "periods": len(results),
+        "periods_certifiable": certifiable,
+        "coverage_fraction": fraction,
+        "note": "evidence summary only; certification needs P2's reference and UTC timestamp",
+    }

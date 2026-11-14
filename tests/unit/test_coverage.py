@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from pipeline.grid.accounting import block_day_counts, check_row
-from pipeline.grid.coverage import period_coverage
+from pipeline.grid.coverage import footprint_evidence_summary, period_coverage
 from pipeline.masks.firemask import fire_mask, fire_nh_mask, usable_mask
 
 PRODUCTS = ["MYD14A1.061", "VNP14A1.002"]
@@ -160,3 +160,35 @@ def test_block_rows_from_random_grids_satisfy_every_le_pair():
         v = (rng.integers(0, 10, (12, 12)).astype(np.uint8), rng.integers(0, 4, (12, 12)).astype(np.uint8))
         for row in block_day_counts(ids, [101, 102], aqua=a, viirs=v).values():
             assert check_row(row) == []
+
+
+# --------------------------------------------- footprint evidence summary (Q3)
+
+
+def _week(n_days_present=7, processed=None, fp=None):
+    s, e = date(2023, 7, 3), date(2023, 7, 9)
+    present = {d: i < n_days_present for i, d in enumerate(days(s, e))}
+    return cov(s, e, present=present, processed_cell_days=processed, footprint_cells=fp)
+
+
+def test_summary_without_cell_level_evidence_is_unverified():
+    s = footprint_evidence_summary("g", [_week(), _week()])
+    assert s["supports_status"] == "unverified" and s["footprint_evidence"] == "day_level"
+    assert footprint_evidence_summary("g", [])["supports_status"] == "unverified"
+
+
+def test_summary_all_cell_level_complete_supports_complete_but_does_not_certify():
+    s = footprint_evidence_summary("g", [_week(processed=700, fp=100)] * 2)
+    assert s["supports_status"] == "complete" and s["coverage_fraction"] == 1.0
+    assert "certification_ref" not in s and "certified_at" not in s
+
+
+def test_summary_with_a_shortfall_supports_partial_with_fraction():
+    s = footprint_evidence_summary("g", [_week(processed=700, fp=100), _week(processed=350, fp=100)])
+    assert s["supports_status"] == "partial"
+    assert s["coverage_fraction"] == pytest.approx(0.75)
+
+
+def test_one_day_level_period_makes_the_whole_summary_unverified():
+    s = footprint_evidence_summary("g", [_week(processed=700, fp=100), _week()])
+    assert s["supports_status"] == "unverified"
