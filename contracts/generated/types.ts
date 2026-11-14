@@ -338,6 +338,8 @@ export interface WeekRecord {
   end_date: string;
   critical_status: "critical" | "not_critical" | "insufficient_baseline" | "not_applicable";
   unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable";
+  is_partial_period?: boolean;
+  partial_period_reason?: "snpp_record_ended_2026_11_02" | null;
   comparison_eligible: boolean;
 }
 

@@ -693,3 +693,168 @@ def test_manifest_partition_cache_key_must_match_identity() -> None:
     assert man["partitions"][0]["cache_key_sha256"] == expected
     man["artifact_version"] = "synthetic-v2"
     fails(MODELS["sample_manifest.json"], man)
+
+# ---- Round 4 (P1 review): S-NPP cutoff enforced by period boundaries ------------------
+
+CAL = "sample_calendar.json"
+NOV = 5  # index of the partial November 2026 month in the fixture
+PARTIAL_WEEK = 4  # index of the 2026-10-27..2026-11-02 S-NPP week in the fixture
+
+
+def nov_month(cal: dict) -> dict:
+    rec = cal["monthly_series"][0]["records"][NOV]
+    assert (rec["year"], rec["month"]) == (2026, 11)
+    return rec
+
+
+def partial_week(cal: dict) -> dict:
+    rec = cal["weekly_series"][0]["records"][PARTIAL_WEEK]
+    assert rec["end_date"] == "2026-11-02"
+    return rec
+
+
+def test_partial_november_fixture_has_no_baseline_or_label() -> None:
+    rec = nov_month(load(CAL))
+    assert rec["unusual_status"] == "not_applicable"
+    assert rec["baseline_median"] is None and rec["baseline_p90"] is None
+    assert rec["is_partial_period"] and not rec["comparison_eligible"]
+
+
+@pytest.mark.parametrize("label", ["unusual", "not_unusual", "insufficient_baseline"])
+def test_partial_month_rejects_every_normal_or_unusual_label(label: str) -> None:
+    cal = load(CAL)
+    rec = nov_month(cal)
+    rec["unusual_status"] = label
+    if label != "insufficient_baseline":
+        rec["baseline_median"], rec["baseline_p90"] = 1.0, 4.0
+    fails(MODELS[CAL], cal)
+
+
+@pytest.mark.parametrize("field", ["baseline_median", "baseline_p90"])
+def test_partial_month_rejects_baseline_thresholds(field: str) -> None:
+    cal = load(CAL)
+    nov_month(cal)[field] = 1.0
+    fails(MODELS[CAL], cal)
+
+
+def test_partial_month_cannot_be_comparison_eligible_or_unflagged() -> None:
+    for field, value in (("comparison_eligible", True), ("is_partial_period", False)):
+        cal = load(CAL)
+        nov_month(cal)[field] = value
+        fails(MODELS[CAL], cal)
+
+
+def test_complete_snpp_month_before_cutoff_still_labelled_normally() -> None:
+    cal = load(CAL)
+    oct_rec = cal["monthly_series"][0]["records"][4]
+    assert (oct_rec["year"], oct_rec["month"]) == (2020, 10)
+    cal["monthly_series"][0]["records"][4] = {
+        **oct_rec, "year": 2026, "month": 10, "detected_fire_cell_days": 5.0,
+        "usable_land_cell_days": 100.0, "fire_activity_index": 50.0, "availability": "available",
+        "unavailable_reason": None, "comparison_eligible": True,
+        "baseline_median": 1.0, "baseline_p90": 4.0, "unusual_status": "unusual",
+    }
+    MODELS[CAL].model_validate_json(json.dumps(cal))
+
+
+def test_partial_week_fixture_is_ineligible_and_unlabelled() -> None:
+    wk = partial_week(load(CAL))
+    assert wk["is_partial_period"] and not wk["comparison_eligible"]
+    assert wk["critical_status"] == "not_applicable" and wk["unusual_status"] == "not_applicable"
+
+
+def test_snpp_week_ending_on_cutoff_day_cannot_be_eligible_with_available_rate() -> None:
+    cal = load(CAL)
+    wk = partial_week(cal)
+    # P1 finding: available rate + comparison_eligible=True must be rejected.
+    wk["availability"], wk["comparison_eligible"] = "available", True
+    fails(MODELS[CAL], cal)
+
+
+def test_snpp_week_ending_on_cutoff_day_rejects_unflagged_or_unreasoned() -> None:
+    for field, value in (("is_partial_period", False), ("partial_period_reason", None)):
+        cal = load(CAL)
+        partial_week(cal)[field] = value
+        fails(MODELS[CAL], cal)
+
+
+@pytest.mark.parametrize(
+    "field,label",
+    [
+        ("critical_status", "critical"),
+        ("critical_status", "not_critical"),
+        ("critical_status", "insufficient_baseline"),
+        ("unusual_status", "unusual"),
+        ("unusual_status", "not_unusual"),
+        ("unusual_status", "insufficient_baseline"),
+    ],
+)
+def test_snpp_week_ending_on_cutoff_day_rejects_labels(field: str, label: str) -> None:
+    cal = load(CAL)
+    partial_week(cal)[field] = label
+    fails(MODELS[CAL], cal)
+
+
+def test_snpp_week_ending_day_before_cutoff_is_complete_and_eligible() -> None:
+    cal = load(CAL)
+    wk = partial_week(cal)
+    wk.update(
+        start_date="2026-10-26", end_date="2026-11-01", is_partial_period=False,
+        partial_period_reason=None, comparison_eligible=True,
+        critical_status="not_critical", unusual_status="not_unusual",
+    )
+    MODELS[CAL].model_validate_json(json.dumps(cal))
+
+
+def test_snpp_week_past_cutoff_still_rejected() -> None:
+    cal = load(CAL)
+    wk = partial_week(cal)
+    wk.update(start_date="2026-10-28", end_date="2026-11-03")
+    fails(MODELS[CAL], cal)
+    wk.update(start_date="2026-11-03", end_date="2026-11-09")
+    fails(MODELS[CAL], cal)
+
+
+def test_non_snpp_sensor_week_on_same_dates_is_not_partial() -> None:
+    cal = load(CAL)
+    wk = partial_week(cal)
+    wk.update(sensor="MODIS_Aqua")
+    fails(MODELS[CAL], cal)  # partial flags are invalid without the S-NPP cutoff
+    wk.update(is_partial_period=False, partial_period_reason=None, comparison_eligible=True,
+              critical_status="not_critical", unusual_status="not_unusual")
+    cal["weekly_series"][0]["sensor"] = "MODIS_Aqua"
+    for r in cal["weekly_series"][0]["records"]:
+        r["sensor"] = "MODIS_Aqua"
+    MODELS[CAL].model_validate_json(json.dumps(cal))
+
+
+def test_cutoff_boundary_helper_uses_period_boundaries() -> None:
+    from datetime import date
+
+    from contracts.schemas.calendar import snpp_period_status
+
+    assert snpp_period_status(date(2026, 10, 26), date(2026, 11, 1)) == "complete"
+    assert snpp_period_status(date(2026, 10, 27), date(2026, 11, 2)) == "partial"
+    assert snpp_period_status(date(2026, 11, 2), date(2026, 11, 2)) == "partial"
+    assert snpp_period_status(date(2026, 11, 3), date(2026, 11, 9)) == "after_record"
+    assert snpp_period_status(date(2026, 11, 1), date(2026, 11, 30)) == "partial"
+    assert snpp_period_status(date(2026, 12, 1), date(2026, 12, 31)) == "after_record"
+
+
+# ---- Round 3 rule preserved: adverse applicability + missing evidence stay visible ----
+
+
+def test_round3_failed_and_out_of_domain_remain_ineligible_with_missing_evidence_visible() -> None:
+    for name in (
+        "sample_comparison_stable_failed_applicability.json",
+        "sample_comparison_out_of_domain.json",
+        "sample_comparison_missing_evidence.json",
+        "sample_claim_audit_stable_failed_applicability.json",
+        "sample_claim_audit_out_of_domain.json",
+        "sample_claim_audit_missing_evidence.json",
+    ):
+        data = load(name)
+        assert data["conclusion_eligible"] is False, name
+        model = ComparisonResult if "comparison" in name else ClaimAuditRecord
+        data["conclusion_eligible"] = True
+        fails(model, data)

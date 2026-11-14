@@ -107,7 +107,7 @@
           "month": 11,
           "baseline_median": null,
           "baseline_p90": null,
-          "unusual_status": "insufficient_baseline",
+          "unusual_status": "not_applicable",
           "is_partial_period": true,
           "comparison_eligible": false,
           "partial_period_reason": "snpp_record_ended_2026_11_02"
@@ -172,6 +172,8 @@
           "end_date": "2020-07-05",
           "critical_status": "critical",
           "unusual_status": "unusual",
+          "is_partial_period": false,
+          "partial_period_reason": null,
           "comparison_eligible": true
         },
         {
@@ -187,6 +189,8 @@
           "end_date": "2020-07-12",
           "critical_status": "not_critical",
           "unusual_status": "not_unusual",
+          "is_partial_period": false,
+          "partial_period_reason": null,
           "comparison_eligible": true
         },
         {
@@ -202,6 +206,8 @@
           "end_date": "2020-07-19",
           "critical_status": "insufficient_baseline",
           "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "partial_period_reason": null,
           "comparison_eligible": false
         },
         {
@@ -217,6 +223,25 @@
           "end_date": "2020-07-26",
           "critical_status": "insufficient_baseline",
           "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "partial_period_reason": null,
+          "comparison_eligible": false
+        },
+        {
+          "detected_fire_cell_days": 3,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 30.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "VIIRS_SNPP",
+          "year": 2026,
+          "week_number": 44,
+          "start_date": "2026-10-27",
+          "end_date": "2026-11-02",
+          "critical_status": "not_applicable",
+          "unusual_status": "not_applicable",
+          "is_partial_period": true,
+          "partial_period_reason": "snpp_record_ended_2026_11_02",
           "comparison_eligible": false
         }
       ]

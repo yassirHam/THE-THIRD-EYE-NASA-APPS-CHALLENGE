@@ -97,6 +97,8 @@ def week(sensor: str, year: int, n: int, start: str, end: str, d: float, o: floa
         "end_date": end,
         "critical_status": "insufficient_baseline",
         "unusual_status": "insufficient_baseline",
+        "is_partial_period": False,
+        "partial_period_reason": None,
         "comparison_eligible": o > 0,
     }
     base.update(kw)
@@ -114,6 +116,7 @@ def calendar() -> dict:
             "VIIRS_SNPP", 2026, 11, 2, 100,
             is_partial_period=True, comparison_eligible=False,
             partial_period_reason="snpp_record_ended_2026_11_02",
+            unusual_status="not_applicable",
         ),
     ]
     aqua = [month("MODIS_Aqua", 2020, 6, 5, 250), month("MODIS_Aqua", 2020, 7, 0, 250)]
@@ -140,6 +143,10 @@ def calendar() -> dict:
                     week("VIIRS_SNPP", 2020, 29, "2020-07-13", "2020-07-19", 0, 0),
                     week("VIIRS_SNPP", 2020, 30, "2020-07-20", "2020-07-26", 0, 0,
                          **missing("qa_unusable")),
+                    week("VIIRS_SNPP", 2026, 44, "2026-10-27", "2026-11-02", 3, 100,
+                         critical_status="not_applicable", unusual_status="not_applicable",
+                         is_partial_period=True, comparison_eligible=False,
+                         partial_period_reason="snpp_record_ended_2026_11_02"),
                 ],
             }
         ],

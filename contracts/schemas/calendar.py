@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -27,6 +27,26 @@ BaselineLabelStatus = Literal[
 ]
 BaselineAvailability = Literal["available", "insufficient_baseline"]
 WeekDefinition = Literal["utc_iso_week", "fixed_7_day_bins"]
+PartialReason = Literal["snpp_record_ended_2026_11_02"]
+SNPP_CESSATION_AT = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
+SNPP_LAST_RECORD_DATE = date(2026, 11, 2)
+# Incomplete periods never receive normal-baseline, unusual, or critical labels.
+INCOMPLETE_LABEL = "not_applicable"
+
+
+def _utc_start(day: date) -> datetime:
+    return datetime.combine(day, time.min, tzinfo=timezone.utc)
+
+
+def snpp_period_status(start: date, end_inclusive: date) -> Literal["complete", "partial", "after_record"]:
+    """Classify the UTC period [start 00:00, end_inclusive + 1 day 00:00) against the S-NPP cutoff."""
+    period_start = _utc_start(start)
+    period_end = _utc_start(end_inclusive + timedelta(days=1))
+    if period_start >= SNPP_CESSATION_AT:
+        return "after_record"
+    if period_end > SNPP_CESSATION_AT:
+        return "partial"
+    return "complete"
 
 
 class ObservationRecord(StrictContractModel):
@@ -75,6 +95,7 @@ class ObservationRecord(StrictContractModel):
             raise ValueError("missing source/footprint/QA data must keep D and O null, not zero")
         return self
 
+
 class MonthRecord(ObservationRecord):
     sensor: SensorType
     year: int = Field(ge=2000, le=2100)
@@ -84,7 +105,7 @@ class MonthRecord(ObservationRecord):
     unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"]
     is_partial_period: bool = False
     comparison_eligible: bool
-    partial_period_reason: Literal["snpp_record_ended_2026_11_02"] | None = None
+    partial_period_reason: PartialReason | None = None
 
     @model_validator(mode="after")
     def validate_month_labels(self) -> "MonthRecord":
@@ -99,16 +120,28 @@ class MonthRecord(ObservationRecord):
                 raise ValueError("unusual means R strictly above p90; ties are not unusual")
         elif self.unusual_status == "insufficient_baseline" and not baseline_missing:
             raise ValueError("insufficient baseline cannot carry baseline thresholds")
-        if self.sensor == "VIIRS_SNPP" and (self.year, self.month) > (2026, 11):
-            raise ValueError("S-NPP records cannot extend beyond November 2026")
-        if self.sensor == "VIIRS_SNPP" and (self.year, self.month) == (2026, 11):
+        status = "complete"
+        if self.sensor == "VIIRS_SNPP":
+            first = date(self.year, self.month, 1)
+            next_first = date(self.year + (self.month == 12), self.month % 12 + 1, 1)
+            status = snpp_period_status(first, next_first - timedelta(days=1))
+        if status == "after_record":
+            raise ValueError("S-NPP records cannot start after the 2026-11-02 15:40 UTC cessation")
+        if status == "partial":
             if not self.is_partial_period or self.comparison_eligible:
-                raise ValueError("November 2026 S-NPP must be partial and comparison-ineligible")
+                raise ValueError("a month straddling the S-NPP cutoff must be partial and comparison-ineligible")
             if self.partial_period_reason != "snpp_record_ended_2026_11_02":
-                raise ValueError("November 2026 S-NPP requires its cessation reason")
-        elif self.partial_period_reason is not None or self.is_partial_period:
-            raise ValueError("partial-period flags are only valid for November 2026 S-NPP")
+                raise ValueError("a partial S-NPP month requires its cessation reason")
+            if (
+                self.unusual_status != INCOMPLETE_LABEL
+                or self.baseline_median is not None
+                or self.baseline_p90 is not None
+            ):
+                raise ValueError("a partial month cannot carry baseline thresholds or normal/unusual labels")
+        elif self.is_partial_period or self.partial_period_reason is not None:
+            raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
         return self
+
 
 class WeekRecord(ObservationRecord):
     sensor: SensorType
@@ -118,6 +151,8 @@ class WeekRecord(ObservationRecord):
     end_date: date
     critical_status: Literal["critical", "not_critical", "insufficient_baseline", "not_applicable"]
     unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"]
+    is_partial_period: bool = False
+    partial_period_reason: PartialReason | None = None
     comparison_eligible: bool
 
     @model_validator(mode="after")
@@ -128,8 +163,22 @@ class WeekRecord(ObservationRecord):
             raise ValueError("week end date must not precede start date")
         if (self.end_date - self.start_date).days != 6:
             raise ValueError("weekly records must cover exactly seven inclusive UTC dates")
-        if self.sensor == "VIIRS_SNPP" and self.end_date > date(2026, 11, 2):
-            raise ValueError("S-NPP weekly records cannot extend past the confirmed record end")
+        status = "complete"
+        if self.sensor == "VIIRS_SNPP":
+            if self.end_date > SNPP_LAST_RECORD_DATE:
+                raise ValueError("S-NPP weekly records cannot extend past the confirmed record end")
+            status = snpp_period_status(self.start_date, self.end_date)
+        if status == "after_record":
+            raise ValueError("S-NPP weekly records cannot start after the 2026-11-02 15:40 UTC cessation")
+        if status == "partial":
+            if not self.is_partial_period or self.comparison_eligible:
+                raise ValueError("a week straddling the S-NPP cutoff must be partial and comparison-ineligible")
+            if self.partial_period_reason != "snpp_record_ended_2026_11_02":
+                raise ValueError("a partial S-NPP week requires its cessation reason")
+            if self.critical_status != INCOMPLETE_LABEL or self.unusual_status != INCOMPLETE_LABEL:
+                raise ValueError("a partial week cannot carry critical, unusual, or normal labels")
+        elif self.is_partial_period or self.partial_period_reason is not None:
+            raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
         return self
 
 
@@ -206,8 +255,7 @@ class CalendarArtifact(ArtifactIdentity):
 
     @model_validator(mode="after")
     def validate_calendar(self) -> "CalendarArtifact":
-        expected = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
-        if self.snpp_delivery_end_at != expected:
+        if self.snpp_delivery_end_at != SNPP_CESSATION_AT:
             raise ValueError("S-NPP cessation timestamp must be 2026-11-02T15:40:00Z")
         for series in [*self.monthly_series, *self.weekly_series]:
             if series.policy_id != self.policy_id:
