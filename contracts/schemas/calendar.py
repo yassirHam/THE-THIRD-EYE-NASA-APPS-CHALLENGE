@@ -160,8 +160,13 @@ class WeekRecord(ObservationRecord):
 
     @model_validator(mode="after")
     def validate_week(self) -> "WeekRecord":
-        if self.availability == "unavailable" and self.comparison_eligible:
-            raise ValueError("unavailable weeks cannot be comparison-eligible")
+        if self.availability == "unavailable":
+            if self.comparison_eligible:
+                raise ValueError("unavailable weeks cannot be comparison-eligible")
+            if self.unusual_status in {"unusual", "not_unusual"}:
+                raise ValueError("an unusual-week decision requires an available observation")
+            if self.critical_status in {"critical", "not_critical"}:
+                raise ValueError("a critical-week decision requires an available observation")
         if self.end_date < self.start_date:
             raise ValueError("week end date must not precede start date")
         if (self.end_date - self.start_date).days != 6:
@@ -183,12 +188,12 @@ class WeekRecord(ObservationRecord):
                 raise ValueError("a partial week cannot carry critical, unusual, or normal labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
-        elif status == "complete":
+        elif status == "complete" and self.availability == "available":
             if (
                 self.critical_status in (None, INCOMPLETE_LABEL)
                 or self.unusual_status in (None, INCOMPLETE_LABEL)
             ):
-                raise ValueError("a complete week requires critical and unusual status decisions")
+                raise ValueError("an available complete week requires critical and unusual status decisions")
         return self
 
 
@@ -251,6 +256,13 @@ class WeeklyCalendarSeries(StrictContractModel):
         keys = [(record.year, record.week_number) for record in self.records]
         if len(keys) != len(set(keys)):
             raise ValueError("weekly series cannot contain duplicate periods")
+        sorted_records = sorted(self.records, key=lambda r: (r.start_date, r.end_date))
+        for i in range(len(sorted_records) - 1):
+            if sorted_records[i].end_date >= sorted_records[i + 1].start_date:
+                raise ValueError(
+                    f"Weekly series records cannot overlap: {sorted_records[i].start_date}..{sorted_records[i].end_date} "
+                    f"overlaps with {sorted_records[i + 1].start_date}..{sorted_records[i + 1].end_date}"
+                )
         if self.week_definition == "utc_iso_week":
             for record in self.records:
                 if record.start_date.weekday() != 0:
@@ -269,11 +281,19 @@ class WeeklyCalendarSeries(StrictContractModel):
                     )
         elif self.week_definition == "fixed_7_day_bins":
             for record in self.records:
+                if record.week_number > 52:
+                    raise ValueError(
+                        f"Fixed 7-day bin week_number cannot exceed 52, got {record.week_number}"
+                    )
                 expected_start = date(record.year, 1, 1) + timedelta(days=(record.week_number - 1) * 7)
                 if record.start_date != expected_start:
                     raise ValueError(
                         f"Fixed 7-day bin {record.year}-W{record.week_number} expected start date {expected_start.isoformat()}, "
                         f"got {record.start_date.isoformat()}"
+                    )
+                if record.end_date.year != record.year:
+                    raise ValueError(
+                        f"Fixed 7-day bin {record.year}-W{record.week_number} end date {record.end_date.isoformat()} cannot cross into next year"
                     )
         return self
 

@@ -875,6 +875,47 @@ def test_complete_period_rejects_null_or_not_applicable() -> None:
     fails(MODELS[CAL], cal)
 
 
+def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
+    from contracts.schemas.calendar import WeekRecord
+    from datetime import date
+    base = dict(
+        sensor="MODIS_Aqua", availability="unavailable",
+        unavailable_reason="source_not_available", comparison_eligible=False,
+        year=2020, week_number=1, start_date=date(2020, 1, 1), end_date=date(2020, 1, 7),
+    )
+    # Decisions are strictly forbidden when observation is unavailable
+    for status_field, decision in [
+        ("unusual_status", "unusual"),
+        ("unusual_status", "not_unusual"),
+        ("critical_status", "critical"),
+        ("critical_status", "not_critical"),
+    ]:
+        with pytest.raises(ValueError):
+            WeekRecord(**{**base, status_field: decision})
+    # Non-decisions ("insufficient_baseline" or None) are accepted
+    WeekRecord(**{**base, "unusual_status": "insufficient_baseline", "critical_status": "insufficient_baseline"})
+    WeekRecord(**{**base, "unusual_status": None, "critical_status": None})
+
+
+def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:
+    from contracts.schemas.calendar import WeekRecord, WeeklyCalendarSeries
+    from datetime import date
+    common = dict(
+        sensor="MODIS_Aqua", availability="unavailable", unavailable_reason="source_not_available",
+        comparison_eligible=False, critical_status="insufficient_baseline", unusual_status="insufficient_baseline",
+    )
+    # Overlapping dates in same series rejected
+    a = WeekRecord(year=2020, week_number=1, start_date=date(2020, 1, 1), end_date=date(2020, 1, 7), **common)
+    b = WeekRecord(year=2020, week_number=2, start_date=date(2020, 1, 5), end_date=date(2020, 1, 11), **common)
+    with pytest.raises(ValueError, match="overlap"):
+        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="utc_iso_week", records=[a, b])
+
+    # Fixed 7-day bin crossing year boundary rejected
+    c = WeekRecord(year=2020, week_number=53, start_date=date(2020, 12, 30), end_date=date(2021, 1, 5), **common)
+    with pytest.raises(ValueError, match="week_number cannot exceed 52"):
+        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="fixed_7_day_bins", records=[c])
+
+
 def test_non_snpp_sensor_week_on_same_dates_is_not_partial() -> None:
     cal = load(CAL)
     wk = partial_week(cal)
