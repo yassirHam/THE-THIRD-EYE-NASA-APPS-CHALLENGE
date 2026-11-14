@@ -61,6 +61,36 @@
 ---
 
 ## 6. Table Schema & Column Specifications
+
+### 6.1 Delivered Monthly File (`all_blocks_monthly.parquet`)
+Delivered monthly export for all 64 FAO GAUL Level 1 blocks (2002-07 through 2025-12, V2 method: native 1 km Sinusoidal grid rasterized reduction).
+
+| Column Name | Type | Nullable | Description |
+|---|---|---|---|
+| `ADM0_NAME` | `STRING` | No | Country name ("United States of America" or "Canada"). |
+| `ADM1_CODE` | `INT64` | No | FAO GAUL 2015 level 1 unique numeric code (read from GAUL asset). |
+| `ADM1_NAME` | `STRING` | No | Administrative division name (e.g., "California", "British Columbia / Colombie-Britannique"). |
+| `month` | `STRING` | No | Calendar month in UTC (`YYYY-MM`). |
+| `days_in_month` | `INT64` | No | Total calendar days in the given month (28–31). |
+| `aqua_days` | `INT64` | No | Count of days in the month with Aqua data present. |
+| `viirs_days` | `INT64` | No | Count of days in the month with VIIRS data present. |
+| `aqua_complete` | `BOOL` | No | True if Aqua data is present for all days in month (`aqua_days == days_in_month`), else false. |
+| `viirs_complete` | `BOOL` | No | True if VIIRS data is present for all days in month (`viirs_days == days_in_month`), else false. |
+| `D_aqua` | `FLOAT64` | Yes | Monthly sum of active fire pixel counts on land for Aqua (`FireMask` 7–9; integer values, nulls require float). |
+| `O_aqua` | `FLOAT64` | Yes | Monthly sum of usable observation pixel counts on land for Aqua (`FireMask` 5 or 7–9; integer values, nulls require float). |
+| `D_viirs` | `FLOAT64` | Yes | Monthly sum of active fire pixel counts on land for VIIRS (`FireMask` 7–9; integer values, nulls require float). |
+| `O_viirs` | `FLOAT64` | Yes | Monthly sum of usable observation pixel counts on land for VIIRS (`FireMask` 5 or 7–9; integer values, nulls require float). |
+| `O_common` | `FLOAT64` | Yes | Monthly sum of pixel observations mutually usable in both Aqua and VIIRS (integer values, nulls require float). |
+| `D_aqua_common` | `FLOAT64` | Yes | Aqua active fire pixels within the mutually usable mask (integer values, nulls require float). |
+| `D_viirs_common` | `FLOAT64` | Yes | VIIRS active fire pixels within the mutually usable mask (integer values, nulls require float). |
+| `D_aqua_nh` | `FLOAT64` | Yes | Aqua nominal and high confidence fire pixels (`FireMask` 8–9; integer values, nulls require float). |
+| `D_viirs_nh` | `FLOAT64` | Yes | VIIRS nominal and high confidence fire pixels (`FireMask` 8–9; integer values, nulls require float). |
+| `R_aqua` | `FLOAT64` | Yes | Aqua monthly fire rate per 1,000 opportunities ($1000 \cdot \sum D_{aqua} / \sum O_{aqua}$). Null if $O_{aqua} = 0$. |
+| `R_viirs` | `FLOAT64` | Yes | VIIRS monthly fire rate per 1,000 opportunities ($1000 \cdot \sum D_{viirs} / \sum O_{viirs}$). Null if $O_{viirs} = 0$. |
+
+*(Note: Sensor columns are null when that sensor has no file in the month (`aqua_days` or `viirs_days` = 0). Common-support columns are null when either sensor has no file.)*
+
+### 6.2 Daily Focus Export (California and British Columbia), pending
 Raw daily export files are stored as `afterimage_daily_YYYY.csv` (raw export) and converted to validated `afterimage_daily_YYYY.parquet` (checked).
 
 The table schema matches the exact export columns:
