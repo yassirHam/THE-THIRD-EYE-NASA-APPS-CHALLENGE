@@ -240,6 +240,13 @@ class ObsRecord:
         O = 0  <=>  the period is UNAVAILABLE; D is meaningless.
         Caller must NOT pass O = 0 with a non-zero D as "no fire detected".
     policy: 'own_support' or 'common_support'.
+    coverage_state: P2's per-sensor period coverage state (handoff b18ed3e,
+        r9-P2.md): 'complete', 'partial' (missing days/tiles, clipped period
+        or low processed coverage) or 'unavailable' (no file).  The default
+        'not_reported' means P2 supplied no coverage evidence for this record.
+        A partial or unavailable record is never pooled: the registered cell
+        it belongs to fails and every variant containing it is UNAVAILABLE.
+        Only records reported 'complete' let a factor claim verified coverage.
     """
 
     sensor: Literal["aqua", "viirs"]
@@ -248,8 +255,16 @@ class ObsRecord:
     policy: Literal["own_support", "common_support"]
     D: int  # detected fire-cell-days
     O: int  # usable land-cell-days
+    coverage_state: Literal["complete", "partial", "unavailable", "not_reported"] = "not_reported"
 
     def __post_init__(self) -> None:
+        if self.coverage_state not in ("complete", "partial", "unavailable", "not_reported"):
+            raise ValueError(f"Unknown coverage_state {self.coverage_state!r}.")
+        if self.coverage_state == "unavailable" and (self.O != 0 or self.D != 0):
+            raise ValueError(
+                "coverage_state 'unavailable' (no file) cannot carry observations; "
+                "set D = 0 and O = 0."
+            )
         if self.D < 0:
             raise ValueError(f"D must be >= 0, got {self.D}")
         if self.O < 0:
@@ -340,6 +355,12 @@ class FactorResult:
     # (sensor, year, stratum, summed_O) cells below the registered minimum
     support_failures: list[tuple[str, int, str, int]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+    # (sensor, year, stratum, coverage_state) records that are partial or unavailable
+    coverage_failures: list[tuple[str, int, str, str]] = field(default_factory=list)
+    # 'verified_complete' only when every pooled record was reported complete by
+    # P2; otherwise 'not_verified'.  This is file/period coverage, not a footprint
+    # certification (P2 r9: no region-period is certified complete today).
+    period_coverage: Literal["verified_complete", "not_verified"] = "not_verified"
 
 
 def _check_registered_support(
@@ -363,6 +384,22 @@ def _check_registered_support(
                 if o < config.min_support_O:
                     failures.append((sensor, year, stratum, o))
     return failures
+
+
+def _check_period_coverage(
+    aqua_records: list[ObsRecord],
+    viirs_records: list[ObsRecord],
+    training_years: tuple[int, ...],
+    config: StageAConfig,
+) -> list[tuple[str, int, str, str]]:
+    """(sensor, year, stratum, state) for registered records P2 reports partial or unavailable."""
+    failures: list[tuple[str, int, str, str]] = []
+    for sensor, records in (("aqua", aqua_records), ("viirs", viirs_records)):
+        for r in records:
+            if (r.year in training_years and r.stratum in config.strata
+                    and r.coverage_state in ("partial", "unavailable")):
+                failures.append((sensor, r.year, r.stratum, r.coverage_state))
+    return sorted(set(failures))
 
 
 def _check_year_support(
@@ -454,6 +491,9 @@ def _fit_factor(
     support_failures = _check_registered_support(
         aqua_records, viirs_records, training_years, config
     )
+    coverage_failures = _check_period_coverage(
+        aqua_records, viirs_records, training_years, config
+    )
 
     # --- (v2) Check that every registered year has support ---
     missing_aqua = _check_year_support(aqua_records, training_years, "Aqua")
@@ -488,6 +528,13 @@ def _fit_factor(
             f"not met for (sensor, year, stratum, summed_O): {support_failures}.  "
             f"Factor variant '{variant_id}' is UNAVAILABLE."
         )
+    if coverage_failures:
+        reasons.append(
+            "P2 reports incomplete period coverage for registered cells "
+            f"(sensor, year, stratum, state): {coverage_failures}.  Incomplete "
+            f"periods are never pooled; factor variant '{variant_id}' is "
+            "UNAVAILABLE.  Any other incomplete-month rule needs a recorded P1 decision."
+        )
 
     if reasons:
         return FactorResult(
@@ -505,6 +552,7 @@ def _fit_factor(
             mismatched_strata=mismatched,
             support_failures=support_failures,
             reasons=reasons,
+            coverage_failures=coverage_failures,
         )
 
     # All years have support — now pool
@@ -588,6 +636,11 @@ def _fit_factor(
         missing_viirs_years=[],
         mismatched_strata=[],
         reasons=[],
+        period_coverage=(
+            "verified_complete"
+            if all(r.coverage_state == "complete" for r in aqua_available + viirs_available)
+            else "not_verified"
+        ),
     )
 
 

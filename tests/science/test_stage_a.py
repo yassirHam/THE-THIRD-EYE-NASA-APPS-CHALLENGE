@@ -2188,3 +2188,67 @@ class TestDNotAboveO:
                                      [_own("viirs", 2016, 50, 50)],
                                      training_years=(2016,), config=OWN_CFG)
         assert v["full_training_2016"].factor_value == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# P2 r9 period coverage (handoff b18ed3e).  Synthetic values only.
+# ---------------------------------------------------------------------------
+def _cov(sensor: str, year: int, D: int, O: int, state: str) -> ObsRecord:
+    return ObsRecord(sensor=sensor, year=year, stratum="annual",
+                     policy="own_support", D=D, O=O, coverage_state=state)
+
+
+def _three_years(state_aqua_2017: str = "complete", state: str = "complete"):
+    aqua = [_cov("aqua", y, 30, 1000, state_aqua_2017 if y == 2017 else state)
+            for y in (2016, 2017, 2018)]
+    viirs = [_cov("viirs", y, 20, 1000, state) for y in (2016, 2017, 2018)]
+    return aqua, viirs
+
+
+class TestPeriodCoverage:
+    def test_default_is_not_reported_and_never_verified(self):
+        aqua = [_own("aqua", y, 30, 1000) for y in (2016, 2017, 2018)]
+        viirs = [_own("viirs", y, 20, 1000) for y in (2016, 2017, 2018)]
+        out = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
+        assert aqua[0].coverage_state == "not_reported"
+        assert all(r.status == FactorStatus.AVAILABLE for r in out.values())
+        assert all(r.period_coverage == "not_verified" for r in out.values())
+
+    def test_all_complete_records_verify_period_coverage(self):
+        out = fit_own_support_variants(*_three_years(), config=OWN_CFG)
+        assert all(r.period_coverage == "verified_complete" for r in out.values())
+
+    def test_partial_record_is_never_pooled(self):
+        out = fit_own_support_variants(*_three_years("partial"), config=OWN_CFG)
+        with_2017 = [r for r in out.values() if 2017 in r.training_years]
+        without_2017 = [r for r in out.values() if 2017 not in r.training_years]
+        assert with_2017 and all(r.status == FactorStatus.UNAVAILABLE for r in with_2017)
+        assert all(("aqua", 2017, "annual", "partial") in r.coverage_failures for r in with_2017)
+        assert all(r.factor_value is None for r in with_2017)
+        assert all(r.status == FactorStatus.AVAILABLE for r in without_2017)
+
+    def test_partial_variant_failure_makes_sensitivity_unresolved(self):
+        out = fit_own_support_variants(*_three_years("partial"), config=OWN_CFG)
+        status, reasons = assess_sensitivity(out, baseline_B=30.0, viirs_V=20.0,
+                                             required_variant_ids=tuple(out))
+        assert status == SensitivityStatus.UNRESOLVED and reasons
+        complete = fit_own_support_variants(*_three_years(), config=OWN_CFG)
+        status_ok, _ = assess_sensitivity(complete, baseline_B=30.0, viirs_V=20.0,
+                                          required_variant_ids=tuple(complete))
+        assert status_ok != SensitivityStatus.UNRESOLVED
+
+    def test_unavailable_coverage_cannot_carry_observations(self):
+        with pytest.raises(ValueError, match="no file"):
+            _cov("aqua", 2016, 0, 10, "unavailable")
+        _cov("aqua", 2016, 0, 0, "unavailable")
+
+    def test_unknown_coverage_state_is_rejected(self):
+        with pytest.raises(ValueError, match="coverage_state"):
+            _cov("aqua", 2016, 1, 10, "mostly_complete")
+
+    def test_mixed_reported_and_unreported_is_not_verified(self):
+        aqua, viirs = _three_years()
+        viirs[0] = _own("viirs", 2016, 20, 1000)
+        out = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
+        full = next(r for r in out.values() if len(r.training_years) == 3)
+        assert full.status == FactorStatus.AVAILABLE and full.period_coverage == "not_verified"
