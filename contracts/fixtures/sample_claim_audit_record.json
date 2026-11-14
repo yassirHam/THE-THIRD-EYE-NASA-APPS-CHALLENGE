@@ -1,0 +1,26 @@
+{
+  "record_id": "car-sha256-4f9b8c12e87d",
+  "statement": "Fire activity in Angola decreased substantially after the 2020 management reform.",
+  "target_region": "Angola (Primary Bounding Box)",
+  "geometry_id": "geo-canonical-primary-angola",
+  "date_range_tested": "2020-01-01 to 2024-12-31 vs 2003-2018 reference",
+  "dataset_versions": [
+    "MODIS/061/MYD14A1",
+    "NASA/VIIRS/002/VNP14A1"
+  ],
+  "snpp_cessation_verified": true,
+  "formulas_applied": [
+    "Index = (D / O) * 1000",
+    "Harmonization: VIIRS_adj = VIIRS_raw / a_H (a_H = 1.482)"
+  ],
+  "sensitivity_status": "stable_across_displayed_settings",
+  "applicability_status": "evaluated_for_conditions",
+  "inference_status": "not_established",
+  "practical_margin_applied": 1.5,
+  "reproducibility_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "verification_steps": [
+    "Checked observation support O > 0 across all months.",
+    "Applied pooled-rate ratio a_H without unweighted rate averaging.",
+    "Tested ex-2016, ex-2017, and ex-2018 sensitivity splits."
+  ]
+}

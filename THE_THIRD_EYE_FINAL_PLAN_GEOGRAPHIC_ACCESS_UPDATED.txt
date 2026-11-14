@@ -1,0 +1,2124 @@
+THE THIRD EYE - HISTORICAL FIRE CALENDAR WITH EVIDENCE-BACKED COMPARISONS
+Selected research and delivery plan | November 14, 2026 | Decision-relevance, applicability, and geographic-access revision
+
+STATUS
+Selected implementation direction as of November 14, 2026; scientific feasibility
+and release gates remain unpassed until measured evidence is recorded. Begin
+with Section 10, not every optional extension. Current execution specification,
+agent entry point and playbook follow this direction according to the adopted
+project plan; verify those files remain in sync before execution. Historical
+guides, PDFs and older plans are non-executable references. Adoption is not a
+claim of implementation, validation, nomination or award readiness.
+
+RELEVANCE AND CONTINUITY REVISION (November 14, 2026, later the same day)
+Adds Section 0 and amends Sections 3, 4, 4C, 5A, 8B, 9A, 9E, 11, 12, 13 and 14:
+challenge-text capture and requirement coverage (daily/weekly descriptive views,
+selectable areas, a separately labeled hotspot view), the Suomi NPP data
+cessation and NOAA-20/NOAA-21 continuity, more registered evaluation units and
+one plain-language headline metric, a first-20-seconds demo rule, submission
+mechanics and competitive context. Project code is built only during the event
+(November 14-15), a team rule; check whether the official rules also require it
+(Section 0). Section 0 lists permitted preparation.
+Earlier versions are retired; Git history holds this packet from its first commit.
+
+WEEKEND BUILD BRIEF - DELIVERY AUTHORITY
+Times are local event time; verify kickoff and official portal cutoff. All project
+code, data extracts, fixtures and artifacts are built November 14-15. These
+priorities govern the detailed plan and all companion documents. P1-P5 below
+are people; P0/P1/P2 are delivery tiers. Unmet challenge requirements are recorded,
+not silently waived. If P0 evidence fails, ship only honestly labeled descriptive
+material and report the missing evaluation; do not call it a validated release.
+
+P0 - all required for the intended nominable submission:
+- P2, within one hour of kickoff: finalize primary and backup from pre-event
+  rules and launch both regions' block-level daily D/O exports for both sensors.
+  Split into per-sensor, per-year or per-span jobs, submitted in priority order:
+  (1) 2016-2024 both sensors, (2) Aqua 2003-2015, (3) VIIRS 2012-2015.
+  Record job IDs, source versions and status. As in the assignment sheet, export
+  2020-2021 evaluation outputs to a P5-controlled separate bucket/folder with
+  separate permissions; P1 sees only development partitions until methods freeze.
+- P2, Saturday 13:00: check source access, boundaries, masks, support and a real
+  sample; choose primary or registered backup and record feasibility. If full
+  history is not back, register a fallback before outcomes are inspected: ship
+  complete returned spans, requiring the 2016-2024 core, and add earlier spans
+  as they finish before the Saturday 20:00 freeze, each after a completeness check;
+  no partial year is shown as complete. Both sensors need 2016-2018 training,
+  2019 development, 2020-2021 sealed evaluation and 2022-2024 applicability
+  years. Register the available
+  prior baseline years and minimum count at kickoff; 2016-2019 are the available
+  prior years for a 2020 target in the core; for later targets use all eligible
+  prior years from 2016 through the year before the target, separately by sensor
+  and policy. Those years must be present with minimum support or the baseline
+  is unavailable. Earlier targets without enough prior years show unavailable. If required years/support are missing, report
+  the affected experiment or baseline unavailable; never reuse holdouts. Disclose
+  the actual spans and gaps; do not imply full-history coverage.
+- P1/P2 with P3, Saturday 20:00: monthly and weekly same-sensor calendar, normal
+  season, frozen critical/unusual week labels and Stage A; done: real D/O, mask,
+  support, missing/zero and sum-before-division checks, frozen factors and honest
+  applicability/unavailable states. Daily drill-down is P1.
+- P2/P3/P4, Saturday 20:00: selector for the primary region and its predeclared
+  administrative sub-areas from the same block export; own geometry IDs, sums
+  before division, raw_only unless separately evaluated. Show unavailable for
+  missing footprints. Include a FIRMS link for the selected area/date and the
+  two-sentence grid-versus-points explainer (Section 4C); verify link behavior.
+- P4/P3, Saturday 20:00: static no-backend judge site with versioned JSON,
+  optionally gzipped; target at most 10 MB compressed for initial P0 artifacts,
+  measure and disclose actual size and load performance. Browser-side Parquet is
+  P1. First screen has area, calendar, one finding, one limit and plain status chip.
+- P5 with P1/P2, Saturday 23:00: frozen held-out sensor-switch report; done: all
+  registered cases, raw, point and interval baselines, errors, coverage, abstentions,
+  reference gaps and frozen headline denominator, including null or infeasible
+  results. Holdouts remain sealed until methods are frozen. The frozen headline
+  metric and denominator appear on the landing page, including unavailable status.
+- P2/P3, start Saturday 20:00, done Sunday 12:00 (P0-late): in-app "Reported
+  hotspots" FIRMS point view per Section 4C; never feeds grid science; does not
+  take P1/P2/P5 time needed for the 23:00 evaluation or replay.
+- P4/P5, Sunday 12:00: evidence bundle and independent clean-environment replay;
+  link source, geometry, policy, factor, split, outputs and actual replay results.
+  Report failure rather than claiming reproducibility if replay fails.
+- P3/P5, Sunday 20:00: one-page judge results summary exists; demo script and raw
+  screen capture are recorded using actual features and results, including limits.
+  P3/P5, Sunday 22:00: submit site, demo and summary with checked links; disclose
+  challenge gaps and source limits. Verify the portal cutoff.
+
+P1 - per-owner priority: a person may begin their P1 work once their own P0 items
+are done and checked, without consuming P1/P2 scientific-owner or P5 evaluation
+capacity needed for P0. P0 evaluation remains due Saturday 23:00; no P1 claim
+ships if that evaluation is missing or infeasible. A null or negative evaluation
+may pass if honestly reported. P1: daily drill-down,
+additional individually evaluated areas and wider raw domain, expanded quality/
+opportunity and activity-regime diagnostics, and a small user task. Finish and
+verify by Sunday 18:00 or cut. P2 tier follows P0 and chosen P1 work: NOAA-20,
+recent context, Story, Stage B, Evidence Repair and optional diagnostics, each
+with its own gates. No live service is required.
+CUT ORDER when behind: first P2, then all P1 (user task and expanded diagnostics,
+additional evaluated areas and wider raw domain, daily drill-down). Then the
+in-app hotspot view (keep the FIRMS link). Only after that consider other P0
+relevance items; record unmet challenge requirements. NASA exports and
+data-availability checks always come before UI polish. Never cut a safeguard while shipping its claim;
+remove or label that claim unavailable instead.
+
+Tier map: P0 includes the primary region and predeclared raw administrative
+sub-areas, monthly/weekly calendar, normal season, frozen week labels, FIRMS link
+and explainer, evaluation, release and replay. Section 3 daily drill-down,
+Section 4C in-app FIRMS view is P0-late (Sunday 12:00). Section 5A wider domain
+and individually evaluated extra areas are P1. Sections 4B and 13 expanded audits, composition
+fixture and fixed-weight analysis are P1; P0 block accounting reconciles counts
+and support. Early-overlap tests are P1 when early mapped VIIRS is offered;
+otherwise disable it. Activity-regime diagnostics and user task are P1. Section 8
+advanced enhancement, 8A, 9B.1, 9B.2, 9D and Stage B are P2. Other optional
+extensions are P2 unless assigned P1. Lower-tier requirements apply fully when
+shipped. P0 retains source/outage registry entries, core masks, zero-support,
+provenance and disclosed unknown opportunity; expanded registry is P1.
+
+0. PRE-EVENT PREPARATION AND BUILD-WINDOW RULE
+
+All project code, pipelines, data extracts, fixtures and app artifacts are
+created during the official hackathon window. Before kickoff, do only what the
+rules permit: read the rules and challenge, plan, set up accounts and generic
+tools, and rehearse the team workflow on a throwaway project. Verify the current
+legal page and local-event guidance; if anything below is not permitted, skip it.
+This is a team choice until official rules are verified. Existing pre-event
+frontend work must be inventoried before submission: record whether it is an
+excluded rehearsal or whether the team has formally revised its choice after
+checking the actual rules. Do not describe existing code as event-built without
+evidence, and do not assume a rewrite or permission already exists.
+
+Rule sources (P5 completes before kickoff; every restriction in this packet is
+one of these three, and documents cite which):
+- VERIFIED NASA RULE, with URL and retrieval date. Currently: submission opens
+  Saturday November 14 9:00 AM and closes Sunday November 15 11:59 PM local
+  time (spaceappschallenge.org/2026); teams of at most six, registered at the
+  same local event (team-formation guide); under-18 media limits (participant
+  FAQ). Read spaceappschallenge.org/legal and record exactly what it says about
+  work done before the event; this packet has not verified that yet.
+- LOCAL EVENT RULE: anything the local organizer states in writing.
+- TEAM CHOICE: restrictions the team adopts voluntarily. Currently: building
+  project code only during November 14-15 (adopted as the team's understanding
+  of the rules; becomes a verified rule if the legal page confirms it), sealed
+  holdouts under P5, no outcome inspection before freeze, static judge site.
+If the legal page allows more preparation than the team choice, the team may
+relax the build-window choice by recorded decision, for example reading data
+catalogs, confirming that VJ114A1 and both 1 km grids exist in Earth Engine, or
+estimating export cost. Holdout and outcome-inspection rules stay regardless:
+they are scientific safeguards, not event rules. Never describe a team choice
+as a NASA rule in the submission or the demo.
+
+Before Saturday November 14 kickoff:
+- Commit this plan packet to the team repository and share one agreed SHA.
+  Planning documents are not project code.
+- Save the full official challenge statement, resource list (published on the
+  Space Apps site November 14) and judging guidance as text files under
+  challenge/, with URL and retrieval time. Section 4C uses these, not memory.
+- Draft the challenge-to-measurement matrix (Section 4C) as a planning table.
+- Write down two or three candidate regions and frozen numeric feasibility rules
+  (Section 5): strong seasonal activity with enough nonzero cell-days in both
+  sensors in every training year; a documented public fire-trend question; local
+  audience relevance where possible; clean administrative boundaries; manageable
+  export size. Verify the public source and data feasibility during the event.
+  Do not inspect outcomes or extract project data before kickoff.
+- Each member: confirm Space Apps registration at the same local event, team
+  size (at most six), any participants under 18 and the related media rules.
+- P2: confirm Earth Engine and Earthdata accounts authenticate, using only a
+  generic test unrelated to the project if the rules allow it.
+- P4: confirm deployment and repository access; agree a license choice.
+- P5: read the official project-submission form fields and video/slide rules,
+  and draft the evidence-matrix headings (Section 9E) without results.
+Nothing in this list produces a scientific result. Feasibility (Section 10)
+starts at kickoff.
+
+1. DECISION AND PURPOSE
+
+Build a usable historical calendar during the event using verified NASA data sources.
+The comparison tool is its distinctive analytical capability, not a separate
+research interface that users must understand before exploring the data. Begin
+with registered-factor sensitivity checks. A richer joint-constraint engine is
+conditional on justified assumptions and demonstrated additional value.
+Do not promise recovery of actual missed fires or a new physical detection theory.
+
+Main workflow (default is automatic, not a do-it-yourself research console):
+Choose an eligible area -> THE THIRD EYE loads a validated/precomputed calendar ->
+automatically identifies registered seasonal patterns and eligible comparisons ->
+checks calibration stability, support and applicability -> displays a plain-English
+finding with its limits -> user may open evidence and export. Optional manual
+comparisons use the same frozen scientific rules; they do not bypass validity
+gates. No user has to choose a correction factor or search archives by hand.
+
+Primary question:
+Which historical seasonal comparisons survive the registered sensor-transfer
+and observation-support assumptions, and which admit conflicting answers?
+
+Potential users and decisions (illustrative, not recruited partners):
+- A forest or fire department planner reviews past seasonal timing to prepare a
+  next-season staffing calendar; a false sensor-change trend could misdirect staffing.
+- An air-quality agency analyst reviews burning seasons to prioritize retrospective
+  air-quality investigation; a false trend could send analysis toward the wrong years.
+- A journalist or NGO checks a public claim that fires are increasing; confusing a
+  sensor seam for a trend could lead to a misleading account. None is a forecast.
+P5 finds and cites one real published regional claim or report during the event;
+verify its measurement and relevance. Do not imply participation or adoption.
+
+One-line pitch (repeat across submission materials):
+"The fire calendar that tells you when a satellite change, not the fire, made
+the difference - and when it can't tell." This is the intended question, not a
+claim of causal identification; results describe reference-relative comparisons.
+
+Capability comparison with a typical harmonized calendar (verify any external
+comparison; these are intended capabilities, not claims about named teams):
+- Shows raw and corrected comparisons with a held-out sensor-switch benchmark.
+- Separates calibration sensitivity, applicability failure and missing evidence.
+- Links each qualified finding to versioned inputs and independent replay.
+
+User-first scientific promise:
+- The user chooses an available geography, not a calibration method.
+- The app automatically presents an honest historical finding and an evidence
+  status; a chart never silently substitutes for an evaluated conclusion.
+- The user can inspect NASA source records, sensitivity and reproduction steps
+  as optional drill-down. Experts retain control over interpretation.
+- A simple default is the entry point; technical complexity stays accessible,
+  but secondary. Unsupported regions/periods display reasons, not invented data.
+
+Research hypothesis:
+Mandatory Stage A hypothesis: under a preregistered artificial sensor handover
+on untouched overlap observations, calibration and registered sensitivity checks
+reduce reference-relative mistaken directional conclusions at useful decision
+coverage compared with raw comparisons and strong uncertainty-aware baselines.
+Report a null or negative result if that is what occurs; this is a required
+experiment, not a guaranteed beneficial finding.
+
+Conditional extension hypothesis: a joint sensor-reference analysis can reduce incorrect
+decisive conclusions relative to a held-out same-sensor reference while retaining
+useful decision coverage, compared with raw charts and strong uncertainty-aware
+harmonization baselines.
+
+This is a hypothesis, not a performance claim. Best Use of Data is the target,
+not a forecast. Partial identification, sensitivity analysis, robust optimization
+and breakdown frontiers are established methods. Potential novelty is in the
+validated application and useful evidence product, not those mathematical ideas.
+Best Use of Science is a secondary fit based on demonstrated scientific method,
+not a requirement to deliver Stage B or invent a new mathematical theory.
+Keeping an unjustified method optional is a safeguard, not an award defect.
+
+2026 NASA Space Apps judging alignment (evidence, not score promises):
+- Impact: demonstrate one real retrospective analyst decision the calendar helps
+  qualify, without claiming emergency forecasts or policy consequences.
+- Creativity: document concrete differences from ordinary raw and calibrated
+  calendars and show why they matter, not invented algorithmic originality.
+- Validity: independently replay NASA-derived results and predeclared held-out
+  benchmark errors, exclusions, and answer coverage.
+- Relevance: deliver the requested MODIS/VIIRS hotspot-based, historical,
+  selected-area calendar and explicitly map any unmet requirements.
+- Presentation: users and judges can grasp the result within one interaction;
+  linked evidence supports each visual or spoken claim.
+These five criteria are reported by 2026 Space Apps local-event guidance; verify
+current official judging/submission rules before finalizing the submission.
+
+2. WHAT CHANGES FROM THE PREVIOUS PROJECT
+
+Retain:
+- One regional NASA calendar, raw source visibility, validated mapping where
+  available, missingness, provenance and reproducible exports.
+- Own-support versus common-support separation and policy-specific training.
+- UTC, grid/mask audits, scalar invariance and late-period applicability checks.
+- A static browser application and versioned precomputed artifacts, built during
+  the event; Python and an optional development API may support the pipeline.
+- Immediate Lab access and optional short Quick Mission.
+
+Reframe the main contribution:
+A useful calendar plus traceable historical comparisons. The minimum comparison
+tool evaluates finite registered calibration variants and displays contrasting
+results where they exist. A joint family of interpretations is an evaluated
+extension, not a prerequisite for shipping the calendar or an automatic novelty
+claim. No badge implies every plausible sensor bias has been considered.
+
+Defer from this proposed sprint:
+IoT hardware, Fire Witness, GOES acquisition, runtime LLM reporting, automated
+document extraction, weekly inferential testing, new harmonized platform streams
+beyond the gated NOAA-20 continuity check in Section 4, global validated coverage,
+fire-size analysis and an elaborate explorable station. Daily and weekly
+DESCRIPTIVE calendar views are in scope under Section 3 deliverable A. Bounded region
+expansion is conditional under Section 5. All project assets are built during the event; these are not simultaneous
+workstreams for the new research experiment.
+A small recent-observation context panel is the sole conditional exception for
+a new raw platform stream, under Section 8A. It does not enter historical science.
+
+The user-facing report is a deterministic template. AI coding tools can assist
+implementation; they do not supply scientific constraints or choose conclusions.
+
+3. DELIVERABLES - ONLY FOUR
+
+A. Historical calendar
+One registered region, baseline target 2003-2024 where the source record permits,
+monthly resolution, seasonal patterns, baseline comparisons and clearly labeled
+unusual periods using the seasonal baseline defined below. Show raw/reference-
+scale values, support and unavailable periods. The calendar is useful without
+opening an audit or knowing the mathematics. Region availability follows Section 5.
+An extension to verified 2025 and completed 2026 months is conditional under
+Section 5; no partial year is silently presented as a complete year. Unvalidated
+historical or late-period transfer is explicit. Do not claim complete harmonization
+when only overlap-period experiments work.
+
+Seasonal baseline (P0 monthly; freeze parameters at kickoff before outcomes):
+For each calendar month and sensor/policy, use eligible prior years in that same
+sensor era, excluding the target year and all later years. Register the first and
+last baseline years and a minimum count at kickoff from available source coverage;
+if insufficient, show unavailable. Calculate each year's monthly R from summed
+D and O, then the median and the 90th percentile by nearest-rank (sorted values,
+rank ceil(0.90*n)). Values strictly above the percentile are unusual; ties at the
+threshold are not. If the median is zero, report the absolute difference only;
+percentage change is undefined. Do not treat missing or O=0 as zero. No baseline
+crosses sensors without a separately evaluated mapping at that resolution.
+
+P0 - Calendar resolution (challenge wording: verify). Evaluated cross-era
+comparisons stay monthly. Show weekly tracks on each sensor's own scale, with
+missingness and platform labeled. Daily drill-down and unusual days are P1.
+- Normal season: before outcomes, freeze eligible prior same-sensor years, minimum
+  support and month threshold for a typical season. Compute each calendar month's
+  median rate over eligible years; the first and last qualifying months and the
+  highest median month define the season. Freeze tie and year-boundary rules;
+  show insufficient baseline if requirements fail, not a fabricated season.
+- "Critical weeks": the registered busiest weeks of the typical year, computed
+  within one sensor era, or on the reference scale only where that era is
+  evaluated_calibration. Freeze the week definition (UTC ISO weeks or fixed
+  7-day bins), eligible prior years, minimum support, number of busiest weeks,
+  aggregation and tie rules before computing.
+- "Unusual weeks" (P0), and unusual days if daily drill-down ships (P1): a day or week above a registered same-calendar-window
+  percentile of eligible past years from the SAME sensor and policy. Freeze the
+  percentile, minimum year count, support and ties before computing. With few
+  same-sensor years, show "insufficient baseline" instead of a flag.
+These are descriptive labels, not statistical detections. Daily/weekly values
+never join MODIS and VIIRS into one series unless that period and resolution
+have their own evaluated mapping; otherwise the two sources appear as separate,
+labeled tracks. Daily zero-detection days with usable support are valid zeros;
+days with O=0 are unavailable.
+
+B. Evidence-backed comparison tool [P0]
+Default: show automatically computed, prespecified, eligible comparisons for
+seasonal peaks, registered anomaly periods and cross-era questions. Selection
+is based on frozen user-task rules, never on how dramatic the results look.
+Minimum: direction of a registered period comparison under the full-training
+factor and valid leave-one-training-year-out factors. Show seasonal peaks as
+descriptive observations; do not sell scalar ranking invariance as a discovery.
+Conditional: a justified joint-constraint analysis and possible-peak-month set.
+Every computation identifies its target, domain, policy and method version.
+
+C. Comparison evidence record [P0]
+Minimum: stability across the finite registered variants, observed sensitivity,
+or unresolved required evidence, with the inference status kept separate.
+When variants disagree, show both complete interpretations and their assumptions.
+Conditional engine results follow Section 7. Downloadable JSON plus
+readable HTML includes inputs, assumptions, calculations and reproduction steps.
+
+D. Evaluation report [P0]
+Include an immediately legible one-page judge-facing evidence summary (actual
+results only): dataset/version, tested geography/period, task, method and
+baseline definitions, reference-relative errors, decision coverage, failures,
+missingness and replay link. This is a view of the report, not a fifth deliverable.
+Mandatory, visible held-out sensor-switch experiment under Section 9A, even if
+Stage B is omitted. Include its controls, errors, abstentions and limitations.
+All registered cases, baselines, held-out results, unavailable cases, failures,
+decision coverage and, if P1 ships, a small fair user-task comparison. No selected-success-only
+demonstration or invented improvement percentages.
+
+4. MEASUREMENT CONTRACT
+
+Initial products remain Aqua MYD14A1 and S-NPP VNP14A1 daily nominal 1 km grids.
+Initial Earth Engine collection IDs are MODIS/061/MYD14A1 and
+NASA/VIIRS/002/VNP14A1. Freeze and verify exact available source versions in the
+source manifest; this plan does not inherit unspecified IDs from an older spec.
+At source freeze, map the full official challenge requirements to these
+deliverables using the explicit challenge-to-measurement check in Section 4C.
+If the gridded pathway does not satisfy a required hotspot-record capability,
+resolve that before extraction; do not silently rename the measure.
+
+Suomi NPP cessation and VIIRS continuity (required disclosure):
+NOAA/NESDIS ended delivery of new Suomi NPP data at 15:40 UTC on November 2, 2026;
+the satellite is being lowered for reentry in December 2026. VNP14A1 is
+therefore a closed archive whose last day must be confirmed in the actual
+collection. MODIS data collection is also expected to end around 2027. The
+continuing VIIRS record comes from NOAA-20 (VJ114A1, V002 1 km daily grid,
+available from 2018) and NOAA-21 (VJ2 products). Requirements:
+- P2 adds a quality-registry entry for the S-NPP cessation with authoritative
+  notice URLs, and records the confirmed last VNP14A1 date. The calendar shows
+  "S-NPP record ends" instead of extending the S-NPP branch.
+- The public scope states the end date of every branch. No series is labeled
+  "to today" unless a continuing platform is actually processed.
+- Continuity check [P2 tier; P1/P2 people own it after P0 and chosen P1 work]:
+  P2 verifies VJ114A1 availability (Earth Engine if present, otherwise LP DAAC
+  or AppEEARS) and its QA/mask semantics with the same fixtures as Section 4A.
+  P1 registers a VIIRS-to-VIIRS bridge on the 2018-2026 S-NPP/NOAA-20 overlap
+  with its own training/evaluation split, frozen before outcome inspection.
+  NOAA-20 is a different platform with a different overpass time; it does not
+  inherit a_H, a_C or any S-NPP evaluation status.
+- If the check does not pass, the calendar stops at the S-NPP end date for
+  mapped values, NOAA-20 months appear as raw_only, and the demo explains the
+  continuity limitation. Either outcome answers the "what happens after MODIS"
+  question honestly.
+
+Use D = selected detected fire-cell-days, O = usable land-cell-days and
+R = 1000*D/O, with sums of counts before division. O=0 is unavailable, not zero.
+Do not reuse F for both detected counts and latent actual fire activity.
+
+Primary target is a specified satellite-reference-scale indicator, not actual
+fire number, all-day burning, burned area or a causal effect. Own-support
+observations remain conditional on the usable footprint. Common-support data
+diagnose paired observations only where available and are not substituted into
+pre-VIIRS history. A changed support policy is separately named and recomputed.
+
+Do not assume R=p*actual_activity for this indicator. Overlap relationships are
+not identified physical detection probabilities. FRP detection literature cannot
+be transplanted into a fire-cell indicator without a justified derivation.
+
+No undefined 'fire-size dimension': pixel footprint, observed fire radiative
+power (FRP), detection clusters and burned area are different measurements.
+Pixel size is not fire size; FRP is not an area estimate. Any future FRP grouping
+must use that name and pass product-comparability checks. Burned-area analysis
+requires a separate data/validation pathway and is outside this sprint.
+Do not introduce naive capture-recapture to fill missing fire counts. Similar
+sampling and shared omissions raise dependence concerns but do not alone
+quantify them; event matching and identifying assumptions need separate evidence.
+
+4A. OBSERVATION-OPPORTUNITY AND MASK AUDIT [P0 core; P1 expanded]
+
+P2/P1 document what the selected daily composites retain and discard. A usable
+cell-day is not an overpass count: different numbers or times of acquisitions
+can change the chance of a retained detection while O counts the day once.
+R is normalized by usable cell-days, not fully standardized observation effort.
+Even identical jointly usable cell-days need not represent matched acquisitions.
+Do not interpret calibration as removing these differences automatically.
+
+Record per product/version: compositing selection rules, relevant QA semantics,
+missingness, qualifying date sets and spatial footprints, and whether acquisition
+number/timing is observable or unknown. Audit available day/night categories
+only within their documented composite semantics; they do not recover all passes.
+The VNP14A1 sample band is a swath sample index, not an observation counter.
+Nominal orbit schedules do not prove usable acquisitions. Report unknowns in the
+calendar methodology and evidence package; inability to count opportunities from
+daily grids is a limitation, not a reason to invent a denominator or block an
+otherwise valid descriptive calendar.
+
+Explicit product-specific mask fixtures are required before calibration: verify
+fire-confidence classes, usable non-fire land, cloud, water, unclassified/unknown,
+not-processed, fill/masked pixels and VIIRS bowtie deletion against the exact
+collection documentation. Never share a decoder merely because class numbers
+look similar. Combine the frozen land mask and QA rules consistently; excluded
+low-confidence detections are not no-fire. Hand-check D/O accounting on small
+examples plus real pixel extracts. Capture unknown/reserved classes explicitly.
+
+4B. GEOGRAPHIC COMPOSITION - ACCOUNTING AND FIXTURE [P1; mandatory if used]
+
+P2 preserves D_b,t and O_b,t by fixed, nonoverlapping geographic block b, sensor,
+period and policy, alongside boundary/grid IDs, exclusions and eligibility.
+Blocks partition the study region under registered inclusion rules; block counts
+must sum exactly to published regional counts. Use suitable documented spatial units rather than introduce another global pipeline. Choose units and candidate
+fixed weights from geography/development feasibility before evaluation outcomes.
+
+Let r_b,t=1000*D_b,t/O_b,t and w_b,t=O_b,t/sum_b(O_b,t). Then, for observed
+eligible support, R_t=sum_b(w_b,t*r_b,t). Thus the regional index changes when
+the geographical mixture of usable observations changes, even if block rates
+are unchanged. Normalizing by total usable cell-days does not remove that effect.
+This is composition/confounding in aggregation, related to Simpson's paradox;
+it is not necessarily a strict direction-reversal example of that paradox.
+
+Mandatory hand-computed fixture: block rates 10 and 1, usable-observation shares
+0.8/0.2 versus 0.2/0.8, produce 8.2 versus 2.8 (65.85% decrease), while fixed
+0.5/0.5 weights give 5.5 in both periods. Assert the weighted-sum identity and
+count reconciliation. Also test a missing required block and zero usable support:
+never substitute zero or renormalize remaining fixed weights silently.
+
+Conditional standardization uses R_std,t=sum_b(q_b*r_b,t), where q is fixed,
+nonnegative and sums to one over a registered target geography. Equal weights
+are illustrative, not a universal default. Eligible land/grid-cell shares are
+a possible choice when justified by the target; record why the weights fit the
+question. Omit the result if a required block lacks prespecified support, or use
+a separately registered, identically restricted target in both periods with its
+own label. Do not select the restricted geography to obtain a preferred outcome.
+
+R_std is a different estimand: fixed-geography aggregation of observed block
+rates. It does not recover missing fire activity or solve within-block/cloud/time
+selection. Keep original and standardized series visible with distinct IDs.
+Any mapped standardized series needs its own development-only calibration,
+baseline and evaluation, or a separately justified transfer rule. Never silently
+apply the original own-support factor or splice common-support estimates into
+this new historical target. A contextual standardized disagreement cannot
+automatically overturn the primary own-support verdict; report it as composition
+sensitivity of the broader interpretation, with measurement differences explicit.
+
+4C. CHALLENGE-TO-MEASUREMENT ALIGNMENT [P0 matrix/link; P0-late in-app view]
+
+Before adopting the data pathway, P1/P2/P5 make a requirement-by-requirement
+matrix from the frozen official challenge text saved under challenge/ (Section 0):
+required hotspot record capability,
+selected-area interaction, temporal history, seasonal comparison, anomalies,
+critical periods and any required exports/visualization. Include explicit rows
+for: user-picked area of interest, normal season, unusual days, critical weeks,
+hotspot (point) data, history length and continuity after MODIS/S-NPP. For every requirement,
+record the NASA source/product, delivered user action, measurement unit, evaluation
+status and limitation. Confirm the challenge wording at source freeze; do not infer
+that an arbitrary alternative metric satisfies all hotspot expectations.
+
+The primary 1 km daily fire-cell-day rate is not a hotspot point count. An active
+fire detection point, a gridded cell-day with at least one selected detection, a
+cluster and an actual individual fire are distinct units. Different gridding,
+spatial resolution, multiple observations and confidence/QA handling can change
+all counts. Name axes, legends, tooltips, questions and exports by the exact unit;
+do not label R as 'number of fires' or interchange it with FIRMS 375 m hotspots.
+
+Publish a short source-to-measurement crosswalk: source pixels/QA -> selected D
+and O -> monthly rate -> calibration/reference-scale mapping -> supported claim.
+State which hotspot-level spatial and event information is lost by aggregation,
+and which challenge tasks remain supported, partial or unsupported. Include an
+illustrative verified source-to-grid example and a hand-reconciled fixture.
+
+If official wording requires a hotspot point map or record-level interaction that
+the grid cannot supply, either deliver a separately named, provenance-checked raw
+hotspot view using a compatible source, or disclose the unmet requirement and
+correct the scope before the build. Point views must not inherit grid-specific
+normalization, a_H/a_C correction, historical trends or evaluated verdicts. New
+point-count harmonization is a separately validated scientific pathway and remains
+deferred. A colorful point map is not evidence that measurement alignment passed.
+
+P0 (by Saturday 20:00): provide a verified FIRMS link for the selected area and
+date; make any unsupported area/date transfer explicit and let the user select
+it in FIRMS. Show this explainer: "MODIS and VIIRS hotspots come from active-fire
+detection algorithms whose daily 1 km grid products (MYD14A1, VNP14A1) record
+the same kind of detections together with which cells were actually observed.
+The evaluated comparisons use these grids because they provide a
+usable-observation denominator; VNP14A1 uses 750 m VIIRS bands, which makes the
+sensor gap smaller and measurable, but does not guarantee agreement." Verify the
+source and wording against product documentation. FIRMS points are separate from
+D, O, baselines, factors and verdicts.
+
+P0-late, high-priority relevance item (start Saturday 20:00 after the core
+calendar and exports are checked; done by Sunday 12:00): P2/P3 deliver a
+separately named in-app "Reported hotspots" view of provenance-checked FIRMS
+archive (standard processing) MODIS C6.1 and VIIRS 375 m points for the selected
+area and date range, with platform, confidence filter and "reported detections"
+labeled, and per-day/week point counts shown only as raw counts. The official
+challenge asks for a calendar based on active-fire hotspots; a link alone may
+not meet that expectation. The view never feeds D, O, baselines, factors or
+verdicts, never inherits grid calibration and draws no cross-sensor trend.
+Budget up to three P2 and three P3 human hours; FIRMS credentials stay out of
+the browser and repository. It does not displace exports, data-availability
+checks, the Saturday 23:00 evaluation or replay. If it cannot be verified by
+Sunday 12:00, keep the link, record the gap against the saved challenge text and
+continue; cut it only after all P1/P2 items.
+
+5. REGION, CASES AND DATA SEPARATION
+
+Choose a primary region and one backup for a documented analyst question,
+reproducible boundary, source availability and development-data support. The
+team has not selected a region in this proposal. Do not invent a user partner.
+
+5A. GEOGRAPHIC ACCESS STRATEGY - BROAD RAW EXPLORATION, LOCAL VALIDATION
+
+Purpose: support NASA's selected-area-of-interest workflow without suggesting
+that calibration validated in one location transfers worldwide. Separate the
+geographical reach of source-data exploration from the scientifically evaluated
+reach of cross-sensor comparisons. A global-looking map is not itself coverage.
+
+Two-tier experience:
+- Exploration tier: within a published, actually processed source-data domain,
+  users can choose an area and examine available raw MODIS and VIIRS observations
+  by platform, date and measurement unit, even where calibration is unvalidated.
+  Show missingness, collection/source, acquisition policy and platform boundaries.
+  Do not connect raw measurements across the satellite handover into a single
+  'harmonized historical trend', or display cross-era increase/peak/anomaly verdicts
+  that require evaluated calibration. Same-sensor descriptive views are permitted
+  within their documented coverage and QA limitations.
+- Analysis tier: for each individually eligible area, display calibrated
+  historical comparisons, automatic conclusion checks and evidence records only
+  for the registered policy, region, time span and claims that pass the necessary
+  evaluation/applicability gates. Failed or absent validation returns raw_only,
+  candidate_calibration or unavailable as appropriate, not a simulated answer.
+  A raw worldwide selector does not authorize worldwide scientific conclusions.
+
+Geographic UX and engineering contract:
+- Prefer a world/region search UI with two distinct layers: 'raw observations
+  available' and 'evaluated comparison available'. A visible legend and plain
+  language disclose actual domains, unprocessed areas, and sources of missingness.
+- On selecting an area, check extract availability, geometry/boundary validity,
+  processing status, measurement compatibility, calibration and applicability
+  BEFORE enabling the corresponding analysis. An unprocessed area is unavailable,
+  not a raw-only observation series; no data means no chart.
+- Ship a bounded precomputed raw dataset domain first. Broader continental or
+  worldwide raw coverage is a conditional expansion subject to real successful
+  extraction, query costs, map speed, QA consistency and data licensing. Do not
+  promise global exploration until data exist and the area selector is tested.
+- Prefer canonical administrative boundaries or unions of precomputed cells;
+  arbitrary polygons require tested resource and geometry limits. Keep raw
+  exploration inexpensive through cached/pre-aggregated tiles and summaries.
+- Always label the two satellite sources separately; switching between MODIS
+  and VIIRS in Story Mode or Research Lab never implies harmonization.
+- Do not fit one factor for every interactive click or reuse the benchmark
+  region's factor elsewhere. Register a region-specific eligibility/evaluation
+  job where supported; otherwise keep the raw historical view or show unavailable.
+- Coverage state is keyed by geometry, period, product, observation policy,
+  extraction version, calibration model and evaluation status; different months
+  or subregions may have different states. Version the mapping and cache keys.
+
+Geographic measurement identity - required:
+- Every selectable footprint has a canonical geometry ID/hash, boundary source
+  and version, CRS and frozen grid inclusion rule. Map zoom/clipping is display
+  only; it does not change the analysis area. Display the actual analyzed outline.
+- An arbitrary selection must either be processed as its exact registered target,
+  or visibly offered a named supported area for user confirmation. Never silently
+  snap a district to its parent and describe the parent's result as local evidence.
+- For unions of disjoint cells/blocks, sum D and O before dividing. Do not average
+  district rates or calibrated values. Deduplicate overlapping selections and
+  define boundary-cell inclusion before inspecting fire values. Fractional-cell
+  weighting changes the measurement definition and requires its own contract.
+- A union or subset does not inherit a parent's or constituent's calibration or
+  validation merely because it lies inside their boundaries. Raw aggregation can
+  be available while calibrated analysis is not. Freeze a transfer rule and test
+  it before enabling that target's evaluated comparisons.
+- A partially extracted footprint is unavailable for a whole-area conclusion.
+  A restricted-footprint view needs an explicit new target label and coverage
+  fraction; never silently shrink the selected area or reweight missing blocks.
+- Distinguish no extraction, QA-unusable, valid zero detection and unvalidated
+  calibration. A processed zero-detection month belongs in the raw domain.
+
+Delivery priority and fallback:
+P0 selector covers the primary region and its predeclared administrative sub-areas
+from the same bounded daily block export per sensor. Each has its own geometry
+ID and raw_only status unless separately evaluated; sum D and O before division,
+deduplicate, and show missing footprints as unavailable. P1 may add two or three
+individually evaluated areas and a wider raw domain after each owner's P0 work is
+checked, subject to the brief's capacity rule. Check export cost and disclose
+coverage; no per-click jobs, implicit factor transfer or global coverage promise.
+
+Acceptance tests:
+- A region with no extracted data cannot display a fabricated raw chart.
+- A raw_only region cannot show an automatically inferred cross-sensor trend.
+- A validated region can show a qualified result only for its evaluated domain.
+- A region with a failed or missing applicability check cannot be marked reliable.
+- Switching regions or changing a polygon cannot reuse another area's factors,
+  support masks, baseline, cache identity or source-quality exclusions.
+- A worldwide map with only one dataset region is clearly shown as geographically
+  limited; no coverage claim follows from a map background.
+- The raw and evaluated tiers remain understandable in Story, Lab and Quick
+  Mission without requiring users to know calibration mathematics.
+
+Geographical product scope:
+- Provide an available-region selector with explicit data/evaluation status.
+  With only one approved region, show that limitation rather than fake choice.
+  For nomination readiness, prioritize two or three precomputed eligible
+  subregions after the primary scientific release, with separate verified
+  availability/method applicability for each. This improves selected-area
+  usability without implying global coverage. If support is insufficient,
+  preserve a truthful single-region demo and record the challenge gap.
+- A second region or bounded subregions may be added after primary validation,
+  with reproducible boundaries, eligibility and region-specific mapping or a
+  separately evaluated transfer rule. Aggregating into a new area is not free
+  scientific validation.
+- Preferred bounded expansion: predeclare two or three districts/subregions
+  within the study region, then precompute their data and individual evaluation
+  records. Offer map clicks and an equivalent accessible list. Prioritize this
+  over arbitrary-polygon jobs, recent context or Stage B once the core passes.
+  Register candidates before viewing their outcomes; keep raw-only/unavailable
+  statuses when gates fail. Do not promise that all candidates will validate or
+  treat nested districts as independent regional replications. If capacity or
+  data fail, disclose the single-region limitation rather than delay the core.
+- Raw-only exploration may be available where source acquisition is feasible;
+  label it unharmonized and disable unavailable calibrated conclusions.
+- Do not promise arbitrary global-area calibration or inherit a primary-region
+  factor silently. Record any remaining selected-area challenge coverage gap.
+
+Conditional extension - user-selected areas with automatic eligibility:
+Accept the proposed middle path as a gated extension, not a global P0 promise.
+After the primary calendar and Stage A pass, allow selection of an area within
+an explicitly published processing domain. Prefer predefined boundaries or
+bounded unions of precomputed spatial units. Arbitrary polygons are conditional
+on verified extraction, geometry handling, runtime and resource limits. The UI
+must show the supported domain; a drawable polygon does not imply usable data.
+
+Enough data makes an area eligible to FIT a mapping. It does not establish that
+the mapping is adequate, stable or transferable. Use separate coverage states:
+- unavailable: no complete usable extract, unsupported geometry or request limit;
+  show the reason, not a fabricated raw calendar.
+- raw_only: source observations exist but calibration eligibility fails, mapping
+  evaluation fails, or a required applicability check is unavailable. Show raw
+  series separately; do not bridge sensors with an implied common scale.
+- candidate_calibration: development-only eligibility and fitting pass but
+  evaluation is pending. Experimental mapped values, if shown, are explicitly
+  unvalidated; disable claims that require evaluated calibration.
+- evaluated_calibration: the frozen region-specific evaluation gates pass for
+  the specified policy, period and claim domain. Display the actual results and
+  limitations; this is not ground truth or an inferential 'supported' label.
+
+Register numeric eligibility rules before screening additional areas: usable
+overlap years/months, seasonal representation, spatial/temporal support, baseline
+eligibility and adequate nonzero training detections in both sensors. Register
+factor stability criteria and handling of zero/sparse rates. Counts alone are
+insufficient. P1/P2 choose thresholds from the scientific task and development
+evidence; do not tune them to maximize the number of calibrated regions.
+
+For eligible areas, fit policy-specific factors and leave-one-year-out variants
+using training data only. Apply frozen validation/test separation and acceptance
+rules against raw and simple baselines; retain seasonal failures, support shifts,
+anomaly checks where relevant and late-period applicability requirements. A
+successful period does not authorize every year or every claim. Domain status
+is keyed by area, policy and period, not a single green badge for the whole map.
+
+New-area processing uses the same measurement contract: sum eligible D and O
+before computing rates; never average region rates or factors to calibrate a
+larger area. Freeze boundary/land mask, grid alignment and boundary-cell inclusion
+rules. Store canonical geometry/grid-membership identifiers, source versions,
+split and policy IDs in cache keys and exports. Precomputed units must retain
+the support information needed to reproduce the requested policy; monthly totals
+alone cannot reconstruct every footprint or common-support diagnostic.
+
+Keep expensive exports outside the interactive request path. Serve approved
+cached artifacts first. If a new extraction/evaluation is supported, present
+explicit pending/failed states through a bounded offline job path; no live-job
+service is required for P0. Set area, date, complexity and resource limits before
+enabling custom requests. Do not promise 'any area' until actual coverage and
+capacity have been tested. Missing extraction is not equivalent to raw-only data.
+
+Log screened areas and outcomes. Trying many user-selected areas is exploratory;
+it does not create new independent evidence of generalization. Do not pick the
+best-looking areas for reported performance or retune on their held-out results.
+Benchmark geography remains preregistered and separate from interactive browsing.
+One region is a delivery limitation, not proof that nomination is impossible;
+global reach is not evidence of scientific validity or award competitiveness.
+
+Freeze numerical feasibility criteria before checking backup outcomes. Use
+training/development information only; no region shopping on held-out findings.
+If both candidates fail, report that failure rather than keep searching for a
+dramatic reversal.
+
+Provisional split: 2016-2018 training, 2019 development validation, 2020-2021
+untouched primary evaluation, 2022-2024 separate temporal applicability check.
+Confirm actual availability before freezing. If those outcomes have already
+been inspected during earlier work, label them exploratory and register a
+genuinely untouched evaluation split; renaming a project does not reset holdouts.
+
+Calendar branch clarification and early-overlap applicability:
+The planned event-built production splice is Aqua own-support for 2003-2019 and mapped
+VIIRS own-support from 2020 through the release endpoint. VIIRS availability
+from 2012 does not mean the public calendar switches sensors in 2012. Keep
+branch/platform IDs visible and do not silently change that splice.
+
+An early-overlap evaluation on eligible 2012-2015 observations is required before
+claiming that the frozen mapping works for those early VIIRS observations or
+using early mapped VIIRS in claims, alternate splices or historical overlays.
+Otherwise it is a conditional temporal-transfer diagnostic, not a new P0 blocker
+for an Aqua-based 2012-2015 calendar. Early Aqua reference quality still requires
+the P0 source checks; later VIIRS agreement does not validate early truth.
+
+Register early years as development OR temporal evaluation before inspecting
+their outcomes. If used to extend training, they cannot also serve as untouched
+early validation. Record product/collection versions, reprocessing and actual
+coverage; historical problems reported for older 750 m or 375 m products do not
+automatically apply to the chosen VNP14A1 Collection 2 archive. They may also
+extend into training years, so inspect applicable source versions rather than
+assuming all pre-2016 data are bad and all later data are clean. Unsupported
+early mapping remains disabled/raw-only, with reasons recorded.
+
+Conditional 2025-2026 calendar extension - recency without false continuity:
+After the baseline calendar and Stage A evaluation pass, P2 inventories the actual
+archive availability and exact collection/processing version for 2025 and the
+eligible completed months of 2026 as of a frozen retrieval date. The S-NPP
+branch cannot extend past the confirmed last VNP14A1 date (S-NPP delivery ended
+November 2, 2026); November 2026 is a partial month and is never a normal value. The mere
+existence of a dataset or near-real-time points does not authorize mapped values.
+
+P1 checks whether the frozen 2020+ VIIRS mapping remains applicable to the new
+periods: QA, masks, orbit/sampling and coverage conditions, observation support,
+seasonal representation and known product issues. Keep data products and support
+policies unchanged unless a new versioned evaluation is completed. If a required
+test is unavailable or fails, retain raw-only or unavailable month statuses rather
+than silently extending evaluated_calibration.
+
+No open/incomplete month becomes a normal monthly value. For the in-progress
+2026 year, label all shown months as year-to-date / completed-month observations;
+do not compare YTD against full past years or generate full-year anomalies and
+peak-year claims. A like-for-like month-to-month or same-month-set comparison
+requires its own eligibility and baseline rules. Show retrieval date, last complete
+month, source-processing status, and the evaluated applicability period.
+
+P0 remains the 2003-2024 baseline; recency is P2 after the mandatory experiment,
+source alignment and reproducibility are complete. The NOAA-20 NRT 375 m context
+panel in Section 8A is a separate point pathway, not a shortcut to 2025-2026
+historical 1 km grid validation or a seamless extension of its time series.
+
+Training-window review before split freeze:
+P2 inventories the usable overlap record and product/observation consistency;
+P1 assesses whether additional development years improve seasonal representation
+without pooling incompatible regimes. Extend training where justified, while
+preserving clean validation, untouched evaluation and the separate late-period
+applicability check. Do not consume a holdout to obtain more factor variants.
+Record accepted/excluded years and reasons before examining evaluation outcomes.
+With 2016-2018 training, leave-one-year-out supplies only three variants, each
+fit on two years. Disclose that narrow sensitivity test if retained. More folds
+are not more independent evidence, and more years do not automatically remove
+transfer bias. No longer date range is authorized without this source review.
+
+Register geographically meaningful development and held-out spatial blocks
+without using fire-result favorability. Blocks and years are dependence units,
+not thousands of independent pixel-level replications. Spatial transfer claims
+require their own evaluation and are not implied by temporal testing.
+
+Retain a target of six flagship analytical comparisons selected from the user
+task before holdout inspection. Also enumerate the eligible evaluation cases
+by a fixed rule; six curated examples alone do not support a general error rate.
+Do not force a quota of positive, reversed or unresolved findings.
+
+Priority flagship: one consequential, traceable regional question, selected for
+analyst relevance rather than the prospect of debunking a publication. A sourced
+analyst need and a published question are both suitable. Confirming, qualifying
+or withholding a conclusion must each have a stated user consequence. Direct
+replication is valuable but not a release dependency.
+P5 identifies a news article, NGO report or regional assessment relevant to the
+registered user task; P2 traces its underlying data and P1 checks compatibility.
+Record the exact statement, URL, publication date, region, periods, original
+measurement and any adjustments already used. A claim about increases since
+2012 is not evidence that its author mixed MODIS and VIIRS improperly.
+
+Select the source and auditable question before running its audit. Keep a log
+of considered sources and eligibility decisions; do not replace the flagship
+because its result is stable or undramatic. Preserve the original statement
+separately from any narrower satellite-indicator question. Claims about burned
+area, actual fire numbers or policy causality are not silently translated into
+the grid indicator. An unsupported direct measurement match cannot receive a
+verdict on the original claim; a separately named related analysis may still
+be useful under the rules below.
+
+Evidence relationship - mandatory label independent of audit outcome:
+- direct_reproduction: the source's measurement and methods can be reproduced
+  from traceable inputs. Show reproduction status and numerical discrepancies
+  separately; attempting replication does not mean it succeeded or that the
+  source's broader interpretation is established.
+- related_indicator_analysis: THE THIRD EYE examines the same regional question
+  with a different explicitly named measurement. Preserve both questions and
+  quantities. The grid audit applies only to THE THIRD EYE's question; it neither
+  verifies nor refutes the original count-based claim.
+- outside_scope: the available measurement cannot meaningfully assess the
+  statement and no justified related indicator question has been established.
+  Explain the missing compatibility rather than force a numerical verdict.
+
+Assign the relationship per analysis, not once to the entire article. A source
+reproduction panel and a related grid analysis can coexist with separate labels.
+General wording such as 'more fires detected' does not make counts and the
+coverage-normalized daily grid rate interchangeable. If source methods are
+unknown, mark them unknown; broad wording is not permission to infer them.
+
+Record original_claim/source_id, original_measurement, source_method_status,
+analysis_question/measurement_id, evidence_relationship, reproduction_status,
+limitations and links to separate artifacts in the UI and export. Missing fields
+must remain explicit. The relationship label does not change the scientific
+audit's inference_status or grant access to unsupported calibration methods.
+
+Conditional read-only source-count reproduction panel:
+Permit a bounded FIRMS extract solely to reproduce the published calculation
+when data/methods are accessible. P2 records platform selection, product and
+collection versions, standard/NRT processing, region/boundary, dates/time basis,
+confidence filters, counting unit, duplicate handling and aggregation rules.
+Document exclusions, incomplete downloads and deviations from source methods.
+P5 independently checks the reproduced count and its provenance. Do not infer
+usable observation opportunities or a coverage denominator from detection-only
+records, or interpret an empty detection list as absence of fire.
+
+This panel does not create a second harmonization pathway. Never apply a_H,
+a_C, grid-policy factors or grid baseline thresholds to FIRMS point counts.
+Correcting point-count sensor discontinuities would require a separately defined
+and validated measurement/training/evaluation pipeline, outside this sprint.
+Rendering 375 m points on a 1 km map does not make them VNP14A1 observations.
+
+P4 may allocate up to three initial human person-hours across P2/P4/P5 after the
+core passes, only with accessible source inputs and spare capacity; start by
+Sunday 18:00 and retain only a checked result by 20:00. This is an alternative
+to the recent-context panel by default, not an automatic additional commitment.
+If reproduction is infeasible, use an attributed source reference plus a clearly
+labeled related analysis, or the documented analyst question. No new point-count
+correction work is authorized merely to rescue a particular headline.
+
+Disagreement between hotspot counts and the grid rate does not by itself prove
+that either is wrong, establish sensor bias, or identify a change in actual fire
+numbers. Agreement likewise does not validate measurement interchangeability.
+
+Reproduce the original analysis only if the source methods/data permit it;
+otherwise label the chart as THE THIRD EYE's separate comparison, not a replication.
+An outcome may confirm stability, reveal sensitivity, remain unresolved or be
+outside scope. Do not promise to debunk the source or attribute a fraction of
+the change causally to the VIIRS transition. A calibration-induced change in
+interpretation alone does not establish that attribution.
+
+If no direct reproduction is possible within the initial source-screening
+allocation, assess whether a related indicator question is justified and label
+it explicitly. If none is, retain the documented analyst question and disclose
+that distinction. A published claim is supporting context, not a single point
+of failure for the calendar or demonstration.
+Do not invent a publication, partner or real-world consequence. Source selection
+and region feasibility must both be settled before held-out case inspection.
+
+6. STAGED SCIENTIFIC IMPLEMENTATION
+
+Stage A - minimum comparison method, no solver required:
+For each registered policy, fit the full-training factor defined below and repeat
+after leaving out each training year. Keep the own-support historical factor
+separate from the common-support diagnostic factor. Recompute each comparison
+under each applicable factor, with one shared factor for same-policy VIIRS
+values on both sides. Preserve the policy-specific baseline and sample rules.
+
+Factor definition [P0]: for the same registered training years and matched
+calendar strata, calculate each sensor's pooled rate as 1000*sum(D)/sum(O),
+with sums across eligible training observations before division. The own-support
+factor a_H is pooled Aqua own-support rate divided by pooled VIIRS own-support
+rate; the diagnostic a_C uses each sensor's pooled rate on the identical paired
+common-support cell-days. Each leave-one-year-out factor repeats the complete
+calculation after excluding that training year. Apply the factor to VIIRS rates;
+never average regional rates or ratios. Zero O, zero VIIRS rate, inadequate
+registered support, or a nonpositive/undefined factor means unavailable, not a
+made-up factor. Freeze strata, masks and minimum support at kickoff; record them.
+Common support is diagnostic and does not replace the historical own-support target.
+
+Label agreement 'Stable across the registered calibration variants'. These
+variants test training-year composition, not all plausible observation biases,
+timing shifts or historical transfer failures. A required undefined factor
+remains unavailable and follows unresolved precedence; never drop it to get a
+stable badge. Show the number and identity of evaluated/required variants.
+
+The min-max factor envelope is not a confidence interval or a physical bound.
+Interpolation between fitted factors is an additional sensitivity assumption;
+it does not make every intermediate value an empirically established estimate.
+Do not label Stage A 'robust to all plausible sensor corrections'.
+
+Stage B - conditional joint-constraint extension:
+Begin only after Stage A and the calendar work, and development evidence
+justifies studying additional structure. Freeze the proposed model and success
+criteria before held-out comparison. Retain it in the delivered scientific
+claim only if evaluation establishes added value over simpler alternatives.
+
+Start with a sensor-reference sensitivity model, not a latent-fire simulator.
+For a fixed policy and reference-domain stratum, a candidate formulation is:
+
+  Z_m = a * V_m + e_m
+
+V_m is the observed VIIRS indicator; Z_m is a candidate Aqua-reference-scale
+interpretation; a is one shared positive mapping parameter; e_m represents a
+registered transfer-discrepancy allowance. Aqua periods can be observed anchors
+for this reference task, not error-free measurements of actual fire activity.
+
+This is a candidate for the extension gate, not a preapproved physical
+model. Start with a shared scalar and zero discrepancy as the simplest baseline.
+Add discrepancy allowances only when development residuals justify studying
+them, with their meaning and transfer assumptions stated explicitly.
+
+For each policy, P1 registers:
+- How the point factor and admissible factor range are constructed.
+- How discrepancy allowances are derived from development residuals, with
+  season/coverage conditioning only where adequate support exists.
+- Which parameters are shared across months and comparisons.
+- Any externally justified dependencies or joint constraints.
+- Applicable periods, support minima, extrapolation limits and failure states.
+
+An envelope of development residuals or leave-one-year-out factors is an
+empirical sensitivity set, not a confidence interval, hard physical bound or
+guarantee that future observations lie inside it. Treat transfer to unseen and
+pre-VIIRS periods as a separate assumption to evaluate/disclose.
+
+Do not add an arbitrary smoothness constraint just to make conclusions stable.
+Do not enlarge discrepancy allowances merely to manufacture counterexamples.
+Do not assign independent sensor factors to each month to create reversals.
+If only independent interval bounds are justified, use interval arithmetic;
+do not advertise an advanced optimizer as adding information.
+
+Use a bounded linear formulation and scipy.optimize.linprog only if the actual
+registered equations/constraints are linear. Otherwise simplify the model or
+use verified analytic calculations. No neural solver or full physical inversion.
+Record solver version, feasibility/optimality status and numerical tolerances.
+
+7. OUTPUT LOGIC AND COUNTEREXAMPLE REQUIREMENTS
+
+Stage A uses the outcomes stable_across_displayed_settings /
+sensitive / unresolved, with UI text explicitly naming the registered calibration
+variants. Missing required applicable evidence takes unresolved precedence;
+retain any sensitivity already observed. inference_status stays not_established.
+Do not rename finite-scenario agreement as continuous-model certification.
+
+Mandatory independent output dimensions for every comparison:
+- calibration_sensitivity: stable_across_displayed_settings / sensitive /
+  unresolved, with registered variants and required-evidence reasons.
+- applicability_status: evaluated_for_conditions / outside_evaluated_conditions /
+  insufficient_evidence; include region, time, sensor, policy, support, tests,
+  version IDs and pass/fail/limited findings. Evaluated does NOT mean passed.
+- inference_status: not_established unless a separately justified statistical
+  inference procedure is explicitly authorized. Do not collapse these dimensions
+  into a reassuring single badge or report a directional conclusion when its
+  mandatory applicability evidence fails or is absent.
+
+Decision relevance - applies to Stage A and Stage B:
+Register any scientifically justified nonnegative practical margin tau and its
+absolute effect units BEFORE evaluating the outcomes. For each scenario use
+Delta > tau for meaningful increase, Delta < -tau for meaningful decrease and
+-tau <= Delta <= tau for within the practical margin. Report the category as
+consistent only if all required scenarios and evidence are available and agree.
+Track directional sign changes separately from practical-category changes: small
+opposite signs can fall within the same practical margin. 'Within the margin'
+means neither statistical equivalence nor zero real-world effect. Do not invent
+an arbitrary default tau; if none is defensible, show magnitude and sign, with
+practical importance unspecified. Missing data, zero baselines, ties, rounding
+and percentage versus absolute effects require explicit handling. No category
+alone creates a statistical-support claim.
+
+The following extrema and additional statuses apply only to Stage B. Keep its
+method ID and outputs distinct; no silent migration of the original audit schema.
+
+For each compatible constraint set Theta, compute extrema of the registered
+effect Delta(theta). A practical-effect threshold, if needed by the user task,
+is registered before outcomes; numerical solver tolerance is a separate concept.
+
+Possible statuses:
+- conditional_invariant: the full verified feasible set satisfies the precise
+  directional claim, with the declared margin/tolerance.
+- ambiguous: feasible interpretations disagree on the registered conclusion.
+- unavailable: inputs, applicable constraints or a reliable computation are
+  missing; lack of computation is not demonstrated ambiguity.
+- inconsistent: no interpretation satisfies the constraints. This is model/data
+  inconsistency, not vacuous proof that a claim holds.
+
+Keep inference_status=not_established by default. Mathematical invariance within
+a chosen set is distinct from statistically calibrated inference about nature.
+This proposal does not enable the old inferential supported label.
+
+For ambiguity, return two complete parameter assignments and resulting monthly
+series. They must satisfy all constraints simultaneously; do not assemble a
+calendar from incompatible marginal extremes. Recompute witness feasibility
+and claim outcomes in an independent checker before export.
+
+Prefer two witnesses under the same policy to isolate model ambiguity. When
+the disagreement is between support policies, label it policy sensitivity and
+show both footprints/denominators. Do not imply that they estimate identical
+sample populations or hide missing required variants.
+
+Peak-month analysis:
+- Month m is a possible peak only if a single feasible assignment satisfies
+  Z_m >= Z_j for every other eligible month j simultaneously.
+- A unique invariant peak requires strictly positive lower differences against
+  every competitor beyond the registered numerical tolerance.
+- Handle ties explicitly. Show the set of possible peak months when no unique
+  peak is established; this is a useful partial answer, not an exact-week claim.
+- If a required month is unavailable, do not claim a full-season peak by silently
+  dropping it. A peak among observed eligible months needs that narrower label.
+
+If every VIIRS month shares the same positive scalar and no other changing
+terms, rankings must be preserved. The system must recognize this algebraic
+fact rather than promote it as a new empirical discovery.
+
+8. THE ENHANCEMENT: EXPLAIN WHICH ASSUMPTION MATTERS
+
+Every result carries an assumption ledger:
+observed / empirically evaluated / externally supported / assumed.
+
+Stage A lists the tested factors, exclusions and affected comparisons. Stage B
+may display registered nested relaxations where scientifically coherent. Show the
+first relaxation at which the conclusion ceases to be invariant and include
+its counterexample. This attributes fragility to a specific modeling assumption,
+not a generic reliability score.
+
+For the simple fixed cross-sensor comparison, an analytic equality threshold is
+useful. For multiple parameters, a 'minimum bias' requires a registered metric
+and scaling; there is no unique smallest perturbation without that definition.
+Prefer named relaxation levels over an unjustified universal robustness number.
+
+Stage A equality boundary - required where applicable:
+For a fixed Aqua-reference value B and raw VIIRS value V, define the displayed
+effect as Delta(a)=a*V-B. For V>0, equality occurs at a_break=B/V; increasing a
+increases this effect. Do not state that exceeding the threshold necessarily
+turns an increase into a decrease. Reversing the subtraction reverses the sign
+convention; using an inverse efficiency parameter changes the interpretation.
+For a registered material boundary d, solve Delta(a)=d, not Delta(a)=0.
+
+Show the point estimate and each actual registered factor, their corresponding
+effects and whether they straddle equality. A threshold within their min-max
+envelope is not a tested probability, physical plausibility bound or confidence
+statement. Interpolated slider values remain educational counterfactuals.
+For V=0 there is no division-based threshold: Delta=-B for every valid a; if
+B=0 too, every valid factor yields equality. Handle missing inputs, nonpositive
+factors and out-of-domain comparisons explicitly. Both sides scaled by the same
+positive factor have no factor-induced directional reversal. Recompute B/V for
+each applicable policy and do not reuse it when baseline/support changes.
+Test sign orientation, ties, zero/missing values and full-precision arithmetic.
+
+Where the registered practical margin tau uses the same absolute indicator
+units as Delta(a)=a*V-B, and V>0, show a=(B+tau)/V and a=(B-tau)/V as the
+meaningful-increase/decrease boundaries, restricted to positive factors. B/V
+remains the equality boundary. Never apply these formulas unchanged to a
+percentage effect or another estimand. An observed sign reversal need not be
+an analyst-relevant decision reversal.
+
+The landing experience offers direct calendar access through Research Lab;
+Story/Quick Mission remains optional. The comparison opens from a calendar
+selection and provides three adjacent panels:
+1. The measured comparison and exact question.
+2. The conditional answer or two contrasting compatible interpretations.
+3. The decisive assumption, evidence, limits and export.
+
+No arbitrary slider setting becomes an admissible estimate. An educational
+slider is visibly separate from the registered scientific result.
+
+8A. CONDITIONAL RECENT-OBSERVATION CONTEXT
+
+Only after the core release passes, P4 may allocate a maximum initial three
+human person-hours across P2 (source review), P3/P4 (display/cache) and P5 (checks)
+to a small NOAA-20 FIRMS 375 m NRT panel for the selected area. Start by Sunday
+18:00 only if those owners have capacity; keep it only if verified by 20:00.
+These are optional experiment gates, not an earlier overall submission deadline.
+Prefer a permitted FIRMS link if the panel cannot pass within its allocation.
+
+Show reported detections, platform/product/processing version, acquisition UTC,
+retrieval time, query window, provenance and explicit provisional status. Handle
+stale/failed feeds separately from an empty returned detection list. An empty
+list is not proof of no burning or complete cloud-free observation coverage.
+Label a cached snapshot as a snapshot, not a live stream. Keep credentials on
+the server and bound requests; no new alerting or emergency-response service.
+
+This 375 m point pathway is separate from the historical nominal 1 km gridded
+indicator. 'Raw' does not establish comparability. No historical percentage
+change, anomaly badge, normal/unusual classification or calibrated trend may
+join these streams. Do not extend the historical calendar endpoint by appending
+NRT points. Even same-platform historical comparisons require explicit checks
+of processing, sampling, coverage, measurement and baseline compatibility.
+
+The panel supplies current context, not early-warning capability or completion
+of every challenge requirement. The historical release and all scientific claims
+remain functional and unchanged if it is omitted or unavailable.
+
+8B. REQUIRED AUTOMATIC ANALYST EXPERIENCE - NO EXTRA SCIENCE PIPELINE
+
+P3/P4 make the core findings automatic using already-registered computations.
+Upon area selection, use the cached, versioned NASA-derived calendar and a
+prespecified comparison registry; calculate or retrieve only comparisons eligible
+for that area's source, period and policy. Do not let an LLM invent scientific
+conclusions or override status rules. If a cache is absent, show unavailable or
+pending honestly; do not animate a fictitious result or block access to raw data.
+
+Default first screen (one view, no mandatory tutorial):
+- Where: exact area name, boundary and evaluated/available time window.
+- What: monthly historical fire-activity indicator and clearly named unit.
+- When: registered seasonal pattern, unusual periods or critical historical
+  windows, provided the baseline and observation support are eligible.
+- How reliable: automatic plain-language verdict and calibration/source coverage
+  status; sensitivity, unresolved, source-quality and out-of-domain are distinct.
+- Why: a one-sentence reason, relevant source/baseline limitations, with a direct
+  optional path to assumptions, full comparisons and exports.
+
+Registered deterministic output categories (descriptive, not new statistical
+confidence labels):
+- "Consistent across tested corrections" only when all required tested variants
+  agree and all applicability gates pass. Never say "proven increase".
+- "Depends on the correction" when registered admissible variants conflict.
+- "Not enough usable evidence" when required observations or checks are missing.
+- "Outside evaluated calibration" when the requested domain is outside the
+  evaluated envelope; raw observations may still be displayed.
+- "Calibration check failed" when an applicable evaluation was performed and
+  failed. Preserve that failure separately from a missing check or an untested
+  domain. Do not hide adverse evidence under a generic out-of-domain label.
+- A genuine null or no-exception finding is allowed; never force an anomaly,
+  contradiction or Evidence Repair case to make the demo interesting.
+
+Automatic summaries are presentation of registered results, not inference from
+searching many areas/months. Freeze default comparison membership, display order,
+season matching, tie rules and missing-evidence fallback. Show how many eligible
+comparisons were inspected and give access to all outcomes, not just extremes.
+A largest displayed anomaly is a descriptive selection, not a statistically
+significant discovery. If inferential screening is later introduced, define the
+comparison family and multiplicity procedure before evaluation. Interactive
+browsing cannot turn post-hoc discoveries into registered benchmark findings.
+
+Use reviewed deterministic templates with numeric fields taken from the same
+immutable artifact as the chart. Template selection must consider applicability,
+practical margin and inference status separately. Test stable-but-failed,
+stable-but-untested, missing-required-variant and within-margin opposite-sign
+cases. "No eligible conclusion" is acceptable; do not substitute an unrelated
+interesting comparison. A pending job state is allowed only if an actual job
+exists and has a traceable ID; unsupported requests are not fictitiously queued.
+
+Use identical labels and quantities in the browser, evidence package, downloaded
+report and demo narration. Require keyboard-accessible geography selection,
+readable legends and non-color-only statuses, mobile/desktop layout checks, and
+clear distinction between a source failure and a verified no-fire observation.
+Log data-load latency, a failed/offline path and export correctness on the actual
+public deployment. Provide a frozen, genuine-data demonstration case that loads
+without research credentials; synthetic examples are separately marked.
+
+First-screen language rule (presentation amendment): internal schema names
+(calibration_sensitivity, applicability_status, inference_status,
+not_established, evaluated_calibration, raw_only and similar) never appear as
+visible text on the first screen, Quick Mission or video. The first screen
+shows area name and outline, calendar, one finding sentence, one limit
+sentence and a plain status chip from the registered category list above. Put the
+frozen headline metric and denominator on the landing page, below this first
+view if needed; show unavailable when it cannot be computed.
+Illustrative wording only, not a result: "In Region X, the fire season peaks in March.
+The 2021 season looks higher than 2015 on the raw chart, but after correcting
+for the satellite change the two are within the tested margin. Limit: this
+counts 1 km cells with detected fire, not individual fires." Schema terms stay
+in the evidence drawer and exports, each with a one-line plain definition.
+
+P1 tier - P5 conducts a short user-task test with interface order counterbalanced where
+possible. Users cannot be blinded to an obviously different interface; blind
+answer scoring to condition where feasible, and disclose what was actually
+blinded. Avoid repeating the identical case in a way that confounds learning
+with benefit. Use the same information and a frozen independent rubric:
+ ask participants to find a seasonal
+pattern, decide whether a cross-era change is qualified, and identify one limit.
+Compare the automatic THE THIRD EYE view with a conventional chart/interval view
+using the same data and an independent answer rubric. Record accuracy, time,
+comprehension, abstention and participant backgrounds; report limitations rather
+than inventing user-study significance or adoption figures.
+
+9. EVALUATION THAT CAN REJECT THE IDEA
+
+Baselines use identical data, eligibility, target and train/test separation:
+A. Raw sensor comparison, clearly limited.
+B. Point harmonization: apply the full-training a_H factor above to VIIRS,
+   then compute the same period effect as A; no variant-based warning.
+C. Block-bootstrap interval conditional on the fitted factor: resample registered
+   geographic blocks with replacement jointly across both periods and sensors,
+   recompute pooled D/O and the effect with the frozen training factor, and take
+   registered percentile endpoints. Freeze replicate count, confidence level,
+   seed, minimum independent blocks and practical margin tau at kickoff. Abstain
+   unless the interval lies wholly above +tau or wholly below -tau; missing
+   support or too few blocks is unavailable. Report within-margin separately;
+   do not infer independence from correlated blocks or tune on holdouts. This
+   interval does not include uncertainty in the fitted calibration factor.
+D. Stage A finite registered-factor audit defined in Section 6.
+E. THE THIRD EYE joint constraints and counterexamples.
+
+Before claiming superiority over uncertainty-aware harmonization generally,
+include a separately registered baseline that propagates training-factor
+uncertainty and preserves shared dependencies. If independent training support
+is inadequate, report that baseline unavailable and narrow the comparative claim;
+do not manufacture precision or tune it using holdouts.
+
+Evaluate Stage A against A-C. Evaluate E against A-D only if Stage B passes its
+development gate. Clearly distinguish a method not implemented from a method
+tested and found ineffective. Do not claim improvement merely from adding badges.
+
+Compare uncertainty on the effect itself with shared dependencies respected;
+overlap of two marginal intervals is not the only or preferred baseline test.
+Do not handicap baselines by forcing them to answer every comparison.
+
+Report:
+- Separate raw-to-point-calibrated changes from disagreement among calibrated
+  variants. Report both directional and prespecified material-magnitude changes;
+  consistent corrections can be useful even when all fitted variants agree.
+- Outcome distribution for registered cross-era comparisons: stable, sensitive,
+  unresolved required evidence, and outside evaluated applicability. Store
+  applicability separately; count out-of-domain cases explicitly in the summary
+  without double-counting them as in-domain unresolved cases. Give denominators.
+- Report within-sensor comparisons separately. Fixed-positive-scalar ranking
+  invariance applies only with unchanged policy, samples and weights; missing
+  required evidence still blocks a complete result. Do not count algebraically
+  guaranteed agreement as independent evidence of sensor-transfer quality.
+- Reference-relative directional disagreement among decisive answers.
+- Decisive-answer fraction over ALL registered eligible evaluation cases.
+- Error/coverage trade-off at prespecified settings, including matched coverage
+  where sample sizes permit. Do not choose the best test-set setting afterward.
+- Reference peak inclusion and size of the possible-peak set.
+- Constraint violations on held-out reference observations.
+- Unavailable/inconsistent counts and reasons, stratified by season and year.
+- Runtime and independently checked witness feasibility.
+- A judge-readable top-line table: baseline and THE THIRD EYE share identical
+  registered comparison cases and their denominators, actual disagreement rates,
+  decisive coverage, abstentions, missing cases and data versions. No cherry-
+  picked headline percentage and no claimed superiority if it is not measured.
+
+Use 'reference-relative disagreement', not real-world false-fire-claim rate.
+Same-sensor observations are imperfect and may share bias with the test series.
+Compare temporal and spatial tests separately. Do not fabricate narrow error
+bars from correlated cell-days. Small-sample results remain exploratory.
+
+Sensitivity frequency is diagnostic, never a success quota. Zero reversals does
+not imply failure: the corrected result may consistently differ from the raw
+comparison or resolve a consequential question. Conversely, if raw, corrected
+and variant outputs are practically identical and users gain no measurable
+benefit, report weak differentiation. Do not widen allowances, change region or
+select new claims to manufacture a visible reversal.
+
+Synthetic tests with known constructed histories validate solver behavior,
+invariance, ambiguity, empty sets, ties and missingness. Label them synthetic.
+They do not validate historical observation assumptions.
+
+9A. MANDATORY HELD-OUT SENSOR-SWITCH EXPERIMENT
+
+P1/P2 preregister handover date(s), comparison windows, season matching, regions,
+support policies, practical-effect thresholds and eligibility before inspecting
+holdout outcomes. Fit every factor on development data only. An artificial
+handover inside overlap is distinct from the calendar's production splice.
+
+For each registered two-period comparison in the untouched overlap:
+1. Reference: Aqua in both periods, using its stated own-support indicator.
+2. Raw handover: Aqua in the first period, VIIRS in the second.
+3. Corrected handover: the same data with the frozen a_H mapping on VIIRS.
+4. Stage A: evaluate the registered training-only factor variants and verdict.
+5. Run the uncertainty-aware baseline on the same task and report abstention.
+
+Use identical requested geographical/time windows and policy definitions across
+methods. Preserve and disclose the different sensor footprints and qualifying
+dates; this own-support experiment tests the combined sensor/sampling change,
+not a pure detector-efficiency effect. Any common-support experiment is separately
+registered, uses a_C and a matched common-support reference, and remains an
+overlap diagnostic rather than a substitute historical estimand.
+
+Evaluation units and denominators (validity amendment):
+The primary product benchmark uses registered whole-region comparisons and
+the corresponding region-specific frozen factor. Block comparisons using that
+factor are separately labeled transfer diagnostics, not validated block-level
+product results. A block offered as an independently calibrated product requires
+its own development-only fit, eligibility rules and held-out evaluation. Report
+region-level benchmark results separately from dependent block diagnostics.
+One region with a 2020-2021 test and three leave-one-year-out factors yields
+too few cases for any error rate. Before any holdout inspection, P1/P5 register
+the unit list by rule: every fixed geographic block in the primary and backup
+regions (and any evaluated subregion) meeting the frozen development-data
+support minimum, crossed with every registered season-matched period pair in
+the untouched window. Blocks are chosen by support, never by outcomes. Report
+the case count, the number of independent blocks and years, and treat blocks
+within one region as dependent. If the count stays small, say so in the
+headline table. Retain the 2020 Aqua outage handling.
+
+Headline metric (presentation amendment): P1/P5 freeze ONE plain-language
+top-line number before holdout inspection, computed on the full registered
+primary whole-region case list. Report block diagnostics separately. Default:
+"At an artificial sensor switch, raw MODIS-to-VIIRS
+comparisons pointed the wrong way in X of N cases; after correction, Y of N;
+THE THIRD EYE flagged Z of the remaining errors and abstained on W. The N cases
+come from R regions across T test years; separately reported block diagnostics
+include B blocks, which are not independent within a region." Also report the size of the artificial jump (raw
+versus corrected versus Aqua-to-Aqua reference) at the seam. The number is
+published whatever it shows, always with BOTH the case count and the
+independent-unit counts (blocks, regions, years), on the landing page, project
+page, video and one-page summary. Never present N cases as N independent tests.
+
+Include a no-switch Aqua-to-Aqua control to check pipeline/claim behavior. A
+same-policy VIIRS-to-VIIRS control checks positive-scalar invariance. Keep actual
+reported extremes visible; no smoothing to improve seam agreement.
+
+The reference is another imperfect satellite measurement, not latent-fire truth.
+Missing/ineligible reference periods cannot score directional accuracy; retain
+them in the case registry, abstention counts and missingness tests. Do not create
+a reference by zero-filling or silently replacing Aqua with VIIRS. A legitimate
+reference zero is distinct from unavailable evidence. Account explicitly for
+the known 2020 outage and separate late-period applicability check.
+
+Publish raw/corrected/variant effects, reference-relative direction errors,
+material-effect errors, answer coverage, preserved/excluded cases and season/year
+breakdowns. Display a compact experiment panel linked to the full evidence package.
+No improvement or no evaluable cases is an explicit finding/incomplete evaluation,
+not permission to choose another seam after seeing outcomes. The experiment is
+established methodology; novelty depends on useful results, not its presence.
+
+Failure interpretation and self-detection are explicit experiment outputs:
+A. Does correction improve held-out agreement relative to the reference?
+B. Are failures associated with registered support, season, QA or transfer
+   conditions? These are associations, not identified causes or attribution.
+C. Do Stage A warnings/abstentions identify reference-relative failures while
+   retaining useful answers, compared with the same baselines?
+
+Freeze a reference-relative error definition, practical threshold and warning
+rule before test inspection. Distinguish sensitive, unavailable and out-of-domain
+flags; stable variants can all share the same bias. Publish warning-by-error
+counts, errors among unflagged answers, flagged-case error fraction and decision
+coverage. Undefined ratios remain undefined. Cases with unavailable references
+enter a separate availability table, not an invented accuracy denominator.
+Report small counts and dependence limitations. No guarantee that a stable badge
+detects every failure, and no warning threshold tuning on the held-out sample.
+
+P1 - Activity-regime transfer diagnostic within the event-built evaluation:
+P1 defines low/medium/high groups using a predictor available at inference time,
+such as the raw VIIRS indicator under the same policy, with thresholds learned
+from eligible training data only. Freeze zero handling, minimum group support,
+quantile ties and out-of-training-range rules before holdout inspection. If three
+distinct adequately supported groups cannot be formed, report fewer groups or
+insufficient support; do not force terciles. These are observed-indicator regimes,
+not independently measured fire intensity or fire-size classes.
+
+Report per group: sample counts by year/season, raw and mapped signed error/MAE,
+directional disagreements, warning/abstention counts and errors among apparently
+stable answers. Relative errors near a zero reference are undefined or require
+a separately registered metric, not arbitrary epsilon inflation. Grouping on
+VIIRS can mechanically relate to residuals; apparent patterns do not establish
+physical nonlinearity or causation. Inspect season/support alongside activity.
+
+Register practical failure tolerances on development data. A failed or unsupported
+regime limits claims in that domain despite agreement among factor variants;
+preserve raw results and report the failure. Primary benchmark tables retain
+the original frozen decisions and their errors; do not retroactively improve
+accuracy by removing test-discovered bad regimes. Any new gate is separately
+versioned and needs fresh evaluation before claiming validated improvement.
+This diagnostic reuses outputs built during the event and introduces no regime-specific fits.
+If the scalar fails, disclose/restrict its domain rather than automatically add
+monthly factors or promote Stage B. Multiple subgroup results and small effective
+sample sizes remain descriptive unless a separate inference protocol is justified.
+
+9B. SATELLITE-QUALITY REGISTRY AND REPLAY CHECKS
+
+P2 maintains a versioned registry of known source issues: platform/product and
+collection, documented interval, source URL/retrieval date, issue type, expected
+effect, observed extract behavior, recovery/reprocessing status and handling.
+Link affected calendar values and evaluation cases to issue IDs.
+
+P0 seed entries include the Aqua FMU/SSR disruption beginning August 16, 2020 and
+recovery on September 2, 2020, plus evolving orbit/sampling conditions around
+and after 2021. Check exact timestamps in authoritative notices and actual
+granules. A mission outage interval does not prove every archived cell is absent:
+recovered or reprocessed records may exist. Audit the selected product/version;
+do not blanket-zero, delete or invent observations from a registry date alone.
+
+Test documented affected records against neighboring periods: unavailable versus
+usable no-fire, partial support, monthly eligibility, reference unavailability,
+variant completeness and export explanations. Preserve valid recovered data with
+provenance. Synthetic missingness fixtures remain labeled synthetic and supplement,
+not replace, the real archive check. Orbit drift is a changing applicability
+condition, not a binary outage or proven cause of inter-sensor disagreement.
+
+9B.1 CONDITIONAL SAMPLING AND PERSISTENT-SOURCE DIAGNOSTICS
+
+These are optional diagnostics, not a new required swath-processing pipeline.
+P4 may allocate one track after core completion, in place of a competing optional
+panel/extension, with at most six initial human person-hours across P1/P2/P5.
+Start by Sunday 13:00 only with inputs accessible; by 18:00 retain a reproduced
+result or disclose the unresolved limitation. P0 and the 22:00 target take priority.
+
+Sampling track: preregister a bounded development sample of dates/cells before
+examining its detection outcomes. Use compatible full-swath fire masks,
+geolocation and acquisition intervals, not detection-only lists. Distinguish
+geometric coverage, usable acquisition and thermal detectability; record missing
+files as unknown. Freeze temporal/spatial matching tolerances, collision/multiple
+match rules and exclusions. Matched acquisition and daily-composite results
+estimate different sampling regimes: show both, sample counts and selection
+effects without substituting the matched metric into historical calibration.
+Differences can diagnose sampling sensitivity but do not isolate sensor physics,
+identify all missed fires or prove the cause of a regional trend. No retrospective
+refitting after held-out inspection. Daily QA alone cannot deliver this test.
+
+Persistent-source track: inspect repeated thermal-anomaly locations using a
+registered development-data screen and independently documented industrial or
+volcanic sources, with source date, location uncertainty and applicability years.
+Persistence is not proof of a false fire: long vegetation fires and recurring
+agricultural activity can also persist. Flag uncertain cases without exclusion.
+FIRMS source annotations are context, not automatic identities for grid pixels.
+
+If an exclusion policy is justified before evaluation, preserve the inclusive
+series and publish a separately named policy with recomputed D, O, eligibility,
+baseline and training-only factors. Do not remove only fire detections while
+leaving the excluded spatial units in the denominator. Show collateral removal
+of possible vegetation activity at coarse grid resolution. Exclusions discovered
+after holdout inspection are exploratory and cannot improve the frozen benchmark.
+If sources cannot be verified, disclose potential contamination and avoid calling
+every thermal-anomaly detection vegetation burning.
+
+9B.2 CONDITIONAL GEOGRAPHIC COVERAGE STRESS TEST
+
+P1/P2/P5 use event-built gridded support, prioritizing this bounded experiment over
+new swath acquisition when development evidence shows a relevant composition
+problem. It uses the same six-person-hour optional diagnostic allocation in
+9B.1, as an alternative track rather than extra capacity. No fifth deliverable
+or required map panel is introduced. P0 requires only block accounting and the
+fixture in 4B; real-data analysis is conditional and visual polish is deferred.
+
+First report block observation shares and observed block rates by period. A
+coverage shift alone does not demonstrate a misleading conclusion: compute the
+registered original-versus-standardized comparison and its exclusions. If effects
+are negligible, retain the result without promoting a new scientific discovery.
+
+Coverage-shift placebo design, frozen before held-out outcomes:
+1. Define a finite parent pool of genuinely observed, usable cell-days from one
+   sensor and bounded period, with complete known classifications for that pool.
+   This is the experimental reference, not complete actual regional fire activity.
+2. Copy this SAME pool into two artificial scenario labels, not two real years.
+   Apply registered block-dependent thinning schedules to create different
+   geographical observation shares. Keep the parent classifications unchanged.
+3. Select within-block observations without consulting fire outcomes; preserve
+   registered temporal strata where feasible. Freeze mask rules, random seeds,
+   repeats and practical-error thresholds before evaluation. Record all repeats.
+4. Recognize that withholding records changes realized within-block samples too.
+   Random thinning preserves rates in expectation, not exactly. Use the analytic
+   fixed-block-rate reweighting fixture as the pure-composition control; report
+   within-block rate variation and sampling variation for real-data thinnings.
+5. Compare original R, frozen scalar harmonization where applicable, fixed-weight
+   R_std and the composition warning. A shared scalar cannot remove composition
+   change. Do not invent a sensor switch in a single-sensor experiment; keep the
+   mandatory handover experiment separate.
+
+For each method compare the difference between scenario labels with the known
+zero-change parent setup, using that method's fixed target. Report false material
+changes, warning performance, retained answer coverage, exclusions, block support
+and variation over the registered masks. Do not treat repeats on the same parent
+pool as independent historical evidence. Genuine unknown pixels stay unknown;
+do not use this test to infer what occurred behind real clouds.
+
+Fit factors/thresholds on development data only. Conditional extrapolation to
+real missingness remains an assumption. Compare at useful coverage and preserve
+all failed cases. The experiment can show vulnerability to the imposed masks,
+not establish that actual historical trends were caused by geographic coverage.
+
+9C. REPRODUCIBLE EVIDENCE PACKAGE - RELEASE REQUIREMENT
+
+Each flagship and experimental result links to a versioned package containing:
+- Exact NASA product/collection and source/export identifiers with checksums.
+- Boundary/land-mask/grid definitions, inclusion rules and time basis.
+- Relevant observation masks or lossless support extracts sufficient to replay
+  the aggregation; include spatial/temporal partitions and exclusions.
+- Processing settings, policy/baseline/split IDs, fitted and variant parameters.
+- Quality-registry links, validation metrics and all required availability states.
+- Code commit, pinned environment, input/output manifests and reproduction command.
+
+Provide a small downloadable case bundle for result reproduction from frozen
+inputs, and separate instructions for full source-to-result regeneration. State
+Earth Engine/NASA access requirements and which steps need network credentials;
+include no secrets. Public-source availability is not a promise of identical
+future reprocessing. Record expected outputs, numerical tolerances and artifacts.
+
+P4 supplies one tested command/script in the repository; P5 runs it in a clean
+environment against the frozen bundle and compares counts, effects, labels and
+exports. A command written in a document but never executed is not reproducibility
+evidence. Do not merely export final numbers or require a judge to rerun a
+22-year extraction to inspect the flagship result.
+
+P1 - Run a small counterbalanced user task using the same evidence in a conventional
+chart/interval interface and THE THIRD EYE. Score qualification, numerical accuracy,
+assumption recognition and time using an independently written rubric. Agreement
+with the app is not the scoring criterion. Report participant background and
+small-sample limitations; no adoption claim follows from a hackathon test.
+
+9D. CONDITIONAL EVIDENCE REPAIR - ONE-BATCH ARCHIVE EXPERIMENT
+
+Purpose: identify obtainable archived evidence that improves the defensibility
+of a disputed cross-sensor conclusion. It may distinguish competing scenarios,
+leave ambiguity intact, or challenge all represented scenarios. Model inadequacy
+is a separate informative outcome, not a forced resolution of the historical
+question. This is evidence selection, not reconstruction of unobserved fires
+or satellite tasking.
+Keep it inside the comparison/evidence record, not a fifth core deliverable.
+
+Scope gate: the calendar, Stage A, mandatory handover experiment and reproducible
+release must already work. There must be an ambiguous case selected under a
+registered rule, a finite compatible evidence pool, and predictive interpretations
+with development-checked discrepancy/noise allowances. No ambiguity means no
+eligible demonstration, not permission to widen bounds or change the flagship.
+
+P1/P2/P5 may use the six-person-hour optional diagnostic allocation in this plan,
+instead of swath/persistence/composition research or another advanced extension.
+P4 records named capacity and includes integration within that allocation. Start
+by Sunday 13:00; by 18:00 retain only an independently reproduced experiment or
+mark it experimental/omit it. P0 deadlines and geographical usability take
+priority. Do not make Stage B plus Evidence Repair two mandatory research builds.
+
+Minimum implementation:
+- One candidate type: preregistered overlap-era block/period aggregates from
+  event-acquired products, with compatible masks, support and quality metadata.
+- One fixed-budget batch selection, one reveal, one frozen update rule. No
+  adaptive multi-round policy, new dataset, online learner or archive crawler.
+- Reuse event-built versioned artifacts and deterministic calculations; an API is optional. No LLM
+  decides which measurements are scientifically admissible.
+
+Important prerequisites:
+Two numerical endpoints are not automatically competing predictive models.
+Stage A leave-one-year-out factors are correlated stability variants, not an
+exhaustive model population or equal-probability hypotheses. They may be studied
+as finite scenarios only with explicit predictions and a registered update rule;
+results then apply to that scenario set. Removing a variant does not establish
+global identifiability. Do not promote data-policy alternatives with different
+estimands into competing estimates of a single latent truth.
+
+For each candidate, models must predict the SAME observable quantity under the
+candidate's actual measurement/support definition. Predictive discrepancy and
+measurement uncertainty must be learned/justified on development data; a single
+noisy value cannot be treated as exact falsification. Evaluate the whole declared
+set of opposite-conclusion scenarios, not just two convenient witnesses. If only
+two are evaluated, explicitly report pairwise evidence selection, not resolution
+of all ambiguity. If the model set is continuous, a grid search is approximate
+unless an analytical or optimization guarantee is established.
+
+Selection rule:
+Register a simple deterministic score for separation between opposite-conclusion
+predictive envelopes relative to discrepancy allowances and batch cost. Worst-case
+separation across the represented opposing scenarios is one candidate rule;
+freeze normalization, ties and abstention on development data. This is a heuristic
+unless stronger properties are proved. Overlapping predictions may still contain
+information; failure of this conservative score is not proof of uselessness.
+No 'expected improvement' probability without a justified outcome distribution.
+
+Algebraic novelty/futility gate BEFORE an Evidence Repair build:
+For the Stage A scalar family Z=a*V, two scenario factors a1 and a2 predict
+separation |a1*V-a2*V| = |a1-a2|*V for nonnegative V. If all candidates have the
+same factor pair, noise/discrepancy allowance and cost, maximizing raw predictive
+separation is mathematically identical to choosing the largest permitted V.
+In that case a more elaborate score does not create a distinct selection method.
+Under heterogeneous costs/uncertainties, derive the actual ranking formula and
+test whether it is still order-equivalent to highest pre-reveal activity or a
+simple normalized-activity heuristic. Do not infer nonlinearity from labels.
+
+P1 records this symbolic reduction, score assumptions and a small hand-computed
+counterexample/fixture before implementing an optimizer. On development data,
+measure top-candidate agreement and ranking overlap with highest permitted
+activity, least support and uncertainty-aware selection. If all candidate rankings
+are equivalent under registered conditions, stop the distinctive Evidence Repair
+claim; a useful simple retrieval tool may remain, explicitly identified as such.
+
+An extension is justified only by externally or development-supported differences
+in measurement quality, predictive discrepancy, feasible acquisition cost or
+non-equivalent models, with matched observable targets. Do not add artificial
+heterogeneity merely to manufacture a better ranking. Even a distinct ranking
+must show higher independent reference-relative accuracy or useful coverage at
+matched evidence cost in the blind test. Novelty is not established by different
+buttons, a sophisticated solver, or shrinking an uncertainty set alone.
+
+Costs are declared units such as granules, bytes or analyst minutes. Count real
+processing cost if features must be extracted to rank a candidate. 'Minimum
+evidence' is permitted only if exhaustive search/valid optimization certifies a
+minimum over the stated finite pool and cost definition, including the outcome
+criterion. Default wording: 'highest-ranked candidate within the tested pool'.
+Before observing a batch, its utility is conditional; no guarantee of resolution.
+
+Blind Evidence Recovery Challenge:
+1. Freeze three disjoint roles: development/model fitting, hidden candidate
+   acquisition pool, and independent final reference cases. Use blocked time/
+   geography units to limit dependence. Reserve these before inspection; earlier
+   disclosed test results cannot become a new blind pool by relabeling them.
+2. P5 withholds candidate outcome values from the selector. Publish an allowlist
+   of pre-reveal metadata/predictors and their cost. For example, a known VIIRS
+   predictor and withheld Aqua response is allowed only if explicitly designed
+   that way; do not claim both measurements were hidden. Do not rank on hidden
+   fire counts, QA derived from hidden labels or leakage through cached summaries.
+3. Each selection method receives identical visible inputs, feasible pool and
+   budget. Compare random selection over fixed repeated seeds, least-supported
+   selection, highest permitted pre-reveal observed/predicted activity, a simple
+   cost/noise-normalized activity ranking where supported, and a strong
+   uncertainty-based selector. Never use the hidden response to define 'highest
+   fire'. Include a no-acquisition baseline, and disclose when Evidence Repair is
+   algebraically identical to any comparator.
+4. Reveal only the selected batch to each method and apply the SAME frozen
+   fitting/compatibility update rule. Do not add a different model to rescue the
+   preferred selector. Test whether data contradict ALL scenarios; return model
+   inconsistency rather than forcing a surviving answer. Unmodeled shared bias
+   can survive every comparison and remains a limitation.
+5. Evaluate before/after decisions on the disjoint final reference cases. Selected
+   outcomes become adaptation data, not independent validation. Keep original
+   benchmark artifacts immutable; updated models/results get new versions and
+   explicitly limited applicability. Relevance to earlier history remains assumed
+   unless independently justified; new observations do not recover missed 2010 fires.
+
+Evidence Repair must also test whether the revealed batch contradicts ALL
+represented scenarios under the frozen measurement/noise compatibility rule.
+This is a model-inadequacy warning, not a selected winning interpretation or
+proof of a historical direction. Report these flags separately from successful
+ambiguity resolution; account for potential false flags and newly wrong decisive
+answers. A single surprising measurement is not automatic model falsification.
+
+Measure reference-relative error at matched evidence cost and useful answer
+coverage; count newly wrong decisive answers, correct resolutions, abstentions,
+model inconsistency and no-benefit selections. Narrower sets alone are not success.
+Report all registered cases, null outcomes, cost accounting and dependence/small
+sample limits. One anecdote demonstrates mechanics, not comparative superiority.
+Acquiring more archived data helps establish retrieval efficiency, not improved
+satellite observation coverage or real-world detection recall.
+
+Evidence Repair Record, attached to the event-built comparison:
+Disputed claim/estimand and version; source of ambiguity; represented scenarios;
+candidate IDs and permitted pre-reveal fields; predictive differences/discrepancy
+allowances; score/cost; availability and quality status; update rule; selected
+batch and revealed provenance; before/after results; independent evaluation;
+historical-transfer limitations and reproduction command.
+
+Use precise evidence-status labels:
+- candidate_available: archived metadata/access verified, informative potential
+  under the declared models; actual usable retrieval/reveal may still fail.
+- further_validation_may_help: testing transfer could help but no verified batch
+  is presently available; future observations are not historical replacements.
+- no_discriminating_candidate_found: the registered search/scoring rule found
+  none in the feasible pool. State search coverage and whether heuristic/exact;
+  this is not impossibility for all evidence, all combinations or future methods.
+- after reveal: resolved_within_tested_set / still_ambiguous / inconsistent /
+  unavailable, separately from reference-relative accuracy and inference status.
+
+Do not use 'repaired evidence' to imply NASA records were changed. Evidence Repair
+means revising a qualified interpretation after additional analysis. Keep the
+original data, audit and report accessible. Release it as a demonstrated benefit
+only if the blind comparison improves independent reference-relative results at
+matched cost and useful answer coverage over both highest-activity and strong
+uncertainty-aware selection under frozen criteria. Report ranking equivalence,
+negative results, all costs and limited sample sizes. Otherwise retain the core,
+mark the feature experimental, and make no claim of selection originality.
+
+9E. NOMINATION EVIDENCE MATRIX - PART OF THE FOUR DELIVERABLES
+
+This is a traceability/index section, NOT a new research workstream. P5 assembles
+one submission index linking each of NASA's five commonly reported judging
+criteria to an already-built artifact and an independently checkable fact:
+
+IMPACT:
+- One real, appropriately scoped analyst question, the users it could serve,
+  and how a wrong/unqualified historical comparison would matter for that task.
+- Show the decision aid, not fabricated lives saved, users reached or deployments.
+CREATIVITY:
+- A before/after baseline comparison using the exact same NASA data and task.
+- Separate established calibration/sensitivity methods from THE THIRD EYE's tested
+  contribution; if only an incremental advantage is shown, call it incremental.
+VALIDITY:
+- Source lineage, masks/units, held-out no-switch/switch experiment, all cases,
+  uncertainty/abstentions, and a clean reproduction from frozen inputs.
+- A third party can inspect negative outcomes, not only a showcase example.
+RELEVANCE:
+- Official challenge-to-measurement matrix and a working selected-area calendar
+  with seasonal history, unusual days/weeks, critical weeks and normal season.
+- Indicate exact supported geography, source periods, branch end dates (S-NPP
+  ends November 2, 2026), the NOAA-20 continuity status and any hotspot gaps.
+- The P0 FIRMS area/date link and explainer, and the P0-late in-app hotspot
+  view; if the view is absent, record that gap against the saved challenge text.
+PRESENTATION:
+- A functioning public link without hidden logins for the judge demo, an honest
+  and short screencast, a concise project description and accessible evidence.
+- The landing experience states a real result in plain language, and the first
+  interaction does not demand scientific parameter choices.
+
+For each item record: proof URL/file, owner, measured/working status, date checked,
+limitation and final demo timestamp. 'Planned' must not appear as 'implemented'.
+The public project page, repo README, screenshots, demo video and science appendix
+must use the same units, boundary, date ranges, numbers and result statuses.
+
+Submission-ready package, if permitted by official portal rules:
+- Public deployed app plus resilient precomputed genuine-data demo route.
+- Public source repository with README, source citations/licenses, setup steps,
+  versions and the one-command frozen replay (no credentials in repository).
+- One short narrated story: NASA problem -> selected area/calendar -> tested
+  correction limitation/improvement -> independent benchmark -> why it matters.
+- A judge one-page results table and link to the full report and failure cases.
+- Credits, known limits, exact implemented feature list, and acknowledgments.
+Any extra scientific concept is labeled proposed/experimental, not shown as a
+completed feature. Obtain user-test permission and avoid collecting unnecessary
+personal data; do not publish private participant information.
+
+Submission mechanics (P5 owns; check against the official form, not this list):
+- Every member registered at the same local event; team of at most six.
+- Participants under 18: follow the FAQ limits on photos, video and voices.
+- Project page fields, demo link format and any length limit for video/slides
+  as stated on the official form at submission time.
+- Nominee follow-up: some local events have required a short video within a
+  week after the event. Record the script and raw screen capture by Sunday
+  20:00 so a follow-up video needs no new build work.
+- Repository license chosen and committed; third-party data/library licenses and
+  attribution listed (NASA FIRMS, LP DAAC/Earth Engine terms, basemap tiles).
+- AI-assistance disclosure: Kiro, Codex and Antigravity used for engineering;
+  no runtime AI in the product unless that changes.
+- Only work produced during the event is presented as event work. Planning
+  documents written beforehand are labeled as planning.
+
+Nomination-readiness acceptance test: P5 can navigate every cited public link,
+replay one flagship from its frozen bundle, trace every visible numeric claim to
+an output manifest, and compare the five criteria against actual artifacts.
+Failure blocks a "ready" assertion even if the website looks polished. This
+process improves competitiveness; it does not guarantee judge nomination.
+
+10. FIRST GATE: SCIENTIFIC FEASIBILITY BEFORE VISUAL INVESTMENT
+
+Time-box the initial investigation to four working hours for P1/P2, with P5
+checking fixtures and P4 preparing contracts. P3 can build the lightweight shell
+against explicitly synthetic fixtures, never market those as observed results.
+
+Required evidence to proceed with the minimum calendar/comparison release:
+- Frozen challenge-to-measurement matrix: demonstrate how the cell-day indicator
+  meets requirements and identify any missing hotspot-level obligation before
+  treating the grid as a complete challenge solution.
+- One real development-data extract with verified units/masks and support.
+- Written target, Stage A factors and policy dependencies with assumption labels.
+- Direct calculations matching small hand-computed fixtures; no solver required.
+- At least one evaluable comparison; failures remain visible.
+- A preregisterable sensor-switch protocol and a development fixture proving
+  the computation works; this fixture does not count as held-out evidence.
+- A recorded training-window review and an initial published-claim eligibility
+  screen. Missing source compatibility remains explicit, not a fabricated match.
+- A development-only diagnostic separating raw-to-calibrated changes from
+  cross-era variant sensitivity, with all outcomes/denominators recorded. No
+  minimum sensitive fraction is required. If too little development data exists,
+  record the diagnostic as unavailable; do not inspect holdouts to fill it early.
+
+Separate Stage B gate: justified joint structure, working mathematical fixtures,
+explicit effort allocation that does not delay the calendar, and a testable
+advantage over the interval/scenario methods. Implementation remains experimental
+until held-out comparative evaluation supports the stated advantage.
+
+Separate Evidence Repair gate: first pass the scalar ranking-equivalence algebra
+check and development baseline comparison in Section 9D, confirm a suitable blind
+candidate pool and final reference split, and demonstrate nontrivial discriminatory
+predictions with supported allowances. Do not start a complex solver or claim a
+scientific novelty if the selection rule reduces to highest permitted activity.
+
+Separate calendar recency gate: do not extend the evaluated calendar into 2025 or
+2026 until the exact grid source availability, completed-month cutoff, QA and
+late-period transfer applicability are documented; never substitute NRT points.
+
+If data access is unavailable, continue resolving it but do not claim the
+scientific gate passed. If no justified joint structure exists, simplify to the
+interval/scenario method and withdraw the advanced-engine novelty claim. Stage A
+remains a complete product path, not a failed implementation of Stage B.
+
+Before held-out evaluation, register practical success criteria with rationale
+from the analyst task and development data. Do not invent a universal percentage
+target. If held-out results show no meaningful advantage, publish that result;
+do not tighten constraints or reselect cases until the story looks successful.
+
+11. OWNERSHIP, SCHEDULE AND SCOPE
+
+Human owner P1: model/estimand, registered constraints, solver and baselines.
+P2: NASA source access, masks, region feasibility, aggregation and applicability.
+P3: calendar, automatic summary, comparison panels, accessibility and optional
+Quick Mission. The default user path takes priority over advanced visualization.
+P4: contracts, immutable artifacts and static deployment; development API optional.
+P5: published-claim selection, independent checks, evaluation, analyst-task rubric,
+submission evidence matrix, public link/replay audit and final claim consistency. P1/P2 approve measurement compatibility independently
+of whether the selected claim produces a dramatic outcome.
+
+Coding agents work on isolated owned paths. They cannot sign off science or
+multiply the number of independent human reviewers. No hardware assignment
+competes with the initial data/model gate.
+
+Follow the WEEKEND BUILD BRIEF checkpoints and cut order. Saturday 13:00:
+feasibility and real sample; 20:00: monthly core and static browser; 23:00:
+frozen evaluation report; Sunday 12:00: independent replay; Sunday 22:00:
+submission target. P1 starts per owner after their own checked P0 work, under
+the brief's capacity and evaluation rules; P2 tier follows P0 and chosen P1.
+NASA's 2026 site states project submission closes Sunday November 15 at 11:59 PM
+local time. The older plan's 23:59:59 team-specified cutoff is not the official
+portal deadline; do not treat it as extra time. Verify the portal's exact cutoff,
+event timezone and project form before submission. Do not infer acceptance from
+a successful local build.
+After 22:00: portal submission verification and critical corrections only.
+No unrelated 17:00/19:00 stop is introduced.
+
+These checkpoints do not justify weakening gates. If historical extraction or
+evaluation is incomplete, expose the smaller scope rather than backfill results.
+No optional system starts merely because the frontend is ready early.
+The 2025-2026 archive check and Evidence Repair algebraic gate can be documented
+using data built during the event, but implementing either optional extension may not displace
+the required measurement alignment, calendar, sensor-switch experiment or replay.
+
+12. COMPETITIVE DEMONSTRATION
+
+The 60-90 second Quick Mission is a design target, not a measured runtime.
+First 20 seconds (fixed): area on the map -> calendar with the actual registered
+sensor seam -> the headline metric from Section 9A -> one finding sentence and
+one limit sentence. No schema terms, no factor values, no tutorial. Everything
+below follows only after these four beats.
+Make the USER, not the equations, the main character: a nonexpert chooses an
+available region and THE THIRD EYE automatically shows a comprehensible finding.
+The demo must work with real frozen NASA-derived data and honestly reveal a
+negative/unresolved result when that is the actual outcome:
+1. Show an area selection, the automatic historical calendar and the real
+   seasonal pattern / unusual period / historical critical window permitted by
+   registered analysis. Identify a real retrospective analyst question.
+   If using a publication, display its attributed statement and original
+   measurement, then the explicit evidence-relationship label.
+2. State THE THIRD EYE's exact auditable question and fire-cell-day unit, and
+   identify what it does not count. Show what its conventional comparison suggests.
+   Keep original hotspot point counts, if available, as separately named evidence.
+3. Show the automatically generated plain-English qualified conclusion, then
+   briefly reveal the relevant sensor adjustment, observation-support condition
+   and real evaluation status. The user does NOT choose correction factors.
+4. If ambiguous, reveal both compatible interpretations and the reason for
+   uncertainty. If invariant, show the tested boundary and why it holds. If
+   unavailable/out-of-domain, show the actual limitation. No forced reversal.
+   If invariant, explain the tested boundary without inventing a reversal.
+5. Show the full benchmark trade-off and downloadable reproducible record.
+   State what this adds to the regional question and what it cannot establish
+   about the published statement. No original-claim verdict is borrowed from
+   a related-indicator audit.
+   Link directly to the held-out switch experiment, applicable equality boundary
+   and source-quality handling. A real related question remains sufficient when
+   direct reproduction is unsupported; no invented source claim is necessary.
+
+Show raw-to-calibrated changes and calibration-variant sensitivity separately.
+Never imply a source's claim was disproved when the tool examined another
+measurement. 'The interpretation changes under these corrections' is permitted
+when measured; 'the sensor switch caused this share of the increase' is not
+established by that result.
+
+No scripted outcome diversity is required. The flagship is selected from a
+registered case list with an explicit presentation-selection rule, while every
+evaluation case remains accessible. A documented stable result may be useful;
+an uninteresting result is not permission to change the science.
+A stable result is valuable when it resolves a real question under meaningful
+tests. It is not valuable merely because positive-scalar algebra guarantees it.
+Avoid 'every other calendar gives an answer' or claims of established originality;
+compare concrete capabilities and measured outcomes instead.
+
+Judges must be able to repeat the result behind the narration: same numbers,
+exact geographic boundary, NASA collection/version, case ID and test denominator
+in site, video, project page and frozen bundle. Keep optional Evidence Repair
+out of the main pitch unless its blind cost-matched test demonstrates real value.
+
+Borrow the 2025 winner's end-to-end scientific workflow, not unverified promises
+of exact arithmetic eliminating observational or modeling error. The technical
+accomplishment must be visible in actual artifacts and evaluation.
+
+13. RELEASE AND ADOPTION CHECKLIST
+
+Before kickoff, verify that the adopted contract and companion documents agree:
+- Complete the feasibility gate and record proceed/simplify/infeasible.
+- Record Stage A as the default and Stage B as conditional; do not assign both
+  as mandatory parallel builds. Selectable coverage never implies global validity.
+- Freeze target, constraints, policy dependencies and holdout ownership.
+- Update the execution spec, detailed plan and agent entry points together.
+- Mark earlier AI/IoT/GOES assignments deferred for this sprint.
+- Add new statuses as a versioned schema change, not silent UI translations.
+- Update both copies of the project guide only when this direction is adopted;
+  do not leave guides promising a different science engine.
+- Retain historical documents as explicitly non-executable reference material.
+
+Before submission:
+Apply the WEEKEND BUILD BRIEF tier map to each check below: P0 checks apply
+to shipped core claims; P1/P2 checks apply when the associated feature ships.
+- Geography fixtures verify sums-before-division, overlap deduplication, explicit
+  boundary selection, partial footprints and no inherited subset/union factors.
+- Automatic summaries preserve stable-but-failed and missing-evidence cases,
+  registered selection rules and access to every evaluated comparison.
+- Geographic access clearly distinguishes raw observations from calibrated,
+  evaluated comparisons. Wide geographic display must match tested actual data
+  processing; no claimed worldwide harmonization from one regional experiment.
+- Search/selector and all three frontend modes show raw_only, evaluated,
+  unavailable and pending states accurately by area/period/policy. Prevent
+  accidental cross-region factor and cache reuse. At least one selectable
+  benchmark region works; additional regions only count if truly supported.
+- The default path is automated: select an eligible area -> see verified historical
+  pattern, registered comparison, plain-English finding, evidence status and
+  limitations without selecting calibration factors or opening research panels.
+  Missing, unsupported and null findings are handled without fictional content.
+- The five-criteria evidence matrix in Section 9E links each claimed impact,
+  scientific benefit and creative distinction to an implemented artifact or
+  measured result; no planned feature is described as delivered.
+- Public app, source repository, real-data demonstration route, video and
+  reproduction bundle are accessible and synchronized with the submitted
+  project page. Broken links, hidden login or differing reported numbers fail.
+- The demo is keyboard navigable, text labels are not color-only, data states
+  are understandable to nonexperts, and every claim has a drill-down audit path.
+- The selected-area experience is honest about its geographic coverage: approved
+  subregions are raw_only unless individually evaluated; disclose coverage limits.
+- Official NASA challenge requirements are mapped to actual product features and
+  source measurements. Fire-cell-day rates are never presented as hotspot counts
+  or individual fires; any unmet record-level requirement is disclosed/resolved.
+- If 2025 or 2026 months ship, freeze archive versions, ingestion cutoff, completed
+  months, QA/applicability evidence and YTD comparison rules. No incomplete months,
+  full-year claims for partial 2026, or inherited NRT point-data harmonization.
+- Evidence Repair's scalar-score equivalence to highest pre-reveal activity and
+  normalized alternatives is checked symbolically and on development data.
+  Algebraically equivalent ranking is not sold as a new selection algorithm;
+  independent cost-matched gains versus strong baselines are required for promotion.
+- If Evidence Repair ships, candidate labels are hidden during ranking, final
+  evaluation is disjoint, baselines share costs/update rules, and every reported
+  resolution is scoped to the tested scenario set. No uncertified minimum-evidence
+  or universal impossibility claim; original benchmark versions remain immutable.
+- Activity-regime diagnostics use frozen training-derived groups and expose
+  systematic failures shared by stable factor variants; no post-hoc benchmark
+  exclusions, forced bins or automatic extra calibration model.
+- Early VIIRS use has its own applicability evidence or is disabled. The Aqua
+  2003-2019 / mapped-VIIRS 2020+ production splice remains explicit. Training and
+  early-transfer evaluation cannot reuse the same records as independent evidence.
+- Fixed-block D/O totals reconcile with regional counts and the 8.2/2.8 versus
+  5.5/5.5 fixture passes. Missing required blocks cannot silently change weights.
+- If geographic standardization ships, export fixed weights, target geography,
+  eligibility and separate estimand/calibration IDs. No recovery-of-unknown-fire
+  claim or automatic primary-verdict override follows from its disagreement.
+- If the placebo ships, distinguish artificial masks on observed data from real
+  missingness; report within-block sample variation, all repeats and coverage.
+- Observation-opportunity audit distinguishes cell-days from acquisitions;
+  unknown timing/counts remain unknown. Product-specific mask fixtures and real
+  extracts pass, including bowtie deletion and low-confidence exclusion handling.
+- Failure-detection evaluation reports missed failures among stable results,
+  flagged-case errors and answer coverage under frozen rules, with unavailable
+  references separate. Associations are not presented as causal explanations.
+- Optional swath/source diagnostics retain their own sampling/measurement IDs;
+  no unverified persistent-source exclusions or post-hoc calibration changes.
+- Full challenge mapping, data provenance and source/asset rights recorded.
+- No claim of bounded true fire counts or physical detection probabilities.
+- No extrapolation marketed as held-out validation.
+- Mandatory sensor-switch report includes controls, all registered cases and
+  reference-relative errors/coverage; failed results remain visible without Stage B.
+- Equality boundary uses the displayed mapping/sign convention and handles zero,
+  ties, missingness and shared-scalar invariance without probability claims.
+- Quality registry is checked against actual selected-product records, including
+  the 2020 interruption and late-period applicability; no blanket outage zero-fill.
+- P5 has replayed the evidence bundle with the published command/environment.
+- Precomputed subregion candidates have separate availability/evaluation status;
+  no inherited factors or claims of independent replication from nested areas.
+- All counterexamples independently checked; no empty-set 'proofs'.
+- Baseline comparison includes abstention and useful partial answers.
+- Static deployment preserves artifact versions and does not fake new audits.
+- Scientific claims, implemented features and demonstrated benefits separated.
+- Training-window choice and limited fold count disclosed; no used holdout
+  reclassified as untouched after a split revision.
+- Flagship source, original measurement, adjustments and claim-selection record
+  checked; no invented replication, debunking or sensor-causal attribution.
+- Evidence-relationship labels persist in UI, Quick Mission and export. Test
+  unknown source methods, different measurement, failed reproduction and a
+  directly reproducible source. A related grid result cannot verify/refute the
+  source count claim; source artifacts never enter grid calibration or baselines.
+- If the reproduction panel ships, independently verify count rules, filters,
+  provenance and discrepancies. Ensure removing it does not break the flagship
+  grid analysis and that no point-count harmonization is implied.
+- Outcome diagnostics distinguish correction effects from variant disagreement;
+  no sensitive-case quota or post-hoc widening to make the demonstration dramatic.
+- If recent context ships, test empty response, failed/stale feed and snapshot
+  labels; verify no NRT detections enter historical counts, baselines or verdicts.
+- Calendar, seasonal exploration and bounded region selection work independently
+  of the optional constraint engine; no 'all plausible biases' or fire-size badge.
+- If custom areas ship: test unsupported geometry, missing extraction, insufficient
+  training support, pending evaluation, failed evaluation and period-limited
+  success. Verify aggregation, boundary/cache identity and that changing area
+  cannot reuse another area's calibration or grant an unsupported verdict.
+- Relevance amendment checks: challenge text saved under challenge/ and every
+  matrix row has a status; weekly views and any P1 daily views never join sensors without an
+  evaluated mapping; week labels and any unusual days use frozen same-sensor
+  rules and show "insufficient baseline" when needed; hotspot view never feeds
+  grid science; S-NPP end date and NOAA-20 status visible in calendar and scope.
+- Headline metric frozen before holdout inspection and identical on landing
+  page, project page, video and report, with its denominator.
+- First screen and video contain no internal schema terms.
+- Submission mechanics list in Section 9E checked against the official form.
+
+14. EVIDENCE BASIS AND ORIGINALITY LIMIT
+
+The prior review verified the sources below. They support the challenge context
+and established methods, not proof that this proposal is novel or effective.
+
+Official challenge:
+https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/
+Official 2026 schedule, registration and local-time submission window:
+https://www.spaceappschallenge.org/2026/
+2026 local-event summary of judging criteria (verify latest official guide):
+https://www.spaceappschallenge.org/2026/local-events/ajmer/
+Partial identification with incomplete data:
+https://www.sciencedirect.com/science/article/pii/S030440760500062X
+Breakdown frontiers:
+https://arxiv.org/abs/1705.04765
+MODIS/VIIRS FRP observation operators (different measurement; do not transplant):
+https://gmd.copernicus.org/articles/19/10123/2026/
+Observation-timing shifts:
+https://ntrs.nasa.gov/citations/20260005893
+NASA's confirmation of the 2025 winners:
+https://www.nasa.gov/learning-resources/stem-engagement-at-nasa/nasa-announces-2025-international-space-apps-challenge-global-winners/
+NASA guidance on pixel footprints versus actual fire size:
+https://disasters.nasa.gov/sites/default/files/2021-05/Fire%20Risk%20Q%26A%20Part%201.pdf
+Dependence and identifying assumptions in capture-recapture:
+https://pmc.ncbi.nlm.nih.gov/articles/PMC10646701/
+FIRMS archive/NRT guidance and recommendation for science-quality analysis:
+https://firms.modaps.eosdis.nasa.gov/content/active_fire/
+NOAA-20 375 m near-real-time product description:
+https://modaps.modaps.eosdis.nasa.gov/services/about/products/viirs-land-c2-nrt/vj114imgtdl_nrt.html
+Daily VNP14A1 grid and its 750 m detection pathway:
+https://developers.google.com/earth-engine/datasets/catalog/NASA_VIIRS_002_VNP14A1
+Daily Aqua grid and product-specific classification:
+https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MYD14A1
+FIRMS VIIRS 375 m point-product semantics:
+https://firms.modaps.eosdis.nasa.gov/content/descriptions/FIRMS_VIIRS_Firehotspots.html
+NASA Aqua 2020 science-data outage and recovery notice:
+https://forum.earthdata.nasa.gov/viewtopic.php?t=606
+NASA MODIS source-quality registry:
+https://landweb.modaps.eosdis.nasa.gov/knownissue?as=6&sat=Aqua&sensor=MODIS
+NASA Aqua mission and orbital-drift context:
+https://science.nasa.gov/mission/aqua/
+NASA VIIRS product/reprocessing context (check exact collection applicability):
+https://viirsland.gsfc.nasa.gov/Products/NASA/NASAprod.html
+Historical active-fire user guide; not automatically applicable to Collection 2:
+https://viirsland.gsfc.nasa.gov/PDF/VIIRS_activefire_User_Guide.pdf
+Goal-driven experimental design prior art (2026 preprint, not fire validation):
+https://arxiv.org/abs/2605.26093
+Suomi NPP data cessation, November 2, 2026 15:40 UTC (NOAA/NESDIS Update #3):
+https://www.nesdis.noaa.gov/news/update-3-cessation-of-suomi-national-polar-orbiting-partnership-s-npp-data-users-november-02-2026-1540-utc-and-decommissioning-issued-october-30-2026-1400-utc
+LANCE transition to NOAA-20/NOAA-21 product prefixes (VJ1/VJ2):
+https://www.earthdata.nasa.gov/news/blog/transitioning-from-suomi-npp-noaa-20-noaa-21-what-lance-users-need-know
+NOAA-20 VJ114A1 V002 daily 1 km fire grid (LP DAAC):
+https://earthdata.nasa.gov/data/catalog/lpcloud-vj114a1-002
+Team/participant guidance (team size, same local event):
+https://www.spaceappschallenge.org/resources/team-formation-guide/
+Participant FAQ (media rules for participants under 18):
+https://spaceappschallenge.org/resources/participant-faqs
+Official legal terms (event dates; read for build-window rules):
+https://spaceappschallenge.org/legal
+
+Competitive context (public repositories for the same challenge, checked
+November 14, 2026; study only, do not copy code or data, no license granted):
+- Kiln Watch: https://github.com/Aalvee-Aarham/kiln-watch
+  Reports any-area selection, daily calendar from 2003, FIRMS-based exchange
+  rate with cloud normalization, 95% ranges and a two-week outlook.
+- Agun Panjika: https://github.com/polymathicX/Agun-Panjika
+  Reports weekly VIIRS-scale history for Bangladesh districts, ML harmonization,
+  80% intervals and bilingual UI; notes its own untouched-holdout gap.
+Implication: selectable areas, a usable calendar and a visibly corrected 2012
+seam are baseline expectations. THE THIRD EYE's differentiator is the evaluated
+held-out sensor-switch test, matched-denominator grids, failure flagging and
+one-command replay. State this as a concrete capability comparison; do not
+disparage or make claims about other teams' results.
+
+Final recommendation: lead with a working AUTOMATIC selected-area NASA fire
+calendar, plain-English qualified findings and a visually simple, traceable
+historical comparison; back it with the mandatory held-out sensor-switch test.
+Prove relevance to the challenge and document real impact/creative differentiation
+with the five-criteria judge evidence matrix. Keep public deployment, source,
+video and a one-command replay consistent and verifiable.
+Treat verified 2025-2026 months as a gated recency improvement, not a substitute for science.
+Promote Evidence Repair only if it escapes scalar-ranking equivalence and improves
+independent decisions over highest-activity and strong uncertainty-aware baselines.
+Do not replace unproven originality with a larger dashboard, more sources, or an
+unverified guarantee of identifiability.
+
+ADOPTED GEOGRAPHIC COVERAGE DECISION (November 14, 2026):
+Broad raw exploration and validated historical interpretation are separate
+capabilities. Prioritize multiple selectable regions where feasible, but do
+not misrepresent raw observations as harmonized cross-sensor trends or claim
+that global coverage is a NASA disqualification requirement. Evidence and
+real tested data availability control what the interface may report.
+
+ADOPTED RELEVANCE AND CONTINUITY DECISION (November 14, 2026):
+The challenge text is saved and mapped before the build where permitted; verify
+the official wording. Weekly same-sensor views, predeclared raw sub-areas and a FIRMS link are P0;
+daily drill-down and extra evaluated areas are P1; the in-app hotspot view is
+P0-late, subject to the build brief's cut order. None
+changes the scientific rules for evaluated comparisons. The S-NPP cessation is
+disclosed and NOAA-20 is the registered continuity path, gated by its own
+evaluation. The mandatory experiment uses a rule-based case list large enough
+to report denominators and one frozen headline number. All project code is
+built during the event window.

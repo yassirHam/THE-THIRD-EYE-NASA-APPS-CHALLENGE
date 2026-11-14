@@ -1,0 +1,78 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "geo-canonical-primary-angola",
+      "properties": {
+        "name": "Angola Primary Region",
+        "type": "primary_evaluated",
+        "biome": "Miombo savanna",
+        "raw_only": false
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              11.5,
+              -18.0
+            ],
+            [
+              24.0,
+              -18.0
+            ],
+            [
+              24.0,
+              -4.5
+            ],
+            [
+              11.5,
+              -4.5
+            ],
+            [
+              11.5,
+              -18.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "geo-subarea-angola-north",
+      "properties": {
+        "name": "Angola North Sub-area",
+        "type": "predeclared_subarea",
+        "raw_only": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              11.5,
+              -11.0
+            ],
+            [
+              24.0,
+              -11.0
+            ],
+            [
+              24.0,
+              -4.5
+            ],
+            [
+              11.5,
+              -4.5
+            ],
+            [
+              11.5,
+              -11.0
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

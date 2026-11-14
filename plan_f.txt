@@ -1,0 +1,105 @@
+AUTOMATIC MODEL SWITCHING IN KIRO (kiro-cli, CLI V3) — FINDINGS
+Question: Can the agent finish planning on one model (e.g. Opus 4.8) and
+automatically switch the active model to another (e.g. Sonnet) for coding?
+
+================================================================
+BOTTOM LINE
+================================================================
+No. That exact goal is NOT a supported feature.
+- The running model cannot change the active model by itself.
+- Kiro has no phase-based "plan with model A -> auto-switch to model B for
+  coding" mechanism.
+- Model selection is user-driven (/model picker, settings default, or a
+  per-agent model pin).
+
+The only Kiro-native way to involve two different models in one task without
+manual switching is to DELEGATE a phase to a sub-agent whose config pins a
+different model. The main session's own model never changes on its own.
+
+================================================================
+1. CAN THE RUNNING MODEL SWITCH THE ACTIVE MODEL ITSELF?
+================================================================
+No. There is no tool or mechanism an agent can invoke to change which model
+is selected mid-conversation.
+- The only automatic model change documented is MODEL FALLBACK: if a model is
+  unavailable or refuses, Kiro can move THAT TURN to a fallback model.
+    * Unavailable model -> fallback applies only to that turn, then returns to
+      your selected model.
+    * After a refusal -> the conversation stays on the fallback.
+  This is error handling, not phase-based switching, and the agent does not
+  choose it.
+  Source: https://kiro.dev/docs/models.md ("Model fallback notices")
+
+================================================================
+2. IS THERE AUTO-SWITCHING BY TASK PHASE / WORKFLOW STAGE?
+================================================================
+No. Nothing changes the active model based on workflow stage.
+- Closest feature is "Auto", which routes each task to the optimal model
+  automatically — but that is routing WITHIN the Auto setting, not a
+  configurable "Opus for planning -> Sonnet for coding" handoff, and you
+  cannot pin which models it picks per phase.
+  Source: https://kiro.dev/docs/models.md
+
+================================================================
+3. CAN CUSTOM AGENTS / SUB-AGENTS USE A SPECIFIC MODEL?  (THE WORKAROUND)
+================================================================
+Yes. A custom agent config (.kiro/agents/*.json or *.md) supports a "model"
+field holding a model ID. If omitted, the agent uses the default model. Any
+custom agent can be invoked as a sub-agent, so each sub-agent runs on whatever
+model its own config pins.
+
+JSON example:
+{
+  "name": "coder",
+  "description": "Implements a finished plan. Invoke after planning is complete.",
+  "model": "claude-sonnet-4.6"
+}
+
+Markdown (YAML frontmatter) example:
+---
+name: backend-dev
+description: Backend development agent
+model: claude-sonnet-4.6
+---
+You are a backend developer...
+
+Notes:
+- The model ID must match one of the models returned by Kiro's model service —
+  check /model in an active session for valid IDs.
+- If the pinned model is unavailable, the first prompt can fail instead of
+  falling back automatically; Kiro restores the previously active model, then
+  you retry or fix the "model" field.
+- Sub-agents are selected by the main agent via their "description", or invoked
+  explicitly ("Use the X agent to ...").
+Sources:
+  https://kiro.dev/docs/custom-agents/configuration-reference.md ("Model field")
+  https://kiro.dev/docs/custom-agents/subagents.md
+
+Resulting flow for the plan->code use case:
+  1. Plan in the main session on Opus 4.8.
+  2. When planning is done, the main agent invokes a "coder" sub-agent whose
+     config pins Sonnet.
+  3. The sub-agent does the implementation on Sonnet and reports back.
+CAVEAT: the main conversation stays on Opus 4.8 — it does NOT become Sonnet.
+The Sonnet agent runs autonomously as a sub-task and returns results; this is
+delegation, not a true switch of the session's model.
+
+================================================================
+4. HOW A USER CHANGES THE MODEL (CLI)
+================================================================
+- /model in the terminal UI — switch models and configure thinking/effort.
+  Selection applies to all subsequent messages. (If a model is missing,
+  restart Kiro CLI.)
+- Set a default from the command line:
+    kiro-cli settings chat.defaultModel claude-opus-4.8
+  Or inside a session: /model set-current-as-default
+  (saves to ~/.kiro/settings/cli.json so new sessions use it).
+- Per-agent "model" field in the agent config (see section 3) pins the model
+  for that agent.
+Source: https://kiro.dev/docs/models.md ("How to switch models", CLI tab)
+
+================================================================
+FURTHER READING
+================================================================
+https://kiro.dev/docs/models.md
+https://kiro.dev/docs/custom-agents/subagents.md

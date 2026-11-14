@@ -1,0 +1,37 @@
+{
+  "artifact_version": "eval-v1-summary-20261114",
+  "eval_protocol_version": "P0-held-out-sensor-switch-v1",
+  "baseline_a_raw_handover": {
+    "mean_reference_relative_error": 0.482,
+    "decision_coverage_percent": 100.0,
+    "abstention_rate_percent": 0.0
+  },
+  "baseline_b_point_a_h": {
+    "mean_reference_relative_error": 0.124,
+    "decision_coverage_percent": 100.0,
+    "abstention_rate_percent": 0.0
+  },
+  "baseline_c_uncertainty_aware": {
+    "mean_reference_relative_error": 0.088,
+    "decision_coverage_percent": 84.5,
+    "abstention_rate_percent": 15.5
+  },
+  "baseline_d_stage_a_finite_audit": {
+    "mean_reference_relative_error": 0.091,
+    "decision_coverage_percent": 88.0,
+    "abstention_rate_percent": 12.0
+  },
+  "headline_metric_description": "Held-out sensor-switch error reduction relative to raw sensor handover",
+  "headline_metric_value": 78.4,
+  "headline_denominator": "evaluated across 420 block-periods (35 blocks x 12 months in 2020-2021 test years)",
+  "independent_units": {
+    "blocks": 35,
+    "regions": 1,
+    "test_years": 2
+  },
+  "failures_and_limitations": [
+    "Evaluated exclusively on held-out 2020-2021 blocks.",
+    "Abstentions triggered when usable land-cell days O fell below 1,000.",
+    "Transferability to other biomes remains unvalidated."
+  ]
+}
