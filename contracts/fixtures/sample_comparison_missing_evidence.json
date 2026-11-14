@@ -1,0 +1,56 @@
+{
+  "contract_version": "1.0.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2020-2021",
+  "method_id": "stage_a_finite_factors",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "sensitivity_status": "unavailable",
+  "applicability_status": "missing_required_support",
+  "inference_status": "not_established",
+  "practical_change": {
+    "category": "unavailable"
+  },
+  "headline_direction": "unavailable",
+  "required_variant_ids": [
+    "full_training",
+    "ex_2016",
+    "ex_2017"
+  ],
+  "registered_variants": [
+    {
+      "variant_id": "full_training",
+      "factor_value": 1.4,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2016,
+        2017,
+        2018
+      ],
+      "effect_delta": 2.0,
+      "direction": "increase"
+    }
+  ],
+  "applicability_checks": [
+    {
+      "check_id": "support",
+      "status": "missing",
+      "detail": "Support not extracted."
+    }
+  ],
+  "missing_evidence_reasons": [
+    "Required leave-one-year-out variants ex_2016 and ex_2017 are missing."
+  ],
+  "conclusion_eligible": false,
+  "reviewed_summary": {
+    "template_id": "stage_a_default",
+    "template_version": "1",
+    "generated_by": "reviewed_deterministic_template",
+    "output_category": "not_enough_usable_evidence",
+    "status_label": "Not enough usable evidence",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] No eligible conclusion.",
+    "limit_sentence": "Required evidence is missing."
+  }
+}

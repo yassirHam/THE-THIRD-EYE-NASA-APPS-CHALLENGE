@@ -1,0 +1,42 @@
+{
+  "contract_version": "1.0.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2020-2021",
+  "method_id": "firms_hotspot_view",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "view_name": "Reported hotspots",
+  "measurement_unit": "reported_detection_points",
+  "processing_level": "standard_archive",
+  "confidence_filter": "all",
+  "firms_link": {
+    "url": "https://firms.modaps.eosdis.nasa.gov/map/",
+    "selected_area": {
+      "west": 0.0,
+      "south": 0.0,
+      "east": 1.0,
+      "north": 1.0
+    },
+    "start_date": "2020-07-01",
+    "end_date": "2020-07-07",
+    "manual_selection_required": true,
+    "limitation": "Select the area and dates manually in FIRMS."
+  },
+  "points": [
+    {
+      "point_id": "synthetic-1",
+      "latitude": 0.5,
+      "longitude": 0.5,
+      "acquired_at": "2020-07-01T10:30:00Z",
+      "platform": "VIIRS_SNPP",
+      "confidence_label": "nominal",
+      "source_product": "synthetic"
+    }
+  ],
+  "feeds_grid_math": false,
+  "inherits_grid_calibration": false,
+  "cross_sensor_trend_allowed": false,
+  "isolation_notice": "FIRMS points are separate from D, O, baselines, factors, and verdicts."
+}

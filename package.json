@@ -1,0 +1,17 @@
+{
+  "name": "the-third-eye",
+  "version": "0.0.0",
+  "private": true,
+  "description": "THE THIRD EYE base frontend manifest. Contract typecheck only; P3-A adds UI dependencies.",
+  "engines": {
+    "node": ">=22.14.0"
+  },
+  "scripts": {
+    "contracts:generate": "python -m contracts.generate_ts",
+    "contracts:check": "python -m contracts.generate_ts --check",
+    "typecheck:contracts": "tsc -p contracts/tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
