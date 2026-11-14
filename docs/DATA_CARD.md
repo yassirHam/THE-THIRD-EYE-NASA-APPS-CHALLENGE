@@ -53,10 +53,10 @@
 ---
 
 ## 5. Proposed Geographic Evaluation Status
-- **Primary Candidate (Proposed):** `California` (`ADM0_NAME = "United States of America"`)
-- **Backup Candidate (Proposed):** `British Columbia` (`ADM0_NAME = "Canada"`)
+- **Primary Candidate (Proposed):** `California` (`ADM0_NAME = "United States of America"`, `ADM1_NAME = "California"`)
+- **Backup Candidate (Proposed):** `British Columbia` (`ADM0_NAME = "Canada"`, exact GAUL name `ADM1_NAME = "British Columbia / Colombie-Britannique"`)
 - **Status:** **Proposed candidates, not registered.** Formal registration requires P1 (Rim) sign-off and a frozen numeric feasibility rule, recorded before any outcome is inspected.
-- **All Remaining Blocks:** Designated as `raw_only`. Factors calibrated on California or BC must never be inherited by `raw_only` blocks without explicit separate calibration.
+- **All Remaining Blocks:** Designated as `raw_only` (total 64 blocks across US and Canada). Factors calibrated on California or BC must never be inherited by `raw_only` blocks without explicit separate calibration.
 
 ---
 
@@ -69,7 +69,7 @@ The table schema matches the exact export columns:
 |---|---|---|---|
 | `ADM0_NAME` | `STRING` | No | Country name ("United States of America" or "Canada"). |
 | `ADM1_CODE` | `INT32` | No | FAO GAUL 2015 level 1 unique numeric code (read from GAUL asset). |
-| `ADM1_NAME` | `STRING` | No | Administrative division name (e.g., "California", "British Columbia"). |
+| `ADM1_NAME` | `STRING` | No | Administrative division name (e.g., "California", "British Columbia / Colombie-Britannique"). |
 | `date` | `DATE` | No | Calendar date in UTC (`YYYY-MM-DD`). |
 | `aqua_file_present` | `INT8` | No | 1 if Aqua data file was present; 0 if missing/unavailable. |
 | `viirs_file_present`| `INT8` | No | 1 if VIIRS data file was present; 0 if missing/unavailable. |

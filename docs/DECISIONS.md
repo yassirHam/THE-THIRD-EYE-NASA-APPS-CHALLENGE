@@ -8,9 +8,10 @@ and Independent Verification (P5).
 
 ## Decision Record 2026-11-14-01: Spatial Domain and Block Keying
 - **Date:** 2026-11-14
-- **Decision:** The spatial domain encompasses the United States (including Alaska and Hawaii) and Canada.
+- **Decision:** The spatial domain encompasses the United States (including Alaska and Hawaii) and Canada (64 blocks from FAO GAUL 2015 Level 1).
 - **Boundary Source:** FAO GAUL 2015 Level 1 (`FAO/GAUL/2015/level1` in Google Earth Engine).
 - **Keying:** Each block is uniquely identified and keyed by `ADM1_CODE` (with accompanying `ADM1_NAME` and `ADM0_NAME` for display).
+- **Exact GAUL Naming:** British Columbia's exact GAUL name (`ADM1_NAME`) is `"British Columbia / Colombie-Britannique"`.
 - **Rationale:** Standardized administrative boundaries ensure reproducible zonal aggregation without boundary drift or arbitrary polygon creation. GAUL 2015 Level 1 aligns with official country/state/province designations.
 
 ---
@@ -48,8 +49,8 @@ and Independent Verification (P5).
 - **Date:** 2026-11-14
 - **Proposed Evaluated Regions:**
   - **Primary (Proposed):** California (`ADM1_NAME = "California"`, United States)
-  - **Backup (Proposed):** British Columbia (`ADM1_NAME = "British Columbia"`, Canada)
-- **Status of Other Blocks:** All other US states and Canadian provinces are classified as `raw_only`.
+  - **Backup (Proposed):** British Columbia (`ADM1_NAME = "British Columbia / Colombie-Britannique"`, Canada)
+- **Status of Other Blocks:** All other US states and Canadian provinces are classified as `raw_only` (total 64 blocks).
 - **Pre-Registration Requirement:** California and British Columbia are **proposed candidates**, not registered. Official registration requires:
   1. P1 (Rim) scientific sign-off, and
   2. A frozen numeric feasibility rule (minimum fire observations / events),
@@ -77,3 +78,15 @@ and Independent Verification (P5).
 - **Decision:** NASA FIRMS Country Yearly Summary CSV/Parquet point detections are strictly segregated from grid calculations.
 - **Enforcement:** FIRMS points NEVER enter $D$, $O$, rate calculations, baseline distributions, harmonization factors, or scientific verdicts.
 - **Role:** FIRMS data serve solely as an auxiliary visual/explainer feed for P3's "Reported Hotspots" view (scheduled for P0-late).
+
+---
+
+## Decision Record 2026-11-14-07: Monthly Export Execution (V2 Method) and Phased Data Delivery
+- **Date:** 2026-11-14
+- **Execution & Scope:** Monthly export of all 64 blocks, 2002-07 to 2025-12, V2 method (blocks rasterized once on the native 1 km grid, grouped monthly reduction).
+- **Row Count & Validation:** 16,512 rows, checks OK.
+- **Phased Delivery to P1:**
+  - P1 received 2016–2019 only:
+    - California + British Columbia: 96 rows.
+    - All 64 blocks: 3,072 rows.
+  - A sharing error was fixed and P1 did not open 2020–2025.
