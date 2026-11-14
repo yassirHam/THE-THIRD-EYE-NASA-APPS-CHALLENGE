@@ -12,7 +12,8 @@ Layout
   which forces the xfail marker, and the proposed names below, to be reviewed.
 
 Assumptions awaiting P1/P2 confirmation (do not treat as frozen):
-- Sealed window = UTC days 2020-01-01 .. 2021-12-31 inclusive.
+- Sealed window comes from contracts/config/pending_registrations.json (assumed UTC days,
+  2020-01-01 .. 2021-12-31 inclusive) and is NOT registered.
 - A week that straddles either sealed edge is partial and comparison-ineligible with null
   labels, for every sensor.
 - Baseline treatment of ISO week 53 (include / skip / merge) is a P1 science rule and is
@@ -24,18 +25,27 @@ from __future__ import annotations
 import inspect
 import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from contracts.schemas.calendar import WeekRecord, WeeklyCalendarSeries, snpp_period_status
 
-SEALED_START = date(2020, 1, 1)
-SEALED_END = date(2021, 12, 31)
-
-# PROPOSED, NOT AGREED: edit here (one place) when P1/P2 freeze the representation.
-PROPOSED_SEALED_REASON = "crosses_sealed_evaluation_boundary"
+# Unregistered values come from configuration, never from schema defaults. They stay
+# pending until P1/P2 approve and register them (see contracts/config).
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "pending_registrations.json"
+CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+SEALED_START = date.fromisoformat(CONFIG["sealed_window"]["start"])
+SEALED_END = date.fromisoformat(CONFIG["sealed_window"]["end"])
+PROPOSED_SEALED_REASON = CONFIG["sealed_partial_reason"]["value"]
+SEALED_RULE_REGISTERED = bool(
+    CONFIG["sealed_window"]["registered"] and CONFIG["sealed_partial_reason"]["registered"]
+)
+# While unregistered: strict xfail. Once registered: the same tests must pass, so a
+# missing implementation becomes a hard failure instead of a silent xfail.
 PENDING = pytest.mark.xfail(
+    condition=not SEALED_RULE_REGISTERED,
     strict=True,
     raises=(ValidationError, ImportError, AttributeError, AssertionError),
     reason="PENDING P1/P2 frozen sealed-window rule; representation proposed, not agreed",
@@ -280,3 +290,41 @@ def test_pending_sealed_reason_and_snpp_reason_are_distinct_and_both_partial() -
     # A sealed reason must not be usable to mask the S-NPP cutoff, and vice versa.
     assert not accepts(series("VIIRS_SNPP", {**snpp, "partial_period_reason": PROPOSED_SEALED_REASON}))
     assert not accepts(series("MODIS_Aqua", {**sealed, "partial_period_reason": SNPP_REASON}))
+
+
+# ------------------------------------------- GUARDS: unregistered values stay configuration
+
+
+def test_unregistered_values_are_not_schema_defaults() -> None:
+    from contracts.schemas import calendar as calendar_module
+    from contracts.schemas.calendar import CalendarArtifact
+
+    assert WeeklyCalendarSeries.model_fields["week_definition"].is_required()
+    assert "week_definition" not in CalendarArtifact.model_fields
+    source = Path(calendar_module.__file__).read_text(encoding="utf-8")
+    for token in (CONFIG["sealed_window"]["start"], CONFIG["sealed_window"]["end"], PROPOSED_SEALED_REASON):
+        assert token not in source, f"{token} is hard-coded in the schema before registration"
+
+
+def test_registration_entries_cannot_claim_frozen_without_date_and_reference() -> None:
+    expected = {"week_definition", "sealed_window", "sealed_partial_reason", "week_53_rule"}
+    assert expected <= set(CONFIG)
+    for name in expected:
+        entry = CONFIG[name]
+        assert {"registered", "decision_date", "reference"} <= set(entry), name
+        if entry["registered"]:
+            assert entry["decision_date"] and entry["reference"], f"{name}: registered without date/reference"
+            date.fromisoformat(entry["decision_date"])
+        else:
+            assert entry["decision_date"] is None and entry["reference"] is None, name
+
+
+def test_week_53_rule_has_no_value_until_registered() -> None:
+    entry = CONFIG["week_53_rule"]
+    assert entry["registered"] is False and entry["value"] is None
+
+
+def test_week_definition_is_declared_per_series_not_inferred() -> None:
+    data = series("MODIS_Aqua", week("MODIS_Aqua", date(2022, 1, 3), date(2022, 1, 9), 2022, 1))
+    del data["week_definition"]
+    assert not accepts(data)
