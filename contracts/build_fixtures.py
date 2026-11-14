@@ -1,4 +1,4 @@
-﻿"""Deterministically build labelled synthetic contract fixtures.
+"""Deterministically build labelled synthetic contract fixtures.
 
 Run: python -m contracts.build_fixtures
 All values are invented test data and carry [SYNTHETIC DEV FIXTURE].
@@ -10,7 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from .schemas.common import CacheKey
+from .schemas.common import CONTRACT_VERSION, CacheKey
 from .schemas import (
     CalendarArtifact,
     ClaimAuditRecord,
@@ -30,7 +30,7 @@ POLICY = "own_support_eligible"
 
 def identity(method: str = "stage_a_finite_factors", geometry: str = GEO) -> dict:
     return {
-        "contract_version": "1.0.0",
+        "contract_version": CONTRACT_VERSION,
         "artifact_version": "synthetic-v1",
         "geometry_id": geometry,
         "period_spec": PERIOD,
@@ -268,7 +268,7 @@ def comparisons() -> dict[str, dict]:
         ),
     )
     out["sample_comparison_within_margin_opposite_sign.json"] = comparison(
-        headline_direction="no_change",
+        headline_direction="within_practical_margin",
         practical_change={
             "category": "within_practical_margin", "magnitude": 0.3, "effect_units": "R points",
             "practical_margin_tau": 0.5, "observed_signs": ["increase", "decrease"],

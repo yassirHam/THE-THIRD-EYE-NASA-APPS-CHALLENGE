@@ -1,6 +1,6 @@
 /**
  * THE THIRD EYE auto-generated TypeScript contract types.
- * Contract version 1.0.0. DO NOT EDIT.
+ * Contract version 1.1.0. DO NOT EDIT.
  * Source: contracts/schemas/*.py via `python -m contracts.generate_ts`.
  */
 
@@ -38,7 +38,7 @@ export interface CacheKey {
 }
 
 export interface CalendarArtifact {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -65,7 +65,7 @@ export interface CalibrationFactorVariant {
 }
 
 export interface ClaimAuditRecord {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -95,7 +95,7 @@ export interface ClaimAuditRecord {
 }
 
 export interface ComparisonResult {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -107,7 +107,7 @@ export interface ComparisonResult {
   applicability_status: "applicable" | "failed_applicability" | "missing_required_support" | "out_of_domain";
   inference_status?: "not_established";
   practical_change: PracticalChange;
-  headline_direction: "increase" | "decrease" | "no_change" | "ambiguous" | "unavailable";
+  headline_direction: "increase" | "decrease" | "within_practical_margin" | "no_change" | "ambiguous" | "unavailable";
   required_variant_ids: string[];
   registered_variants: CalibrationFactorVariant[];
   applicability_checks: ApplicabilityCheck[];
@@ -117,7 +117,7 @@ export interface ComparisonResult {
 }
 
 export interface EvaluationSummary {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -135,7 +135,7 @@ export interface EvaluationSummary {
 }
 
 export interface FirmsHotspotArtifact {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -245,7 +245,7 @@ export interface PracticalChange {
 }
 
 export interface ProvenanceManifest {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -268,7 +268,7 @@ export interface ProvenanceManifest {
 }
 
 export interface RegionSelectorArtifact {
-  contract_version?: "1.0.0";
+  contract_version?: "1.1.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;

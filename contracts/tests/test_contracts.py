@@ -1,4 +1,4 @@
-﻿"""Contract tests: fixtures validate and forbidden states are rejected."""
+"""Contract tests: fixtures validate and forbidden states are rejected."""
 
 from __future__ import annotations
 
@@ -268,8 +268,12 @@ def test_headline_cannot_contradict_effects() -> None:
     fails(ComparisonResult, data)
 
 
-def test_headline_for_within_margin_must_be_no_change() -> None:
+def test_headline_for_within_margin_cannot_be_no_change() -> None:
     data = load("sample_comparison_within_margin_opposite_sign.json")
+    assert data["headline_direction"] == "within_practical_margin"
+    # Cannot describe effects within the practical margin as no_change because effects are non-zero (+0.3, -0.2, +0.1)
+    data["headline_direction"] = "no_change"
+    fails(ComparisonResult, data)
     data["headline_direction"] = "increase"
     fails(ComparisonResult, data)
 
@@ -336,6 +340,36 @@ def test_boundary_effect_equal_to_tau_is_within_margin() -> None:
 def test_missing_variant_cannot_publish_category_or_direction() -> None:
     data = load("sample_comparison_missing_evidence.json")
     data["headline_direction"] = "increase"
+    fails(ComparisonResult, data)
+
+
+def test_missing_required_variant_preserves_observed_sensitivity_while_unavailable() -> None:
+    data = load("sample_comparison_sensitive.json")
+    # Pop one required variant so required variants are incomplete
+    data["registered_variants"].pop()  # leaves full_training (+2.0) and ex_2016 (-1.0)
+    data["headline_direction"] = "unavailable"
+    data["practical_change"] = {"category": "unavailable", "observed_signs": ["increase", "decrease"]}
+    data["missing_evidence_reasons"] = ["Required leave-one-year-out variant ex_2017 is missing."]
+    data["conclusion_eligible"] = False
+    data["reviewed_summary"]["output_category"] = "not_enough_usable_evidence"
+    data["reviewed_summary"]["status_label"] = "Not enough usable evidence"
+    # Sensitivity is observed among available variants -> preserved as sensitive_to_assumptions
+    ComparisonResult.model_validate_json(json.dumps(data))
+
+    # Setting sensitivity to unavailable when available variants disagree is rejected
+    data["sensitivity_status"] = "unavailable"
+    fails(ComparisonResult, data)
+
+    # Setting sensitivity to stable when required variant is missing is rejected
+    data["sensitivity_status"] = "stable_across_displayed_settings"
+    fails(ComparisonResult, data)
+
+    # Trying to publish a conclusion or direction while incomplete is rejected
+    data["sensitivity_status"] = "sensitive_to_assumptions"
+    data["conclusion_eligible"] = True
+    fails(ComparisonResult, data)
+    data["conclusion_eligible"] = False
+    data["headline_direction"] = "ambiguous"
     fails(ComparisonResult, data)
 
 

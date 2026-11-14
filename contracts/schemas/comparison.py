@@ -1,4 +1,4 @@
-﻿"""Stage A calibration comparison and independent status dimensions."""
+"""Stage A calibration comparison and independent status dimensions."""
 
 from __future__ import annotations
 
@@ -30,7 +30,14 @@ PracticalChangeCategory = Literal[
     "unavailable",
 ]
 Direction = Literal["increase", "decrease", "no_change"]
-HeadlineDirection = Literal["increase", "decrease", "no_change", "ambiguous", "unavailable"]
+HeadlineDirection = Literal[
+    "increase",
+    "decrease",
+    "within_practical_margin",
+    "no_change",
+    "ambiguous",
+    "unavailable",
+]
 ApplicabilityCheckStatus = Literal["passed", "failed", "missing", "out_of_domain"]
 OutputCategory = Literal[
     "consistent_across_tested_corrections",
@@ -63,8 +70,10 @@ _CHECK_FOR_APPLICABILITY = {
 }
 
 
-def expected_output_category(applicability: str, sensitivity: str) -> str:
+def expected_output_category(applicability: str, sensitivity: str, complete: bool = True) -> str:
     """Failed, missing, and out-of-domain stay distinct; none is hidden under sensitivity."""
+    if not complete:
+        return "not_enough_usable_evidence"
     fixed = {
         "failed_applicability": "calibration_check_failed",
         "missing_required_support": "not_enough_usable_evidence",
@@ -79,8 +88,8 @@ def expected_output_category(applicability: str, sensitivity: str) -> str:
     }[sensitivity]
 
 
-def is_conclusion_eligible(applicability: str, sensitivity: str) -> bool:
-    return applicability == "applicable" and sensitivity != "unavailable"
+def is_conclusion_eligible(applicability: str, sensitivity: str, complete: bool = True) -> bool:
+    return complete and applicability == "applicable" and sensitivity != "unavailable"
 
 
 def check_applicability_consistency(status: str, checks: "list[ApplicabilityCheck]") -> None:
@@ -101,7 +110,12 @@ def effect_category(delta: float, tau: float | None) -> str:
     return "increase" if delta > tau else "decrease" if delta < -tau else "within"
 
 
-_DIRECTION_FOR = {"increase": "increase", "decrease": "decrease", "within": "no_change", "no_change": "no_change"}
+_DIRECTION_FOR = {
+    "increase": "increase",
+    "decrease": "decrease",
+    "within": "within_practical_margin",
+    "no_change": "no_change",
+}
 _PRACTICAL_FOR = {
     "increase": "meaningful_increase",
     "decrease": "meaningful_decrease",
@@ -197,25 +211,42 @@ class ComparisonResult(ArtifactIdentity):
 
         check_applicability_consistency(self.applicability_status, self.applicability_checks)
         if self.reviewed_summary.output_category != expected_output_category(
-            self.applicability_status, self.sensitivity_status
+            self.applicability_status, self.sensitivity_status, complete=complete
         ):
             raise ValueError("reviewed summary must preserve sensitivity and applicability status")
-        eligible = is_conclusion_eligible(self.applicability_status, self.sensitivity_status)
+        eligible = is_conclusion_eligible(self.applicability_status, self.sensitivity_status, complete=complete)
         if self.conclusion_eligible != eligible:
             raise ValueError("conclusion eligibility must preserve missing/failed/out-of-domain distinctions")
 
         pc = self.practical_change
+        available_variants = [v for v in self.registered_variants if v.variant_id in required]
+
         if not complete:
-            if self.sensitivity_status != "unavailable" or not self.missing_evidence_reasons:
-                raise ValueError("a missing required variant forces unavailable sensitivity with a reason")
+            if not self.missing_evidence_reasons:
+                raise ValueError("a missing required variant requires a missing evidence reason")
+            if self.sensitivity_status == "stable_across_displayed_settings":
+                raise ValueError("missing required variants cannot be labelled stable")
+            # When required variants are missing, preserve any sensitivity already observed
+            # among the available variants, while keeping the overall result unavailable.
+            available_cats = {v.direction for v in available_variants}
+            observed_sensitive = len(available_cats) > 1
+            if observed_sensitive:
+                if self.sensitivity_status != "sensitive_to_assumptions":
+                    raise ValueError("available variants exhibit sensitivity; preserve sensitive_to_assumptions")
+            else:
+                if self.sensitivity_status != "unavailable":
+                    raise ValueError("without observed sensitivity among available variants, sensitivity must be unavailable")
             if pc.category != "unavailable" or self.headline_direction != "unavailable":
                 raise ValueError("missing required variants cannot publish a practical category or direction")
+            if pc.observed_signs and set(pc.observed_signs) != {v.direction for v in available_variants}:
+                raise ValueError("observed signs must match available variants' directions")
             return self
+
         if self.sensitivity_status == "unavailable":
             raise ValueError("unavailable sensitivity requires a missing required variant")
 
         # Frozen sensitivity rule: recompute from full-precision effects.
-        variants = [v for v in self.registered_variants if v.variant_id in required]
+        variants = available_variants
         tau = pc.practical_margin_tau
         cats = {effect_category(v.effect_delta, tau) for v in variants}
         stable = len(cats) == 1
@@ -240,8 +271,11 @@ class ComparisonResult(ArtifactIdentity):
             if self.headline_direction not in {"ambiguous", "unavailable"}:
                 raise ValueError("ineligible comparisons cannot publish a directional headline")
         elif stable:
-            if self.headline_direction != _DIRECTION_FOR[next(iter(cats))]:
+            expected_direction = _DIRECTION_FOR[next(iter(cats))]
+            if self.headline_direction != expected_direction:
                 raise ValueError("directional headline contradicts the registered effects")
+            if self.headline_direction == "no_change" and any(v.effect_delta != 0.0 for v in variants):
+                raise ValueError("effects within the practical margin cannot be described as no_change; use within_practical_margin and preserve observed signs separately")
         elif self.headline_direction != "ambiguous":
             raise ValueError("conflicting registered effects require an ambiguous headline")
         return self
