@@ -53,5 +53,30 @@
     "document_date_utc": "2026-11-14T19:10:00Z",
     "commit_time_utc": "2026-11-14T19:08:07Z",
     "note": "Document date is later than its commit time; both recorded as found, neither adjusted. Pre-freeze: 2020-2021 strictly ineligible in eligible_prior_years. Post-freeze inclusion needs P5's four conditions and a separate contract revision."
+  },
+  "current_phase_coverage": {
+    "source_ref": "P2 r8 verdict, origin/handoff 6201f21: handoff/verdicts/P4/P4-B-001/r8-P2.md",
+    "registered": false,
+    "decision_date": null,
+    "reference": null,
+    "active": [
+      {
+        "sensor": "MODIS_Aqua",
+        "collection_id": "MYD14A1.061",
+        "record_start": "2002-07-04",
+        "record_end": "2025-12-31"
+      },
+      {
+        "sensor": "VIIRS_SNPP",
+        "collection_id": "VNP14A1.002",
+        "record_start": "2012-01-19",
+        "record_end": "2025-12-31"
+      }
+    ],
+    "reserved_inactive": [
+      "VIIRS_NOAA20",
+      "VIIRS_NOAA21"
+    ],
+    "note": "Data scope as stated by P2 in its r8 review; held as configuration and read by the fixture builder. Not hard-coded in the schema. The S-NPP 2026 cutoff is reserved/inactive while S-NPP coverage ends before 2026-11-02."
   }
 }

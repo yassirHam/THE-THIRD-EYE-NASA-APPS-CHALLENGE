@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date, timedelta
 from pathlib import Path
 
 from .schemas.common import CONTRACT_VERSION, CacheKey
@@ -71,7 +72,17 @@ def missing(reason: str) -> dict:
     }
 
 
+def _days(start: date, end: date) -> int:
+    return (end - start).days + 1
+
+
+def _month_bounds(year: int, m: int) -> tuple[date, date]:
+    nxt = date(year + (m == 12), m % 12 + 1, 1)
+    return date(year, m, 1), nxt - timedelta(days=1)
+
+
 def month(sensor: str, year: int, m: int, d: float, o: float, **kw) -> dict:
+    first, last = _month_bounds(year, m)
     base = {
         **obs(d, o),
         "sensor": sensor,
@@ -84,8 +95,13 @@ def month(sensor: str, year: int, m: int, d: float, o: float, **kw) -> dict:
         "comparison_eligible": o > 0,
         "partial_period_reason": None,
         "included_day_count": None,
+        "days_in_period": _days(first, last),
+        "days_with_file": _days(first, last),
+        "paired_comparison_eligible": False,
     }
     base.update(kw)
+    if base["unavailable_reason"] == "source_not_available" and "days_with_file" not in kw:
+        base["days_with_file"] = 0
     return base
 
 
@@ -103,26 +119,105 @@ def week(sensor: str, year: int, n: int, start: str, end: str, d: float, o: floa
         "partial_period_reason": None,
         "comparison_eligible": o > 0,
         "included_day_count": None,
+        "days_in_period": 7,
+        "days_with_file": 7,
+        "paired_comparison_eligible": False,
     }
     base.update(kw)
+    if base["unavailable_reason"] == "source_not_available" and "days_with_file" not in kw:
+        base["days_with_file"] = 0
     return base
 
 
-def calendar() -> dict:
+def _config() -> dict:
+    return json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+
+
+def phase() -> dict:
+    """Current-phase coverage as stated by P2 (r8 review), read from config."""
+    return _config()["current_phase_coverage"]
+
+
+def sensor_coverage(snpp_end: str | None = None, snpp_scope: str | None = None) -> list[dict]:
+    ph = phase()
+    out = []
+    for entry in ph["active"]:
+        cov = {**entry, "status": "active", "scope_ref": ph["source_ref"]}
+        if entry["sensor"] == "VIIRS_SNPP" and snpp_end is not None:
+            cov.update(record_end=snpp_end, scope_ref=snpp_scope)
+        out.append(cov)
+    for sensor in ph["reserved_inactive"]:
+        out.append({"sensor": sensor, "status": "reserved_inactive", "collection_id": None,
+                    "record_start": None, "record_end": None, "scope_ref": None})
+    return out
+
+
+def annual(coverage: list[dict], sensor: str, year: int) -> dict:
+    cov = next(c for c in coverage if c["sensor"] == sensor)
+    rs, re_ = date.fromisoformat(cov["record_start"]), date.fromisoformat(cov["record_end"])
+    start, end = date(year, 1, 1), date(year, 12, 31)
+    inside = max(0, _days(max(start, rs), min(end, re_))) if max(start, rs) <= min(end, re_) else 0
+    total = _days(start, end)
+    partial = inside < total
+    reason = None
+    if partial:
+        reason = ("snpp_record_ended_2026_11_02" if sensor == "VIIRS_SNPP" and re_ >= date(2026, 11, 2)
+                  and year == 2026 else "outside_sensor_record")
+    return {"sensor": sensor, "year": year, "days_in_period": total, "days_with_file": inside,
+            "is_partial_period": partial, "partial_period_reason": reason}
+
+
+EDGE = {"is_partial_period": True, "partial_period_reason": "outside_sensor_record",
+        "comparison_eligible": False, "paired_comparison_eligible": False}
+EDGE_WEEK = {**EDGE, "critical_status": None, "unusual_status": None}
+EDGE_MONTH = {**EDGE, "unusual_status": None}
+
+
+def _baselines() -> list[dict]:
+    return [
+        {
+            "sensor": "VIIRS_SNPP", "policy_id": POLICY, "status": "available",
+            "reference_start_year": 2016, "reference_end_year": 2019,
+            "eligible_prior_years": [2016, 2017, 2018, 2019], "minimum_year_count": 3,
+            "normal_season_start_month": 6, "normal_season_end_month": 9, "peak_median_month": 7,
+        },
+        {
+            "sensor": "MODIS_Aqua", "policy_id": POLICY, "status": "insufficient_baseline",
+            "reference_start_year": 2016, "reference_end_year": 2016,
+            "eligible_prior_years": [2016], "minimum_year_count": 3,
+            "normal_season_start_month": None, "normal_season_end_month": None,
+            "peak_median_month": None,
+        },
+    ]
+
+
+def _calendar_core(coverage: list[dict], cutoff_status: str) -> dict:
+    paired = {"paired_comparison_eligible": True}
     snpp = [
-        month("VIIRS_SNPP", 2023, 6, 0, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="not_unusual"),
-        month("VIIRS_SNPP", 2023, 7, 30, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="unusual"),
+        month("VIIRS_SNPP", 2023, 6, 0, 200, baseline_median=1.0, baseline_p90=4.0,
+              unusual_status="not_unusual", **paired),
+        month("VIIRS_SNPP", 2023, 7, 30, 200, baseline_median=1.0, baseline_p90=4.0,
+              unusual_status="unusual", **paired),
         month("VIIRS_SNPP", 2023, 8, 0, 0),
         month("VIIRS_SNPP", 2023, 9, 0, 0, **missing("source_not_available")),
         month("VIIRS_SNPP", 2023, 10, 0, 0, **missing("incomplete_footprint")),
-        month(
-            "VIIRS_SNPP", 2026, 11, 2, 100,
-            is_partial_period=True, comparison_eligible=False,
-            partial_period_reason="snpp_record_ended_2026_11_02",
-            unusual_status=None,
-        ),
     ]
-    aqua = [month("MODIS_Aqua", 2023, 6, 5, 250), month("MODIS_Aqua", 2023, 7, 0, 250)]
+    aqua = [month("MODIS_Aqua", 2023, 6, 5, 250, **paired), month("MODIS_Aqua", 2023, 7, 0, 250, **paired)]
+    snpp_weeks = [
+        week("VIIRS_SNPP", 2023, 27, "2023-07-03", "2023-07-09", 10, 100,
+             critical_status="critical", unusual_status="unusual", **paired),
+        week("VIIRS_SNPP", 2023, 28, "2023-07-10", "2023-07-16", 0, 100,
+             critical_status="not_critical", unusual_status="not_unusual", **paired),
+        week("VIIRS_SNPP", 2023, 29, "2023-07-17", "2023-07-23", 0, 0),
+        week("VIIRS_SNPP", 2023, 30, "2023-07-24", "2023-07-30", 0, 0, **missing("qa_unusable")),
+    ]
+    aqua_weeks = [
+        week("MODIS_Aqua", 2023, 27, "2023-07-03", "2023-07-09", 4, 120,
+             critical_status="not_critical", unusual_status="not_unusual", **paired),
+        week("MODIS_Aqua", 2023, 28, "2023-07-10", "2023-07-16", 1, 120,
+             critical_status="not_critical", unusual_status="not_unusual", **paired),
+    ]
+    years = [("VIIRS_SNPP", y) for y in (2016, 2017, 2018, 2019)] + [("MODIS_Aqua", 2016)]
     return {
         **identity("same_sensor_calendar"),
         "region_name": "Synthetic Test Region",
@@ -134,50 +229,72 @@ def calendar() -> dict:
             {"sensor": "MODIS_Aqua", "policy_id": POLICY, "records": aqua},
         ],
         "weekly_series": [
-            {
-                "sensor": "VIIRS_SNPP",
-                "policy_id": POLICY,
-                "week_definition": "utc_iso_week",
-                "week_53_baselines": [],
-                "records": [
-                    week("VIIRS_SNPP", 2023, 27, "2023-07-03", "2023-07-09", 10, 100,
-                         critical_status="critical", unusual_status="unusual"),
-                    week("VIIRS_SNPP", 2023, 28, "2023-07-10", "2023-07-16", 0, 100,
-                         critical_status="not_critical", unusual_status="not_unusual"),
-                    week("VIIRS_SNPP", 2023, 29, "2023-07-17", "2023-07-23", 0, 0),
-                    week("VIIRS_SNPP", 2023, 30, "2023-07-24", "2023-07-30", 0, 0,
-                         **missing("qa_unusable")),
-                    week("VIIRS_SNPP", 2026, 45, "2026-11-02", "2026-11-08", 3, 100,
-                         critical_status=None, unusual_status=None,
-                         is_partial_period=True, comparison_eligible=False,
-                         partial_period_reason="snpp_record_ended_2026_11_02"),
-                ],
-            }
+            {"sensor": "VIIRS_SNPP", "policy_id": POLICY, "week_definition": "utc_iso_week",
+             "week_53_baselines": [], "records": snpp_weeks},
+            {"sensor": "MODIS_Aqua", "policy_id": POLICY, "week_definition": "utc_iso_week",
+             "week_53_baselines": [], "records": aqua_weeks},
         ],
         "sealed_window": None,
         "week_53_rule": None,
         "footprint_certification": None,
-        "seasonal_baselines": [
-            {
-                "sensor": "VIIRS_SNPP", "policy_id": POLICY, "status": "available",
-                "reference_start_year": 2016, "reference_end_year": 2019,
-                "eligible_prior_years": [2016, 2017, 2018, 2019], "minimum_year_count": 3,
-                "normal_season_start_month": 6, "normal_season_end_month": 9, "peak_median_month": 7,
-            },
-            {
-                "sensor": "MODIS_Aqua", "policy_id": POLICY, "status": "insufficient_baseline",
-                "reference_start_year": 2016, "reference_end_year": 2016,
-                "eligible_prior_years": [2016], "minimum_year_count": 3,
-                "normal_season_start_month": None, "normal_season_end_month": None,
-                "peak_median_month": None,
-            },
-        ],
+        "sensor_coverage": coverage,
+        "snpp_cutoff_status": cutoff_status,
+        "annual_coverage": [annual(coverage, s, y) for s, y in years],
+        "seasonal_baselines": _baselines(),
     }
 
 
+def calendar() -> dict:
+    """Consumer fixture for the current phase (P2 r8 scope): no data after 2025-12-31.
+
+    Includes P2's record-boundary partial periods: Aqua July 2002 and 2002-W27 (record from
+    2002-07-04), VIIRS January 2012 and 2012-W03 (record from 2012-01-19), the last ISO week
+    2026-W01 (2025-12-29..2025-12-31 only) for both sensors, and partial years 2002 and 2012.
+    """
+    coverage = sensor_coverage()
+    data = _calendar_core(coverage, "reserved_inactive")
+    data["monthly_series"][0]["records"].append(
+        month("VIIRS_SNPP", 2012, 1, 1, 90, days_with_file=13, **EDGE_MONTH))
+    data["monthly_series"][1]["records"].insert(
+        0, month("MODIS_Aqua", 2002, 7, 2, 140, days_with_file=28, **EDGE_MONTH))
+    data["weekly_series"][0]["records"] += [
+        week("VIIRS_SNPP", 2012, 3, "2012-01-16", "2012-01-22", 0, 30, days_with_file=4, **EDGE_WEEK),
+        week("VIIRS_SNPP", 2026, 1, "2025-12-29", "2026-01-04", 1, 40, days_with_file=3, **EDGE_WEEK),
+    ]
+    data["weekly_series"][1]["records"] = (
+        [week("MODIS_Aqua", 2002, 27, "2002-07-01", "2002-07-07", 0, 20, days_with_file=4, **EDGE_WEEK)]
+        + data["weekly_series"][1]["records"]
+        + [week("MODIS_Aqua", 2026, 1, "2025-12-29", "2026-01-04", 0, 35, days_with_file=3, **EDGE_WEEK)]
+    )
+    data["annual_coverage"] += [annual(coverage, "MODIS_Aqua", 2002), annual(coverage, "VIIRS_SNPP", 2012)]
+    return data
+
+
+def reserved_cutoff_calendar() -> dict:
+    """TEST-ONLY artifact exercising the reserved S-NPP cutoff path. Never written to fixtures/.
+
+    It declares a hypothetical S-NPP coverage through 2026-11-02 so the cutoff month and the
+    ISO week 2026-W45 can be validated. It does not describe data that exist in this phase.
+    """
+    coverage = sensor_coverage("2026-11-02", "synthetic-test-only: reserved S-NPP cutoff path")
+    data = _calendar_core(coverage, "active")
+    data["monthly_series"][0]["records"].append(month(
+        "VIIRS_SNPP", 2026, 11, 2, 100, days_with_file=2,
+        is_partial_period=True, comparison_eligible=False,
+        partial_period_reason="snpp_record_ended_2026_11_02", unusual_status=None))
+    data["weekly_series"][0]["records"].append(week(
+        "VIIRS_SNPP", 2026, 45, "2026-11-02", "2026-11-08", 3, 100, days_with_file=1,
+        critical_status=None, unusual_status=None, is_partial_period=True, comparison_eligible=False,
+        partial_period_reason="snpp_record_ended_2026_11_02"))
+    return data
+
+
 def sealed_boundary_calendar() -> dict:
-    """Synthetic artifact with a PROPOSED (unregistered) sealed window read from config."""
-    cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    """Synthetic artifact with a PROPOSED (unregistered) sealed window read from config.
+
+    Fabricated 2020-2021 dates appear here only to test sealed-boundary handling (P1).
+    """
+    cfg = _config()
     reason = cfg["sealed_partial_reason"]["value"]
     data = calendar()
     data["sealed_window"] = {
@@ -190,28 +307,27 @@ def sealed_boundary_calendar() -> dict:
     }
     sealed = {"is_partial_period": True, "partial_period_reason": reason, "comparison_eligible": False,
               "critical_status": None, "unusual_status": None,
-              "included_day_count": 2}  # both crossing weeks keep 2 permitted (outside-window) days
+              "included_day_count": 2, "days_with_file": 2}  # only the 2 permitted days are used
     data["weekly_series"] = [{
         "sensor": "MODIS_Aqua", "policy_id": POLICY, "week_definition": "utc_iso_week",
-        # Synthetic: 2026-W53 with prior week-53 years 2004/2009/2015 (2020 is sealed and excluded).
-        # Rule unregistered -> baseline insufficient -> no unusual label.
+        # Synthetic: 2015-W53 has only two earlier ISO week-53 years (2004, 2009); the rule is
+        # unregistered, so the baseline is insufficient and the week carries no unusual label.
         "week_53_baselines": [{
-            "target_year": 2026, "status": "insufficient_baseline",
+            "target_year": 2015, "status": "insufficient_baseline",
             "prior_observations": [
                 {"iso_year": 2004, "period_complete": True, "support_ok": True},
                 {"iso_year": 2009, "period_complete": True, "support_ok": True},
-                {"iso_year": 2015, "period_complete": True, "support_ok": True},
             ],
         }],
         "records": [
+            week("MODIS_Aqua", 2015, 53, "2015-12-28", "2016-01-03", 5, 100,
+                 critical_status="insufficient_baseline", unusual_status="insufficient_baseline"),
             week("MODIS_Aqua", 2019, 52, "2019-12-23", "2019-12-29", 5, 100,
                  critical_status="not_critical", unusual_status="not_unusual"),
             week("MODIS_Aqua", 2020, 1, "2019-12-30", "2020-01-05", 5, 100, **sealed),
             week("MODIS_Aqua", 2021, 52, "2021-12-27", "2022-01-02", 5, 100, **sealed),
             week("MODIS_Aqua", 2022, 1, "2022-01-03", "2022-01-09", 5, 100,
                  critical_status="not_critical", unusual_status="not_unusual"),
-            week("MODIS_Aqua", 2026, 53, "2026-12-28", "2027-01-03", 5, 100,
-                 critical_status="insufficient_baseline", unusual_status="insufficient_baseline"),
         ],
     }]
     return data
@@ -407,12 +523,17 @@ def evaluation(available: bool = True) -> dict:
     }
 
 
+def _phase_end(sensor: str) -> str:
+    return next(e["record_end"] for e in phase()["active"] if e["sensor"] == sensor)
+
+
 def manifest() -> dict:
     return {
         **identity("artifact_manifest"),
         "manifest_version": "synthetic-manifest-1",
         "generated_at": "2026-11-14T00:20:00Z",
         "snpp_cessation_date": "2026-11-02",
+        "snpp_cutoff_status": "reserved_inactive",  # P2 r8 item 3: no S-NPP data reach the cutoff
         "canonical_boundary": {
             "type": "Polygon",
             "coordinates": [[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0], [0.0, 0.0]]],
@@ -421,9 +542,9 @@ def manifest() -> dict:
         "grid_inclusion_rule": "cell centroid inside boundary",
         "source_collections": [
             {"collection_id": "MODIS/061/MYD14A1", "sensor": "MODIS_Aqua",
-             "source_version": "061", "record_end_date": None},
+             "source_version": "061", "record_end_date": _phase_end("MODIS_Aqua")},
             {"collection_id": "NASA/VIIRS/002/VNP14A1", "sensor": "VIIRS_SNPP",
-             "source_version": "002", "record_end_date": "2026-11-02"},
+             "source_version": "002", "record_end_date": _phase_end("VIIRS_SNPP")},
         ],
         "total_file_size_bytes": 2000, "compressed_bundle_size_bytes": 800,
         "partitions": [{

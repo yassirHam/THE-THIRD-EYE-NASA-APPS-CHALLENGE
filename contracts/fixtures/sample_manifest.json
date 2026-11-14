@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
   "period_spec": "synthetic-2023",
@@ -10,6 +10,7 @@
   "manifest_version": "synthetic-manifest-1",
   "generated_at": "2026-11-14T00:20:00Z",
   "snpp_cessation_date": "2026-11-02",
+  "snpp_cutoff_status": "reserved_inactive",
   "canonical_boundary": {
     "type": "Polygon",
     "coordinates": [
@@ -46,13 +47,13 @@
       "collection_id": "MODIS/061/MYD14A1",
       "sensor": "MODIS_Aqua",
       "source_version": "061",
-      "record_end_date": null
+      "record_end_date": "2025-12-31"
     },
     {
       "collection_id": "NASA/VIIRS/002/VNP14A1",
       "sensor": "VIIRS_SNPP",
       "source_version": "002",
-      "record_end_date": "2026-11-02"
+      "record_end_date": "2025-12-31"
     }
   ],
   "total_file_size_bytes": 2000,

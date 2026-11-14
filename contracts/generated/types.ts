@@ -1,8 +1,17 @@
 /**
  * THE THIRD EYE auto-generated TypeScript contract types.
- * Contract version 1.2.0. DO NOT EDIT.
+ * Contract version 1.3.0. DO NOT EDIT.
  * Source: contracts/schemas/*.py via `python -m contracts.generate_ts`.
  */
+
+export interface AnnualCoverage {
+  sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
+  year: number;
+  days_in_period: number;
+  days_with_file: number;
+  is_partial_period: boolean;
+  partial_period_reason: "outside_sensor_record" | "snpp_record_ended_2026_11_02" | null;
+}
 
 export interface ApplicabilityCheck {
   check_id: string;
@@ -38,7 +47,7 @@ export interface CacheKey {
 }
 
 export interface CalendarArtifact {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -56,6 +65,9 @@ export interface CalendarArtifact {
   sealed_window: SealedWindow | null;
   week_53_rule: Week53Rule | null;
   footprint_certification: FootprintCertification | null;
+  sensor_coverage: SensorCoverage[];
+  snpp_cutoff_status: "active" | "reserved_inactive";
+  annual_coverage: AnnualCoverage[];
 }
 
 export interface CalibrationFactorVariant {
@@ -68,7 +80,7 @@ export interface CalibrationFactorVariant {
 }
 
 export interface ClaimAuditRecord {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -98,7 +110,7 @@ export interface ClaimAuditRecord {
 }
 
 export interface ComparisonResult {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -120,7 +132,7 @@ export interface ComparisonResult {
 }
 
 export interface EvaluationSummary {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -138,7 +150,7 @@ export interface EvaluationSummary {
 }
 
 export interface FirmsHotspotArtifact {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -224,8 +236,11 @@ export interface MonthRecord {
   unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
   comparison_eligible: boolean;
-  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
+  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | "outside_sensor_record" | null;
   included_day_count?: number | null;
+  days_in_period: number;
+  days_with_file: number;
+  paired_comparison_eligible: boolean;
 }
 
 export interface MonthlyCalendarSeries {
@@ -257,7 +272,7 @@ export interface PracticalChange {
 }
 
 export interface ProvenanceManifest {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -268,6 +283,7 @@ export interface ProvenanceManifest {
   manifest_version: string;
   generated_at: string;
   snpp_cessation_date?: "2026-11-02";
+  snpp_cutoff_status: "active" | "reserved_inactive";
   canonical_boundary: GeoJsonPolygon;
   boundary_source: string;
   boundary_version: string;
@@ -280,7 +296,7 @@ export interface ProvenanceManifest {
 }
 
 export interface RegionSelectorArtifact {
-  contract_version?: "1.2.0";
+  contract_version?: "1.3.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -338,6 +354,15 @@ export interface SeasonalBaselineInfo {
   peak_median_month?: number | null;
 }
 
+export interface SensorCoverage {
+  sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
+  status: "active" | "reserved_inactive";
+  collection_id?: string | null;
+  record_start?: string | null;
+  record_end?: string | null;
+  scope_ref?: string | null;
+}
+
 export interface SourceCollection {
   collection_id: string;
   sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
@@ -378,9 +403,12 @@ export interface WeekRecord {
   critical_status: "critical" | "not_critical" | "insufficient_baseline" | "not_applicable" | null;
   unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
-  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
+  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | "outside_sensor_record" | null;
   comparison_eligible: boolean;
   included_day_count?: number | null;
+  days_in_period: number;
+  days_with_file: number;
+  paired_comparison_eligible: boolean;
 }
 
 export interface WeeklyCalendarSeries {

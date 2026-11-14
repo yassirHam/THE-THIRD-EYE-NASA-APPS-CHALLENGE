@@ -40,6 +40,8 @@ class ProvenanceManifest(ArtifactIdentity):
     manifest_version: str = Field(min_length=1)
     generated_at: datetime
     snpp_cessation_date: Literal["2026-11-02"] = "2026-11-02"
+    # P2 r8 item 3: inactive unless a listed S-NPP source reaches the cessation date.
+    snpp_cutoff_status: Literal["active", "reserved_inactive"]
     canonical_boundary: GeoJsonPolygon
     boundary_source: str = Field(min_length=1)
     boundary_version: str = Field(min_length=1)
@@ -54,6 +56,12 @@ class ProvenanceManifest(ArtifactIdentity):
     def validate_manifest(self) -> "ProvenanceManifest":
         if self.generated_at.tzinfo is None or self.generated_at.utcoffset() != timezone.utc.utcoffset(self.generated_at):
             raise ValueError("manifest timestamp must be UTC")
+        reaches = any(
+            c.sensor == "VIIRS_SNPP" and c.record_end_date is not None and c.record_end_date >= self.snpp_cessation_date
+            for c in self.source_collections
+        )
+        if self.snpp_cutoff_status != ("active" if reaches else "reserved_inactive"):
+            raise ValueError("snpp_cutoff_status must reflect whether listed S-NPP data reach the cessation date")
         if self.compressed_bundle_size_bytes > self.total_file_size_bytes:
             raise ValueError("compressed size cannot exceed total uncompressed size")
         for partition in self.partitions:

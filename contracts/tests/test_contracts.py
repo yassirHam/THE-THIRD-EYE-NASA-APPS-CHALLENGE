@@ -21,9 +21,15 @@ from contracts.schemas import (
 
 FIXTURES = Path(bf.FIXTURE_DIR)
 MODELS = {name: model for name, (model, _) in bf.all_fixtures().items()}
+# Test-only artifact for the reserved S-NPP cutoff path (P2 r8 item 3). It is never written to
+# contracts/fixtures, because current-phase consumer fixtures hold no data after 2025-12-31.
+CUTOFF = "reserved_cutoff_calendar"
+CAL_MODEL = MODELS["sample_calendar.json"]
 
 
 def load(name: str) -> dict:
+    if name == CUTOFF:
+        return json.loads(json.dumps(bf.reserved_cutoff_calendar()))
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
@@ -131,57 +137,57 @@ def test_practical_category_requires_preregistered_margin() -> None:
 
 
 def test_zero_support_is_null_not_zero() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     aug = cal["monthly_series"][0]["records"][2]
     assert aug["fire_activity_index"] is None and aug["availability"] == "unavailable"
     aug["fire_activity_index"] = 0.0
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_valid_zero_rate_with_positive_support_is_available() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     june = cal["monthly_series"][0]["records"][0]
     assert june["fire_activity_index"] == 0.0 and june["availability"] == "available"
     june["availability"] = "unavailable"
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_rate_must_equal_sum_ratio() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][1]["fire_activity_index"] = 1.0
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_threshold_tie_is_not_unusual() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     rec = cal["monthly_series"][0]["records"][1]  # R = 150
     rec["baseline_p90"] = rec["fire_activity_index"]
-    fails(MODELS["sample_calendar.json"], cal)  # still labelled unusual
+    fails(CAL_MODEL, cal)  # still labelled unusual
     rec["unusual_status"] = "not_unusual"
-    MODELS["sample_calendar.json"].model_validate_json(json.dumps(cal))
+    CAL_MODEL.model_validate_json(json.dumps(cal))
 
 
 def test_snpp_partial_november_and_no_extension() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     nov = cal["monthly_series"][0]["records"][5]
     assert nov["is_partial_period"] and not nov["comparison_eligible"]
     nov["comparison_eligible"] = True
-    fails(MODELS["sample_calendar.json"], cal)
-    cal = load("sample_calendar.json")
+    fails(CAL_MODEL, cal)
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][5]["month"] = 12
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_series_cannot_mix_sensors() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][0]["sensor"] = "MODIS_Aqua"
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_insufficient_baseline_publishes_no_season() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     cal["seasonal_baselines"][1]["peak_median_month"] = 7
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_raw_only_cannot_reference_evaluated_identity() -> None:
@@ -598,7 +604,7 @@ def test_claim_audit_applicability_needs_matching_check() -> None:
 
 @pytest.mark.parametrize("idx,reason", [(3, "source_not_available"), (4, "incomplete_footprint")])
 def test_missing_source_or_footprint_keeps_null_d_o(idx: int, reason: str) -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     rec = cal["monthly_series"][0]["records"][idx]
     assert rec["unavailable_reason"] == reason
     assert rec["detected_fire_cell_days"] is None and rec["usable_land_cell_days"] is None
@@ -606,38 +612,38 @@ def test_missing_source_or_footprint_keeps_null_d_o(idx: int, reason: str) -> No
     # Zero-filling missing data is rejected.
     rec["detected_fire_cell_days"] = 0.0
     rec["usable_land_cell_days"] = 0.0
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_missing_data_cannot_be_labelled_zero_support() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][3]["unavailable_reason"] = "zero_usable_support"
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_observed_zero_support_cannot_be_labelled_missing_source() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     rec = cal["monthly_series"][0]["records"][2]
     assert rec["unavailable_reason"] == "zero_usable_support"
     rec["unavailable_reason"] = "source_not_available"
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_unavailable_requires_reason_and_weekly_missing_is_null() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     wk = cal["weekly_series"][0]["records"][3]
     assert wk["unavailable_reason"] == "qa_unusable" and wk["usable_land_cell_days"] is None
     wk["unavailable_reason"] = None
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_available_requires_real_values_and_unavailable_not_eligible() -> None:
-    cal = load("sample_calendar.json")
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][0]["usable_land_cell_days"] = None
-    fails(MODELS["sample_calendar.json"], cal)
-    cal = load("sample_calendar.json")
+    fails(CAL_MODEL, cal)
+    cal = load(CUTOFF)
     cal["monthly_series"][0]["records"][3]["comparison_eligible"] = True
-    fails(MODELS["sample_calendar.json"], cal)
+    fails(CAL_MODEL, cal)
 
 
 # ---- Fix 4: five-field cache key ------------------------------------------------------
@@ -696,7 +702,7 @@ def test_manifest_partition_cache_key_must_match_identity() -> None:
 
 # ---- Round 4 (P1 review): S-NPP cutoff enforced by period boundaries ------------------
 
-CAL = "sample_calendar.json"
+CAL = CUTOFF  # behavioural calendar tests run on the test-only cutoff artifact
 NOV = 5  # index of the partial November 2026 month in the fixture
 PARTIAL_WEEK = 4  # index of the 2026-11-02..2026-11-08 S-NPP week 45 in the fixture
 
@@ -728,21 +734,21 @@ def test_partial_month_rejects_every_normal_or_unusual_label(label: str) -> None
     rec["unusual_status"] = label
     if label != "insufficient_baseline":
         rec["baseline_median"], rec["baseline_p90"] = 1.0, 4.0
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 @pytest.mark.parametrize("field", ["baseline_median", "baseline_p90"])
 def test_partial_month_rejects_baseline_thresholds(field: str) -> None:
     cal = load(CAL)
     nov_month(cal)[field] = 1.0
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_partial_month_cannot_be_comparison_eligible_or_unflagged() -> None:
     for field, value in (("comparison_eligible", True), ("is_partial_period", False)):
         cal = load(CAL)
         nov_month(cal)[field] = value
-        fails(MODELS[CAL], cal)
+        fails(CAL_MODEL, cal)
 
 
 def test_complete_snpp_month_before_cutoff_still_labelled_normally() -> None:
@@ -755,7 +761,7 @@ def test_complete_snpp_month_before_cutoff_still_labelled_normally() -> None:
         "unavailable_reason": None, "comparison_eligible": True,
         "baseline_median": 1.0, "baseline_p90": 4.0, "unusual_status": "unusual",
     }
-    MODELS[CAL].model_validate_json(json.dumps(cal))
+    CAL_MODEL.model_validate_json(json.dumps(cal))
 
 
 def test_partial_week_fixture_is_ineligible_and_unlabelled() -> None:
@@ -769,14 +775,14 @@ def test_snpp_week_straddling_cutoff_cannot_be_eligible_with_available_rate() ->
     wk = partial_week(cal)
     # Available rate + comparison_eligible=True must be rejected for partial week.
     wk["availability"], wk["comparison_eligible"] = "available", True
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_snpp_week_straddling_cutoff_rejects_unflagged_or_unreasoned() -> None:
     for field, value in (("is_partial_period", False), ("partial_period_reason", None)):
         cal = load(CAL)
         partial_week(cal)[field] = value
-        fails(MODELS[CAL], cal)
+        fails(CAL_MODEL, cal)
 
 
 @pytest.mark.parametrize(
@@ -793,7 +799,7 @@ def test_snpp_week_straddling_cutoff_rejects_unflagged_or_unreasoned() -> None:
 def test_snpp_week_straddling_cutoff_rejects_labels(field: str, label: str) -> None:
     cal = load(CAL)
     partial_week(cal)[field] = label
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_snpp_week_ending_day_before_cutoff_is_complete_and_eligible() -> None:
@@ -802,10 +808,10 @@ def test_snpp_week_ending_day_before_cutoff_is_complete_and_eligible() -> None:
     wk.update(
         year=2026, week_number=44,
         start_date="2026-10-26", end_date="2026-11-01", is_partial_period=False,
-        partial_period_reason=None, comparison_eligible=True,
+        partial_period_reason=None, comparison_eligible=True, days_with_file=7,
         critical_status="not_critical", unusual_status="not_unusual",
     )
-    MODELS[CAL].model_validate_json(json.dumps(cal))
+    CAL_MODEL.model_validate_json(json.dumps(cal))
 
 
 def test_snpp_week_past_cutoff_still_rejected() -> None:
@@ -813,7 +819,7 @@ def test_snpp_week_past_cutoff_still_rejected() -> None:
     wk = partial_week(cal)
     # Week starting after cessation (Nov 9..15) is after_record
     wk.update(year=2026, week_number=46, start_date="2026-11-09", end_date="2026-11-15")
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_weekly_series_rejects_non_monday_start_for_iso_week() -> None:
@@ -822,14 +828,14 @@ def test_weekly_series_rejects_non_monday_start_for_iso_week() -> None:
     cal["weekly_series"][0]["records"][0].update(
         start_date="2023-07-04", end_date="2023-07-10"
     )
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_weekly_series_rejects_mismatched_iso_week_number() -> None:
     cal = load(CAL)
     # 2023-07-03 is ISO week 27, cannot claim week 28
     cal["weekly_series"][0]["records"][0]["week_number"] = 28
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_weekly_series_fixed_7_day_bins_validation() -> None:
@@ -843,12 +849,15 @@ def test_weekly_series_fixed_7_day_bins_validation() -> None:
             "week_number": 1,
             "start_date": "2023-01-01",
             "end_date": "2023-01-07",
+            "paired_comparison_eligible": False,  # no fixed-bin Aqua twin in this artifact
         }
     ]
-    MODELS[CAL].model_validate_json(json.dumps(cal))
+    for r in cal["weekly_series"][1]["records"]:  # their ISO-week VIIRS twins were replaced
+        r["paired_comparison_eligible"] = False
+    CAL_MODEL.model_validate_json(json.dumps(cal))
     # Bin 1 with wrong start date fails
     cal["weekly_series"][0]["records"][0]["start_date"] = "2023-01-02"
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_partial_period_fixtures_carry_explicit_json_nulls() -> None:
@@ -869,7 +878,7 @@ def test_partial_period_fixtures_carry_explicit_json_nulls() -> None:
 def test_partial_month_requires_null_not_any_label_or_sentinel(label: str) -> None:
     cal = load(CAL)
     nov_month(cal)["unusual_status"] = label
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 @pytest.mark.parametrize(
@@ -888,50 +897,50 @@ def test_partial_month_requires_null_not_any_label_or_sentinel(label: str) -> No
 def test_partial_week_requires_null_not_any_label_or_sentinel(field: str, label: str) -> None:
     cal = load(CAL)
     partial_week(cal)[field] = label
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_partial_month_requires_label_key_to_be_present() -> None:
     cal = load(CAL)
     del nov_month(cal)["unusual_status"]  # omitted is not the same as an explicit null
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 @pytest.mark.parametrize("key", ["critical_status", "unusual_status"])
 def test_partial_week_requires_label_keys_to_be_present(key: str) -> None:
     cal = load(CAL)
     del partial_week(cal)[key]
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_label_keys_are_required_on_complete_periods_too() -> None:
     cal = load(CAL)
     del cal["monthly_series"][0]["records"][0]["unusual_status"]
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
     cal = load(CAL)
     del cal["weekly_series"][0]["records"][0]["critical_status"]
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_partial_periods_with_explicit_null_labels_stay_comparison_ineligible() -> None:
     for locate, rec_name in ((nov_month, "month"), (partial_week, "week")):
         cal = load(CAL)
         locate(cal)["comparison_eligible"] = True  # labels are valid nulls; eligibility must still fail
-        fails(MODELS[CAL], cal)
+        fails(CAL_MODEL, cal)
         cal = load(CAL)
         locate(cal)["is_partial_period"] = False
-        fails(MODELS[CAL], cal)
+        fails(CAL_MODEL, cal)
 
 
 def test_partial_period_with_null_labels_validates() -> None:
-    MODELS[CAL].model_validate_json((FIXTURES / CAL).read_text(encoding="utf-8"))
+    CAL_MODEL.model_validate_json(json.dumps(load(CAL)))
 
 
 def test_partial_month_rejects_baseline_thresholds_even_with_null_label() -> None:
     for field in ("baseline_median", "baseline_p90"):
         cal = load(CAL)
         nov_month(cal)[field] = 1.0
-        fails(MODELS[CAL], cal)
+        fails(CAL_MODEL, cal)
 
 
 def test_available_aggregate_never_implies_whole_footprint_completeness() -> None:
@@ -958,26 +967,28 @@ def test_available_aggregate_never_implies_whole_footprint_completeness() -> Non
     cal = load(CAL)
     rec = cal["monthly_series"][0]["records"][0]
     rec["unavailable_reason"] = "incomplete_footprint"  # available + incomplete footprint
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
     rec.update(availability="unavailable", comparison_eligible=False, unusual_status=None,
                detected_fire_cell_days=None, usable_land_cell_days=None, fire_activity_index=None,
-               baseline_median=None, baseline_p90=None)
-    MODELS[CAL].model_validate_json(json.dumps(cal))
+               baseline_median=None, baseline_p90=None, paired_comparison_eligible=False)
+    fails(CAL_MODEL, cal)  # the Aqua twin still claims a pair that no longer exists
+    cal["monthly_series"][1]["records"][0]["paired_comparison_eligible"] = False
+    CAL_MODEL.model_validate_json(json.dumps(cal))
 
 
 def test_complete_period_rejects_null_or_not_applicable() -> None:
     cal = load(CAL)
     rec = cal["monthly_series"][0]["records"][0]
     rec["unusual_status"] = None
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
     rec["unusual_status"] = "not_applicable"
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
     wk = cal["weekly_series"][0]["records"][0]
     wk["critical_status"] = None
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
     wk["critical_status"] = "not_applicable"
-    fails(MODELS[CAL], cal)
+    fails(CAL_MODEL, cal)
 
 
 def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
@@ -987,6 +998,7 @@ def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
         sensor="MODIS_Aqua", availability="unavailable",
         unavailable_reason="source_not_available", comparison_eligible=False,
         year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8),
+        days_in_period=7, days_with_file=0, paired_comparison_eligible=False,
     )
     # Decisions and partial-sentinel are strictly forbidden when observation is unavailable
     for status_field, decision in [
@@ -1014,6 +1026,7 @@ def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:
     common = dict(
         sensor="MODIS_Aqua", availability="unavailable", unavailable_reason="source_not_available",
         comparison_eligible=False, critical_status="insufficient_baseline", unusual_status="insufficient_baseline",
+        days_in_period=7, days_with_file=0, paired_comparison_eligible=False,
     )
     # Overlapping dates in same series rejected
     a = WeekRecord(year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8), **common)
@@ -1028,16 +1041,20 @@ def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:
 
 
 def test_non_snpp_sensor_week_on_same_dates_is_not_partial() -> None:
-    cal = load(CAL)
-    wk = partial_week(cal)
-    wk.update(sensor="MODIS_Aqua")
-    fails(MODELS[CAL], cal)  # partial flags are invalid without the S-NPP cutoff
+    from contracts.schemas.calendar import WeeklyCalendarSeries
+
+    wk = {**partial_week(load(CAL)), "sensor": "MODIS_Aqua"}
+    series = {"sensor": "MODIS_Aqua", "policy_id": "p", "week_definition": "utc_iso_week",
+              "week_53_baselines": [], "records": [wk]}
+    with pytest.raises(ValidationError):  # partial flags are invalid without the S-NPP cutoff
+        WeeklyCalendarSeries.model_validate_json(json.dumps(series))
     wk.update(is_partial_period=False, partial_period_reason=None, comparison_eligible=True,
-              critical_status="not_critical", unusual_status="not_unusual")
-    cal["weekly_series"][0]["sensor"] = "MODIS_Aqua"
-    for r in cal["weekly_series"][0]["records"]:
-        r["sensor"] = "MODIS_Aqua"
-    MODELS[CAL].model_validate_json(json.dumps(cal))
+              days_with_file=7, critical_status="not_critical", unusual_status="not_unusual")
+    WeeklyCalendarSeries.model_validate_json(json.dumps(series))
+    # In an artifact, an Aqua week in 2026 lies outside the declared current-phase Aqua record.
+    cal = load(CAL)
+    cal["weekly_series"][1]["records"].append(wk)
+    fails(CAL_MODEL, cal)
 
 
 def test_cutoff_boundary_helper_uses_period_boundaries() -> None:
