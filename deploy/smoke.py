@@ -73,6 +73,12 @@ def smoke(site: Path) -> dict:
             if e.get("gzip_path"):
                 gz, _ = _get(f"{base}/bundle/{e['gzip_path']}")
                 total_gz += len(gz)
+        for m in index.get("replay_manifests", []):
+            body, _ = _get(f"{base}/bundle/{m['path']}")
+            if hashlib.sha256(body).hexdigest() != m["sha256"]:
+                problems.append(f"{m['path']}: served replay manifest differs from the index")
+        if index.get("replay_manifests_missing"):
+            problems.append(f"{len(index['replay_manifests_missing'])} bundle file(s) have no replay manifest")
         timings["all_bundle_files"] = time.perf_counter() - t_all
         if index["size_report"]["total_gzip_bytes"] != total_gz:
             problems.append("served gzip total differs from the size report")
