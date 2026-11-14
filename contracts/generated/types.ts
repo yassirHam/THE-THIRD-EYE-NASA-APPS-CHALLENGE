@@ -179,9 +179,10 @@ export interface FirmsHotspotPoint {
 
 export interface FootprintCertification {
   geometry_id: string;
-  status: "certified_complete" | "not_certified";
+  status: "complete" | "partial" | "unverified";
   certification_ref?: string | null;
   certified_at?: string | null;
+  coverage_fraction?: number | null;
 }
 
 export interface GeoJsonPolygon {
@@ -224,6 +225,7 @@ export interface MonthRecord {
   is_partial_period?: boolean;
   comparison_eligible: boolean;
   partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
+  included_day_count?: number | null;
 }
 
 export interface MonthlyCalendarSeries {
@@ -343,6 +345,18 @@ export interface SourceCollection {
   record_end_date?: string | null;
 }
 
+export interface Week53Baseline {
+  target_year: number;
+  status: "available" | "insufficient_baseline";
+  prior_observations: Week53PriorObservation[];
+}
+
+export interface Week53PriorObservation {
+  iso_year: number;
+  period_complete: boolean;
+  support_ok: boolean;
+}
+
 export interface Week53Rule {
   registration_status: "registered" | "proposed_unregistered";
   minimum_year_count?: number | null;
@@ -366,6 +380,7 @@ export interface WeekRecord {
   is_partial_period?: boolean;
   partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
   comparison_eligible: boolean;
+  included_day_count?: number | null;
 }
 
 export interface WeeklyCalendarSeries {
@@ -373,4 +388,5 @@ export interface WeeklyCalendarSeries {
   policy_id: string;
   week_definition: "utc_iso_week" | "fixed_7_day_bins";
   records: WeekRecord[];
+  week_53_baselines: Week53Baseline[];
 }

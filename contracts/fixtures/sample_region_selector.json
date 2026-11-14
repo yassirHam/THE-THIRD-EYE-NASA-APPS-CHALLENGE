@@ -2,7 +2,7 @@
   "contract_version": "1.2.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
-  "period_spec": "synthetic-2020-2021",
+  "period_spec": "synthetic-2023",
   "method_id": "region_selector",
   "policy_id": "own_support_eligible",
   "data_classification": "synthetic_dev_fixture",
@@ -21,7 +21,7 @@
       "unavailable_reason": null,
       "evaluated_method_id": "stage_a_finite_factors",
       "evaluated_policy_id": "own_support_eligible",
-      "evaluated_period_spec": "synthetic-2020-2021"
+      "evaluated_period_spec": "synthetic-2023"
     },
     {
       "geometry_id": "geo-synthetic-sub-a",

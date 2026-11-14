@@ -75,6 +75,20 @@ def sealed_window_period_status(
     return "partial"
 
 
+def has_iso_week_53(iso_year: int) -> bool:
+    # Dec 28 always falls in the last ISO week of its ISO year.
+    return date(iso_year, 12, 28).isocalendar()[1] == 53
+
+
+def days_outside_window(start: date, end_inclusive: date, window_start: date, window_end: date) -> int:
+    """Number of UTC days of [start, end_inclusive] that lie outside the sealed window (dates only)."""
+    total = (end_inclusive - start).days + 1
+    overlap_start = max(start, window_start)
+    overlap_end = min(end_inclusive, window_end)
+    inside = max(0, (overlap_end - overlap_start).days + 1)
+    return total - inside
+
+
 class SealedWindow(StrictContractModel):
     """Sealed evaluation window declared by the artifact, with its registration state."""
 
@@ -126,25 +140,33 @@ class Week53Rule(StrictContractModel):
 
 
 class FootprintCertification(StrictContractModel):
-    """Whole-footprint completeness, certified by P2's documentation (PROPOSED shape).
+    """Footprint coverage for this artifact's geometry (PROPOSED shape, pending P2 Q3).
 
-    Completeness is never inferred from availability == "available". Pending P2's Q3
-    coverage rules; the field set below may change when those rules are frozen.
+    - complete: P2 documented that the whole registered footprint is covered.
+    - partial: P2 documented coverage of only a fraction of the footprint.
+    - unverified: no P2 certification exists.
+    Completeness is never inferred from availability == "available".
     """
 
     geometry_id: str = Field(min_length=1)
-    status: Literal["certified_complete", "not_certified"]
+    status: Literal["complete", "partial", "unverified"]
     certification_ref: str | None = None
     certified_at: datetime | None = None
+    coverage_fraction: float | None = Field(default=None, gt=0.0, lt=1.0)
 
     @model_validator(mode="after")
     def validate_certification(self) -> "FootprintCertification":
         _utc_aware(self.certified_at, "certified_at")
-        if self.status == "certified_complete":
-            if not self.certification_ref or self.certified_at is None:
-                raise ValueError("a footprint certification requires a documented reference and UTC timestamp")
+        documented = bool(self.certification_ref) and self.certified_at is not None
+        if self.status in ("complete", "partial"):
+            if not documented:
+                raise ValueError(f"a {self.status} footprint requires P2's documented reference and UTC timestamp")
         elif self.certification_ref is not None or self.certified_at is not None:
-            raise ValueError("a not_certified footprint cannot carry a reference or timestamp")
+            raise ValueError("an unverified footprint cannot carry a certification reference or timestamp")
+        if self.status == "partial" and self.coverage_fraction is None:
+            raise ValueError("a partial footprint requires its documented coverage fraction")
+        if self.status != "partial" and self.coverage_fraction is not None:
+            raise ValueError("only a partial footprint carries a coverage fraction")
         return self
 
 
@@ -206,6 +228,8 @@ class MonthRecord(ObservationRecord):
     is_partial_period: bool = False
     comparison_eligible: bool
     partial_period_reason: PartialReason | None = None
+    # Sealed-boundary partials only: number of permitted (outside-window) UTC days used.
+    included_day_count: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def validate_month_labels(self) -> "MonthRecord":
@@ -273,6 +297,8 @@ class WeekRecord(ObservationRecord):
     is_partial_period: bool = False
     partial_period_reason: PartialReason | None = None
     comparison_eligible: bool
+    # Sealed-boundary partials only: number of permitted (outside-window) UTC days used.
+    included_day_count: int | None = Field(default=None, ge=1, le=6)
 
     @model_validator(mode="after")
     def validate_week(self) -> "WeekRecord":
@@ -361,11 +387,46 @@ class MonthlyCalendarSeries(StrictContractModel):
         return self
 
 
+class Week53PriorObservation(StrictContractModel):
+    """One prior ISO week-53 observation offered to a week-53 baseline (same series)."""
+
+    iso_year: int = Field(ge=2000, le=2100)
+    period_complete: bool
+    support_ok: bool
+
+
+class Week53Baseline(StrictContractModel):
+    """Baseline for a target ISO week 53. Lives inside one series, so same sensor and policy."""
+
+    target_year: int = Field(ge=2000, le=2100)
+    status: Literal["available", "insufficient_baseline"]
+    prior_observations: list[Week53PriorObservation]
+
+    @model_validator(mode="after")
+    def validate_baseline(self) -> "Week53Baseline":
+        if not has_iso_week_53(self.target_year):
+            raise ValueError(f"{self.target_year} has no ISO week 53")
+        years = [p.iso_year for p in self.prior_observations]
+        if len(years) != len(set(years)):
+            raise ValueError("prior week-53 years must be unique")
+        for year in years:
+            if year >= self.target_year:
+                raise ValueError("prior week-53 observations must precede the target year")
+            if not has_iso_week_53(year):
+                raise ValueError(f"{year} has no ISO week 53 and cannot be a prior week-53 observation")
+        return self
+
+    def eligible_count(self) -> int:
+        return sum(1 for p in self.prior_observations if p.period_complete and p.support_ok)
+
+
 class WeeklyCalendarSeries(StrictContractModel):
     sensor: SensorType
     policy_id: str = Field(min_length=1)
     week_definition: WeekDefinition
     records: list[WeekRecord] = Field(min_length=1)
+    # Required key; may be empty. One entry per target ISO week 53 in this series.
+    week_53_baselines: list[Week53Baseline]
 
     @model_validator(mode="after")
     def enforce_same_sensor_weeks(self) -> "WeeklyCalendarSeries":
@@ -443,15 +504,19 @@ class CalendarArtifact(ArtifactIdentity):
             # Exclusion is only enforceable against a declared window, so production must declare one.
             if window is None or window.registration_status != "registered":
                 raise ValueError("production artifacts require a declared, registered sealed window")
-        periods: list[tuple[str, date, date, str | None]] = []
+        periods: list[tuple[str, date, date, str | None, int | None]] = []
         for m_series in self.monthly_series:
             for m in m_series.records:
                 first, last = month_bounds(m.year, m.month)
-                periods.append((f"{m.year}-{m.month:02d} month", first, last, m.partial_period_reason))
+                periods.append((f"{m.year}-{m.month:02d} month", first, last, m.partial_period_reason,
+                                m.included_day_count))
         for w_series in self.weekly_series:
             for w in w_series.records:
-                periods.append((f"{w.year}-W{w.week_number} week", w.start_date, w.end_date, w.partial_period_reason))
-        for label, start, end, reason in periods:
+                periods.append((f"{w.year}-W{w.week_number} week", w.start_date, w.end_date,
+                                w.partial_period_reason, w.included_day_count))
+        for label, start, end, reason, included in periods:
+            if reason != SEALED_BOUNDARY_REASON and included is not None:
+                raise ValueError(f"{label}: included_day_count is only valid on sealed-boundary partials")
             if window is None:
                 if reason == SEALED_BOUNDARY_REASON:
                     raise ValueError(f"{label}: sealed-boundary partial without a declared sealed window")
@@ -461,6 +526,13 @@ class CalendarArtifact(ArtifactIdentity):
                 raise ValueError(f"{label}: period straddles the sealed window and must be sealed-boundary partial")
             if status != "partial" and reason == SEALED_BOUNDARY_REASON:
                 raise ValueError(f"{label}: sealed-boundary reason on a period that does not straddle the window")
+            if status == "partial":
+                permitted = days_outside_window(start, end, window.start, window.end)
+                if included != permitted:
+                    raise ValueError(
+                        f"{label}: sealed-boundary partial must use only its {permitted} permitted day(s); "
+                        f"included_day_count={included}"
+                    )
 
         # Sealed years never feed later baselines.
         if window is not None:
@@ -469,16 +541,40 @@ class CalendarArtifact(ArtifactIdentity):
                     if sealed_window_period_status(date(year, 1, 1), date(year, 12, 31), window.start, window.end) != "outside":
                         raise ValueError(f"baseline year {year} overlaps the sealed window and cannot be a prior year")
 
-        # ISO week 53 carries no baseline decision until its minimum is registered.
-        week_53_registered = self.week_53_rule is not None and self.week_53_rule.registration_status == "registered"
+        # ISO week 53: decisions need a registered rule and enough complete, supported,
+        # eligible prior week-53 observations from the same series (same sensor and policy).
+        rule = self.week_53_rule
+        rule_registered = rule is not None and rule.registration_status == "registered"
+        minimum = rule.minimum_year_count if rule_registered else None
         decisions = {"critical", "not_critical", "unusual", "not_unusual"}
         for w_series in self.weekly_series:
+            by_target: dict[int, Week53Baseline] = {}
+            for baseline in w_series.week_53_baselines:
+                if baseline.target_year in by_target:
+                    raise ValueError(f"duplicate week-53 baseline for {baseline.target_year}")
+                by_target[baseline.target_year] = baseline
+                for prior in baseline.prior_observations:
+                    if window is not None and sealed_window_period_status(
+                        date(prior.iso_year, 12, 28), date(prior.iso_year, 12, 28), window.start, window.end
+                    ) != "outside":
+                        raise ValueError(f"prior week-53 year {prior.iso_year} lies in the sealed window")
+                sufficient = minimum is not None and baseline.eligible_count() >= minimum
+                if (baseline.status == "available") != sufficient:
+                    raise ValueError(
+                        f"{baseline.target_year}-W53 baseline status must be available only with a registered "
+                        f"rule and at least the registered minimum of complete, supported prior observations"
+                    )
             for w in w_series.records:
-                if w.week_number == 53 and not week_53_registered:
+                if w.week_number != 53:
+                    continue
+                baseline = by_target.get(w.year)
+                usable = baseline is not None and baseline.status == "available"
+                if not usable:
                     if w.critical_status in decisions or w.unusual_status in decisions:
-                        raise ValueError(
-                            f"{w.year}-W53: no baseline decision before the week-53 minimum is registered"
-                        )
+                        raise ValueError(f"{w.year}-W53: no unusual or critical label without an available week-53 baseline")
+                    if w.availability == "available" and not w.is_partial_period:
+                        if w.unusual_status != "insufficient_baseline":
+                            raise ValueError(f"{w.year}-W53: insufficient week-53 baseline must be labelled insufficient_baseline")
 
         # Whole-footprint completeness is conditional on documented certification.
         cert = self.footprint_certification
@@ -488,9 +584,9 @@ class CalendarArtifact(ArtifactIdentity):
             r.comparison_eligible for s in self.weekly_series for r in s.records
         )
         if any_eligible:
-            if cert is not None and cert.status == "not_certified":
-                raise ValueError("a not-certified footprint cannot support comparison-eligible periods")
-            if self.data_classification == "production" and (cert is None or cert.status != "certified_complete"):
-                raise ValueError("production comparison-eligible periods require a certified-complete footprint")
+            if cert is not None and cert.status != "complete":
+                raise ValueError(f"a {cert.status} footprint cannot support comparison-eligible whole-area periods")
+            if self.data_classification == "production" and (cert is None or cert.status != "complete"):
+                raise ValueError("production comparison-eligible periods require a P2-certified complete footprint")
         return self
 

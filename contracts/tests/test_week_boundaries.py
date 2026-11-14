@@ -21,6 +21,9 @@ from pydantic import ValidationError
 from contracts.schemas import calendar as calendar_module
 from contracts.schemas.calendar import (
     CalendarArtifact,
+    Week53Baseline,
+    days_outside_window,
+    has_iso_week_53,
     FootprintCertification,
     SealedWindow,
     Week53Rule,
@@ -50,12 +53,13 @@ def week(sensor, start, end, year, number, *, partial_reason=None, d=5.0, o=100.
         "unusual_status": None if partial else "not_unusual",
         "is_partial_period": partial, "partial_period_reason": partial_reason,
         "comparison_eligible": (not partial) if eligible is None else eligible,
+        "included_day_count": None,
     }
 
 
 def series(sensor: str, *records: dict, definition: str = "utc_iso_week") -> dict:
     return {"sensor": sensor, "policy_id": "own_support_eligible", "week_definition": definition,
-            "records": list(records)}
+            "week_53_baselines": [], "records": list(records)}
 
 
 def series_ok(data: dict) -> bool:
@@ -230,6 +234,9 @@ def test_crossing_rule_applies_to_every_sensor(sensor: str) -> None:
     data = sealed_artifact()
     s = data["weekly_series"][0]
     s["sensor"] = sensor
+    if sensor == "VIIRS_SNPP":  # S-NPP has no record after 2026-11-02; drop the synthetic 2026-W53 case
+        s["records"] = [r for r in s["records"] if r["year"] != 2026]
+        s["week_53_baselines"] = []
     for r in s["records"]:
         r["sensor"] = sensor
     assert artifact_ok(data)
@@ -257,22 +264,23 @@ def test_sealed_reason_requires_a_declared_window() -> None:
 def test_crossing_months_are_sealed_partial_too() -> None:
     data = plain_artifact()
     data["sealed_window"] = sealed_artifact()["sealed_window"]
-    data["sealed_window"].update(start="2020-06-15", end="2020-07-15")  # synthetic window inside fixture months
-    assert not artifact_ok(data)  # June and July 2020 straddle it and are not marked
-    for rec in data["monthly_series"][0]["records"]:
-        if (rec["year"], rec["month"]) in {(2020, 6), (2020, 7)}:
-            rec.update(is_partial_period=True, partial_period_reason=SEALED_REASON, comparison_eligible=False,
-                       unusual_status=None, baseline_median=None, baseline_p90=None)
-    for rec in data["monthly_series"][1]["records"]:
-        if (rec["year"], rec["month"]) in {(2020, 6), (2020, 7)}:
-            rec.update(is_partial_period=True, partial_period_reason=SEALED_REASON, comparison_eligible=False,
-                       unusual_status=None)
+    data["sealed_window"].update(start="2023-06-15", end="2023-07-12")  # synthetic window, not the sealed dates
+    assert not artifact_ok(data)  # June and July 2023 straddle it and are not marked
+    permitted = {(2023, 6): 14, (2023, 7): 19}  # June 1-14 and July 13-31 lie outside Jun 15 - Jul 12
+    for series_idx in (0, 1):
+        for rec in data["monthly_series"][series_idx]["records"]:
+            key = (rec["year"], rec["month"])
+            if key in permitted:
+                rec.update(is_partial_period=True, partial_period_reason=SEALED_REASON, comparison_eligible=False,
+                           unusual_status=None, included_day_count=permitted[key])
+                if series_idx == 0:
+                    rec.update(baseline_median=None, baseline_p90=None)
     data["seasonal_baselines"][0]["eligible_prior_years"] = [2016, 2017, 2018, 2019]
-    assert not artifact_ok(data)  # 2020-W29 (Jul 13-19) also straddles Jul 15 and is not yet marked
+    assert not artifact_ok(data)  # 2023-W28 (Jul 10-16) also straddles Jul 12 and is not yet marked
     for rec in data["weekly_series"][0]["records"]:
-        if (rec["year"], rec["week_number"]) == (2020, 29):
+        if (rec["year"], rec["week_number"]) == (2023, 28):
             rec.update(is_partial_period=True, partial_period_reason=SEALED_REASON, comparison_eligible=False,
-                       critical_status=None, unusual_status=None)
+                       critical_status=None, unusual_status=None, included_day_count=4)  # Jul 13-16
     assert artifact_ok(data)
 
 
@@ -305,68 +313,147 @@ def test_years_outside_the_window_remain_valid_baseline_years() -> None:
     assert artifact_ok(data)
 
 
-# ---------------------------------------------------------------------- week-53 minimum
+# ---------------------------------------------------------------------- week-53 rule
+# Agreed rule: three complete, supported, eligible prior week-53 observations from the same
+# sensor and policy; otherwise insufficient_baseline and no unusual label. The minimum is
+# configuration; fixtures keep the rule unregistered. Tests register a synthetic rule only
+# to exercise the mechanism; "synthetic-test-only" is not a real decision reference.
+
+W53_START, W53_END = date(2026, 12, 28), date(2027, 1, 3)
+SYNTHETIC_RULE = {"registration_status": "registered", "minimum_year_count": CONFIG["week_53_minimum"]["value"],
+                  "registration_ref": "synthetic-test-only", "decision_at": "2026-11-15T00:00:00Z"}
 
 
-W53 = (date(2026, 12, 28), date(2027, 1, 3))
+def w53_series(data: dict) -> dict:
+    return data["weekly_series"][0]
 
 
-def with_week_53(data: dict, critical: str | None, unusual: str | None) -> dict:
-    rec = week("MODIS_Aqua", W53[0], W53[1], 2026, 53)
-    rec.update(critical_status=critical, unusual_status=unusual)
-    data["weekly_series"][0]["records"].append(rec)
+def w53_record(data: dict) -> dict:
+    return next(r for r in w53_series(data)["records"] if r["week_number"] == 53)
+
+
+def w53_baseline(data: dict) -> dict:
+    return w53_series(data)["week_53_baselines"][0]
+
+
+def registered(data: dict, status: str = "available", unusual: str = "not_unusual",
+               critical: str = "not_critical") -> dict:
+    data["week_53_rule"] = dict(SYNTHETIC_RULE)
+    w53_baseline(data)["status"] = status
+    w53_record(data).update(unusual_status=unusual, critical_status=critical)
     return data
 
 
-@pytest.mark.parametrize("critical,unusual", [("not_critical", "not_unusual"), ("critical", "insufficient_baseline"),
-                                              ("insufficient_baseline", "unusual")])
-def test_week_53_cannot_carry_a_decision_while_minimum_is_unregistered(critical, unusual) -> None:
-    assert not artifact_ok(with_week_53(sealed_artifact(), critical, unusual))
+def test_agreed_minimum_is_three_in_config_and_not_registered() -> None:
+    entry = CONFIG["week_53_minimum"]
+    assert entry["value"] == 3 and entry["registered"] is False
+    assert entry["decision_date"] is None and entry["reference"] is None
 
 
-def test_week_53_with_non_decision_labels_is_valid_while_unregistered() -> None:
-    assert artifact_ok(with_week_53(sealed_artifact(), "insufficient_baseline", "insufficient_baseline"))
+def test_iso_53_week_years_used_by_the_synthetic_cases() -> None:
+    assert [y for y in range(2000, 2031) if has_iso_week_53(y)] == [2004, 2009, 2015, 2020, 2026]
 
 
-def test_week_53_rule_null_also_blocks_decisions() -> None:
+def test_fixture_week_53_is_insufficient_while_rule_unregistered() -> None:
     data = sealed_artifact()
-    data["week_53_rule"] = None
-    assert not artifact_ok(with_week_53(data, "not_critical", "not_unusual"))
+    assert w53_baseline(data)["status"] == "insufficient_baseline"
+    assert w53_record(data)["unusual_status"] == "insufficient_baseline"
+    assert artifact_ok(data)
+    w53_baseline(data)["status"] = "available"  # three priors exist, but no registered rule
+    assert not artifact_ok(data)
 
 
-def test_unregistered_week_53_rule_cannot_carry_any_minimum_including_three() -> None:
-    for minimum in (1, 2, 3, 4):
+def test_three_complete_supported_priors_allow_a_decision() -> None:
+    assert artifact_ok(registered(sealed_artifact()))
+    assert artifact_ok(registered(sealed_artifact(), unusual="unusual", critical="critical"))
+
+
+@pytest.mark.parametrize("field", ["period_complete", "support_ok"])
+def test_two_eligible_priors_force_insufficient_baseline(field: str) -> None:
+    data = registered(sealed_artifact())
+    w53_baseline(data)["prior_observations"][0][field] = False  # now only 2 eligible
+    assert not artifact_ok(data)  # cannot stay available
+    registered(data, status="insufficient_baseline", unusual="insufficient_baseline",
+               critical="insufficient_baseline")
+    assert artifact_ok(data)
+
+
+@pytest.mark.parametrize("unusual", ["unusual", "not_unusual"])
+def test_insufficient_week_53_cannot_carry_an_unusual_label(unusual: str) -> None:
+    data = registered(sealed_artifact(), status="insufficient_baseline", unusual=unusual,
+                      critical="insufficient_baseline")
+    w53_baseline(data)["prior_observations"].pop()
+    assert not artifact_ok(data)
+
+
+def test_insufficient_week_53_must_say_insufficient_baseline_not_null() -> None:
+    data = sealed_artifact()
+    w53_record(data)["unusual_status"] = None
+    assert not artifact_ok(data)
+
+
+def test_missing_week_53_baseline_entry_blocks_decisions() -> None:
+    data = registered(sealed_artifact())
+    w53_series(data)["week_53_baselines"] = []
+    assert not artifact_ok(data)
+
+
+def test_sealed_week_53_year_cannot_be_a_prior_observation() -> None:
+    data = registered(sealed_artifact())
+    w53_baseline(data)["prior_observations"][2]["iso_year"] = 2020  # the only sealed 53-week year
+    assert not artifact_ok(data)
+
+
+@pytest.mark.parametrize("year", [2019, 2021, 2023])
+def test_years_without_iso_week_53_cannot_be_priors(year: int) -> None:
+    with pytest.raises(ValidationError):
+        Week53Baseline(target_year=2026, status="insufficient_baseline",
+                       prior_observations=[{"iso_year": year, "period_complete": True, "support_ok": True}])
+
+
+def test_priors_must_precede_target_and_be_unique() -> None:
+    for years in ([2004, 2004, 2009], [2004, 2009, 2026]):
+        with pytest.raises(ValidationError):
+            Week53Baseline(target_year=2026, status="insufficient_baseline",
+                           prior_observations=[{"iso_year": y, "period_complete": True, "support_ok": True}
+                                               for y in years])
+    with pytest.raises(ValidationError):
+        Week53Baseline(target_year=2025, status="insufficient_baseline", prior_observations=[])
+
+
+def test_week_53_baseline_is_per_series_so_sensor_and_policy_cannot_mix() -> None:
+    data = registered(sealed_artifact())
+    other = {"sensor": "VIIRS_SNPP", "policy_id": data["policy_id"], "week_definition": "utc_iso_week",
+             "week_53_baselines": [], "records": [week("VIIRS_SNPP", date(2022, 1, 3), date(2022, 1, 9), 2022, 1)]}
+    data["weekly_series"].append(other)
+    assert artifact_ok(data)  # the VIIRS series has no week-53 baseline and cannot borrow Aqua's
+    other["records"].append(week("VIIRS_SNPP", date(2015, 12, 28), date(2016, 1, 3), 2015, 53))
+    assert not artifact_ok(data)  # VIIRS 2015-W53 decision with no VIIRS week-53 baseline
+
+
+def test_registered_rule_needs_reference_and_utc_timestamp() -> None:
+    from contracts.schemas.calendar import Week53Rule
+
+    with pytest.raises(ValidationError):
+        Week53Rule(registration_status="registered", minimum_year_count=3)
+    with pytest.raises(ValidationError):
+        Week53Rule.model_validate_json(json.dumps({**SYNTHETIC_RULE, "decision_at": "2026-11-15T00:00:00"}))
+    for minimum in (1, 2, 3):
         with pytest.raises(ValidationError):
             Week53Rule(registration_status="proposed_unregistered", minimum_year_count=minimum)
 
 
-def test_registered_week_53_rule_needs_minimum_reference_and_utc_timestamp() -> None:
-    with pytest.raises(ValidationError):
-        Week53Rule(registration_status="registered", minimum_year_count=3)
-    with pytest.raises(ValidationError):
-        Week53Rule.model_validate_json(json.dumps({
-            "registration_status": "registered", "minimum_year_count": 3,
-            "registration_ref": "synthetic-ref", "decision_at": "2026-11-15T10:00:00"}))  # naive, not UTC
-    Week53Rule.model_validate_json(json.dumps({
-        "registration_status": "registered", "minimum_year_count": 3,
-        "registration_ref": "synthetic-ref", "decision_at": "2026-11-15T10:00:00Z"}))  # schema shape only
+# ---------------------------------------------------------------------- footprint coverage
+# complete / partial / unverified, PROPOSED pending P2's Q3 certification rule.
+
+DOC = {"certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"}
 
 
-# ---------------------------------------------------------------------- footprint
-
-
-def test_footprint_certification_needs_documented_reference_and_utc_time() -> None:
-    with pytest.raises(ValidationError):
-        FootprintCertification(geometry_id="g", status="certified_complete")
-    with pytest.raises(ValidationError):
-        FootprintCertification(geometry_id="g", status="not_certified", certification_ref="x")
-
-
-def test_not_certified_footprint_blocks_comparison_eligibility() -> None:
-    data = sealed_artifact()
-    data["footprint_certification"] = {"geometry_id": data["geometry_id"], "status": "not_certified",
-                                       "certification_ref": None, "certified_at": None}
-    assert not artifact_ok(data)
+def footprint(data: dict, status: str, **extra) -> dict:
+    data["footprint_certification"] = {"geometry_id": data["geometry_id"], "status": status,
+                                       "certification_ref": None, "certified_at": None, "coverage_fraction": None,
+                                       **extra}
+    return data
 
 
 def registered_window_for_plain_fixture() -> dict:
@@ -375,20 +462,93 @@ def registered_window_for_plain_fixture() -> dict:
             "registration_ref": "synthetic-ref", "decision_date": "2026-11-15"}
 
 
-def test_production_eligible_periods_require_certified_footprint() -> None:
-    data = plain_artifact()
+def production(data: dict) -> dict:
     data.update(data_classification="production", fixture_label=None,
                 sealed_window=registered_window_for_plain_fixture())
-    assert not artifact_ok(data)  # available aggregates alone never imply completeness
-    data["footprint_certification"] = {"geometry_id": data["geometry_id"], "status": "certified_complete",
-                                       "certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"}
+    return data
+
+
+def test_complete_footprint_requires_p2_documentation() -> None:
+    with pytest.raises(ValidationError):
+        FootprintCertification(geometry_id="g", status="complete")
+    assert artifact_ok(footprint(plain_artifact(), "complete", **DOC))
+
+
+def test_partial_footprint_requires_documentation_and_fraction() -> None:
+    with pytest.raises(ValidationError):
+        FootprintCertification.model_validate_json(json.dumps(
+            {"geometry_id": "g", "status": "partial", **DOC}))
+    for bad in (0.0, 1.0, 1.2):
+        with pytest.raises(ValidationError):
+            FootprintCertification.model_validate_json(json.dumps(
+                {"geometry_id": "g", "status": "partial", "coverage_fraction": bad, **DOC}))
+    FootprintCertification.model_validate_json(json.dumps(
+        {"geometry_id": "g", "status": "partial", "coverage_fraction": 0.8, **DOC}))
+
+
+def test_unverified_footprint_cannot_carry_documentation_or_fraction() -> None:
+    for extra in (DOC, {"coverage_fraction": 0.5}):
+        with pytest.raises(ValidationError):
+            FootprintCertification.model_validate_json(json.dumps(
+                {"geometry_id": "g", "status": "unverified", **extra}))
+
+
+@pytest.mark.parametrize("status,extra", [("partial", {"coverage_fraction": 0.8, **DOC}), ("unverified", {})])
+def test_partial_or_unverified_footprint_blocks_comparison_eligibility(status: str, extra: dict) -> None:
+    assert not artifact_ok(footprint(plain_artifact(), status, **extra))
+
+
+@pytest.mark.parametrize("status,extra", [("partial", {"coverage_fraction": 0.8, **DOC}), ("unverified", {})])
+def test_partial_or_unverified_footprint_is_valid_without_eligible_periods(status: str, extra: dict) -> None:
+    data = footprint(sealed_artifact(), status, **extra)
+    for s in data["monthly_series"] + data["weekly_series"]:
+        for r in s["records"]:
+            r["comparison_eligible"] = False
     assert artifact_ok(data)
 
 
+def test_production_eligible_periods_require_p2_certified_complete_footprint() -> None:
+    data = production(plain_artifact())
+    assert not artifact_ok(data)  # an available aggregate never implies completeness
+    for status, extra in (("unverified", {}), ("partial", {"coverage_fraction": 0.9, **DOC})):
+        assert not artifact_ok(footprint(production(plain_artifact()), status, **extra))
+    assert artifact_ok(footprint(production(plain_artifact()), "complete", **DOC))
+
+
 def test_footprint_certification_cannot_cross_geometry() -> None:
+    data = footprint(plain_artifact(), "complete", **DOC)
+    data["footprint_certification"]["geometry_id"] = "geo-other"
+    assert not artifact_ok(data)
+
+
+# ---------------------------------------------------- sealed-boundary partials: permitted days only
+
+
+def test_permitted_day_count_is_computed_from_dates_only() -> None:
+    w = (SEALED_START, SEALED_END)
+    assert days_outside_window(date(2019, 12, 30), date(2020, 1, 5), *w) == 2   # Dec 30-31
+    assert days_outside_window(date(2021, 12, 27), date(2022, 1, 2), *w) == 2   # Jan 1-2
+    assert days_outside_window(date(2022, 1, 3), date(2022, 1, 9), *w) == 7
+    assert days_outside_window(date(2020, 6, 1), date(2020, 6, 7), *w) == 0
+
+
+@pytest.mark.parametrize("idx", [1, 2], ids=["crosses-into-2020-01-01", "crosses-out-after-2021-12-31"])
+@pytest.mark.parametrize("count", [None, 1, 3, 6])
+def test_crossing_week_must_declare_exactly_its_permitted_days(idx: int, count) -> None:
+    data = sealed_artifact()
+    assert sealed_weeks(data)[idx]["included_day_count"] == 2
+    sealed_weeks(data)[idx]["included_day_count"] = count  # any other value would use sealed days or hide some
+    assert not artifact_ok(data)
+
+
+def test_included_day_count_only_on_sealed_boundary_partials() -> None:
+    data = sealed_artifact()
+    sealed_weeks(data)[0]["included_day_count"] = 7  # complete week
+    assert not artifact_ok(data)
     data = plain_artifact()
-    data["footprint_certification"] = {"geometry_id": "geo-other", "status": "certified_complete",
-                                       "certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"}
+    snpp = next(r for r in data["weekly_series"][0]["records"] if (r["year"], r["week_number"]) == (2026, 45))
+    assert snpp["partial_period_reason"] == SNPP_REASON and snpp["included_day_count"] is None
+    snpp["included_day_count"] = 1  # S-NPP cutoff partials do not use the sealed permitted-day field
     assert not artifact_ok(data)
 
 
@@ -423,13 +583,6 @@ def test_config_entries_cannot_claim_frozen_without_date_and_reference() -> None
         assert entry["decision_date"] is None and entry["reference"] is None, name
 
 
-def test_week_53_minimum_config_is_null_and_records_its_blockers() -> None:
-    entry = CONFIG["week_53_minimum"]
-    assert entry["value"] is None and entry["registered"] is False
-    assert entry["blocked_by"] == ["external-registry check"]
-    assert [c["blocker"] for c in entry["cleared"]] == ["P5 holdout-policy decision"]
-
-
 # ------------------------------------------- P5 holdout decision (handoff d0b8c90), synthetic only
 
 
@@ -460,3 +613,38 @@ def test_too_few_years_after_excluding_sealed_years_must_be_insufficient_baselin
     b.update(status="insufficient_baseline", normal_season_start_month=None,
              normal_season_end_month=None, peak_median_month=None)
     assert artifact_ok(data)
+
+
+# ------------------------------- P1: fabricated 2020-2021 dates only in sealed-boundary fixtures
+
+BOUNDARY_FIXTURES = {"sample_calendar_sealed_boundary.json"}
+
+
+def _sealed_dates(node, path="$"):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from _sealed_dates(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            yield from _sealed_dates(value, f"{path}[{i}]")
+    elif isinstance(node, bool):
+        return
+    elif isinstance(node, int) and node in (2020, 2021):
+        yield path, node
+    elif isinstance(node, str) and node[:5] in ("2020-", "2021-"):
+        yield path, node
+
+
+def test_non_boundary_fixtures_use_no_2020_2021_dates() -> None:
+    for path in sorted(FIXTURES.glob("*.json")):
+        if path.name in BOUNDARY_FIXTURES:
+            continue
+        hits = list(_sealed_dates(json.loads(path.read_text(encoding="utf-8"))))
+        assert not hits, (path.name, hits[:5])
+
+
+def test_boundary_fixture_is_fabricated_and_labelled() -> None:
+    for name in BOUNDARY_FIXTURES:
+        data = json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+        assert data["data_classification"] == "synthetic_dev_fixture"
+        assert data["fixture_label"] == "[SYNTHETIC DEV FIXTURE]"

@@ -23,26 +23,29 @@
     "note": "Proposed contract representation, not agreed."
   },
   "week_53_minimum": {
-    "value": null,
+    "value": 3,
     "registered": false,
     "decision_date": null,
     "reference": null,
     "blocked_by": [
-      "external-registry check"
+      "external-registry check",
+      "P1 written approval with date/time and reference"
     ],
-    "note": "P1: unfrozen. P5's holdout policy is now recorded; the external-registry check is still open. Do not register or hard-code any minimum (including three).",
+    "note": "Value is the agreed rule, held as configuration. registered stays false until P1's written approval (actual date/time, reference) exists; nothing is backdated. Not a schema default.",
     "cleared": [
       {
         "blocker": "P5 holdout-policy decision",
         "reference": "origin/handoff d0b8c905447677e1888d9c48f11db6ee22740382: handoff/escalations/P4/P4-holdout-baselines-decision.md"
       }
-    ]
+    ],
+    "agreed_rule": "Three complete, supported, eligible prior ISO week-53 observations from the same sensor and policy; otherwise insufficient_baseline and no unusual label.",
+    "agreement": "P1 agreed via P4 relay; no written P1 record with date/time found in any ref"
   },
   "footprint_certification": {
     "registered": false,
     "decision_date": null,
     "reference": null,
-    "note": "Whole-footprint completeness is conditional on P2's documented certification (Q3 response not available to P4-B)."
+    "note": "Statuses complete / partial / unverified; complete and partial need P2's documented reference and UTC timestamp; partial needs a coverage fraction; only complete supports comparison-eligible whole-area periods. PROPOSED shape: P2's Q3 certification rule is not in any ref P4-B can read."
   },
   "holdout_baseline_policy": {
     "source": "P5 binding decision",

@@ -2,7 +2,7 @@
   "contract_version": "1.2.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
-  "period_spec": "synthetic-2020-2021",
+  "period_spec": "synthetic-2023",
   "method_id": "same_sensor_calendar",
   "policy_id": "own_support_eligible",
   "data_classification": "synthetic_dev_fixture",
@@ -23,14 +23,15 @@
           "availability": "available",
           "unavailable_reason": null,
           "sensor": "VIIRS_SNPP",
-          "year": 2020,
+          "year": 2023,
           "month": 6,
           "baseline_median": 1.0,
           "baseline_p90": 4.0,
           "unusual_status": "not_unusual",
           "is_partial_period": false,
           "comparison_eligible": true,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": 30,
@@ -39,14 +40,15 @@
           "availability": "available",
           "unavailable_reason": null,
           "sensor": "VIIRS_SNPP",
-          "year": 2020,
+          "year": 2023,
           "month": 7,
           "baseline_median": 1.0,
           "baseline_p90": 4.0,
           "unusual_status": "unusual",
           "is_partial_period": false,
           "comparison_eligible": true,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": 0.0,
@@ -55,14 +57,15 @@
           "availability": "unavailable",
           "unavailable_reason": "zero_usable_support",
           "sensor": "VIIRS_SNPP",
-          "year": 2020,
+          "year": 2023,
           "month": 8,
           "baseline_median": null,
           "baseline_p90": null,
           "unusual_status": "insufficient_baseline",
           "is_partial_period": false,
           "comparison_eligible": false,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": null,
@@ -71,14 +74,15 @@
           "availability": "unavailable",
           "unavailable_reason": "source_not_available",
           "sensor": "VIIRS_SNPP",
-          "year": 2020,
+          "year": 2023,
           "month": 9,
           "baseline_median": null,
           "baseline_p90": null,
           "unusual_status": "insufficient_baseline",
           "is_partial_period": false,
           "comparison_eligible": false,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": null,
@@ -87,14 +91,15 @@
           "availability": "unavailable",
           "unavailable_reason": "incomplete_footprint",
           "sensor": "VIIRS_SNPP",
-          "year": 2020,
+          "year": 2023,
           "month": 10,
           "baseline_median": null,
           "baseline_p90": null,
           "unusual_status": "insufficient_baseline",
           "is_partial_period": false,
           "comparison_eligible": false,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": 2,
@@ -110,7 +115,8 @@
           "unusual_status": null,
           "is_partial_period": true,
           "comparison_eligible": false,
-          "partial_period_reason": "snpp_record_ended_2026_11_02"
+          "partial_period_reason": "snpp_record_ended_2026_11_02",
+          "included_day_count": null
         }
       ]
     },
@@ -125,14 +131,15 @@
           "availability": "available",
           "unavailable_reason": null,
           "sensor": "MODIS_Aqua",
-          "year": 2020,
+          "year": 2023,
           "month": 6,
           "baseline_median": null,
           "baseline_p90": null,
           "unusual_status": "insufficient_baseline",
           "is_partial_period": false,
           "comparison_eligible": true,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": 0,
@@ -141,14 +148,15 @@
           "availability": "available",
           "unavailable_reason": null,
           "sensor": "MODIS_Aqua",
-          "year": 2020,
+          "year": 2023,
           "month": 7,
           "baseline_median": null,
           "baseline_p90": null,
           "unusual_status": "insufficient_baseline",
           "is_partial_period": false,
           "comparison_eligible": true,
-          "partial_period_reason": null
+          "partial_period_reason": null,
+          "included_day_count": null
         }
       ]
     }
@@ -158,6 +166,29 @@
       "sensor": "MODIS_Aqua",
       "policy_id": "own_support_eligible",
       "week_definition": "utc_iso_week",
+      "week_53_baselines": [
+        {
+          "target_year": 2026,
+          "status": "insufficient_baseline",
+          "prior_observations": [
+            {
+              "iso_year": 2004,
+              "period_complete": true,
+              "support_ok": true
+            },
+            {
+              "iso_year": 2009,
+              "period_complete": true,
+              "support_ok": true
+            },
+            {
+              "iso_year": 2015,
+              "period_complete": true,
+              "support_ok": true
+            }
+          ]
+        }
+      ],
       "records": [
         {
           "detected_fire_cell_days": 5,
@@ -174,7 +205,8 @@
           "unusual_status": "not_unusual",
           "is_partial_period": false,
           "partial_period_reason": null,
-          "comparison_eligible": true
+          "comparison_eligible": true,
+          "included_day_count": null
         },
         {
           "detected_fire_cell_days": 5,
@@ -191,7 +223,8 @@
           "unusual_status": null,
           "is_partial_period": true,
           "partial_period_reason": "crosses_sealed_evaluation_boundary",
-          "comparison_eligible": false
+          "comparison_eligible": false,
+          "included_day_count": 2
         },
         {
           "detected_fire_cell_days": 5,
@@ -208,7 +241,8 @@
           "unusual_status": null,
           "is_partial_period": true,
           "partial_period_reason": "crosses_sealed_evaluation_boundary",
-          "comparison_eligible": false
+          "comparison_eligible": false,
+          "included_day_count": 2
         },
         {
           "detected_fire_cell_days": 5,
@@ -225,7 +259,26 @@
           "unusual_status": "not_unusual",
           "is_partial_period": false,
           "partial_period_reason": null,
-          "comparison_eligible": true
+          "comparison_eligible": true,
+          "included_day_count": null
+        },
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 50.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2026,
+          "week_number": 53,
+          "start_date": "2026-12-28",
+          "end_date": "2027-01-03",
+          "critical_status": "insufficient_baseline",
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "partial_period_reason": null,
+          "comparison_eligible": true,
+          "included_day_count": null
         }
       ]
     }

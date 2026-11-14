@@ -2,7 +2,7 @@
   "contract_version": "1.2.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
-  "period_spec": "synthetic-2020-2021",
+  "period_spec": "synthetic-2023",
   "method_id": "firms_hotspot_view",
   "policy_id": "own_support_eligible",
   "data_classification": "synthetic_dev_fixture",
@@ -19,8 +19,8 @@
       "east": 1.0,
       "north": 1.0
     },
-    "start_date": "2020-07-01",
-    "end_date": "2020-07-07",
+    "start_date": "2023-07-03",
+    "end_date": "2023-07-09",
     "manual_selection_required": true,
     "limitation": "Select the area and dates manually in FIRMS."
   },
@@ -29,7 +29,7 @@
       "point_id": "synthetic-1",
       "latitude": 0.5,
       "longitude": 0.5,
-      "acquired_at": "2020-07-01T10:30:00Z",
+      "acquired_at": "2023-07-03T10:30:00Z",
       "platform": "VIIRS_SNPP",
       "confidence_label": "nominal",
       "source_product": "synthetic"

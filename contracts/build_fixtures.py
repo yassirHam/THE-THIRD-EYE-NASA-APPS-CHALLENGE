@@ -25,7 +25,7 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures"
 CONFIG_PATH = Path(__file__).parent / "config" / "pending_registrations.json"
 LABEL = "[SYNTHETIC DEV FIXTURE]"
 GEO = "geo-synthetic-primary"
-PERIOD = "synthetic-2020-2021"
+PERIOD = "synthetic-2023"  # P1: fabricated 2020-2021 dates only in boundary tests
 POLICY = "own_support_eligible"
 
 
@@ -83,6 +83,7 @@ def month(sensor: str, year: int, m: int, d: float, o: float, **kw) -> dict:
         "is_partial_period": False,
         "comparison_eligible": o > 0,
         "partial_period_reason": None,
+        "included_day_count": None,
     }
     base.update(kw)
     return base
@@ -101,6 +102,7 @@ def week(sensor: str, year: int, n: int, start: str, end: str, d: float, o: floa
         "is_partial_period": False,
         "partial_period_reason": None,
         "comparison_eligible": o > 0,
+        "included_day_count": None,
     }
     base.update(kw)
     return base
@@ -108,11 +110,11 @@ def week(sensor: str, year: int, n: int, start: str, end: str, d: float, o: floa
 
 def calendar() -> dict:
     snpp = [
-        month("VIIRS_SNPP", 2020, 6, 0, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="not_unusual"),
-        month("VIIRS_SNPP", 2020, 7, 30, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="unusual"),
-        month("VIIRS_SNPP", 2020, 8, 0, 0),
-        month("VIIRS_SNPP", 2020, 9, 0, 0, **missing("source_not_available")),
-        month("VIIRS_SNPP", 2020, 10, 0, 0, **missing("incomplete_footprint")),
+        month("VIIRS_SNPP", 2023, 6, 0, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="not_unusual"),
+        month("VIIRS_SNPP", 2023, 7, 30, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="unusual"),
+        month("VIIRS_SNPP", 2023, 8, 0, 0),
+        month("VIIRS_SNPP", 2023, 9, 0, 0, **missing("source_not_available")),
+        month("VIIRS_SNPP", 2023, 10, 0, 0, **missing("incomplete_footprint")),
         month(
             "VIIRS_SNPP", 2026, 11, 2, 100,
             is_partial_period=True, comparison_eligible=False,
@@ -120,7 +122,7 @@ def calendar() -> dict:
             unusual_status=None,
         ),
     ]
-    aqua = [month("MODIS_Aqua", 2020, 6, 5, 250), month("MODIS_Aqua", 2020, 7, 0, 250)]
+    aqua = [month("MODIS_Aqua", 2023, 6, 5, 250), month("MODIS_Aqua", 2023, 7, 0, 250)]
     return {
         **identity("same_sensor_calendar"),
         "region_name": "Synthetic Test Region",
@@ -136,13 +138,14 @@ def calendar() -> dict:
                 "sensor": "VIIRS_SNPP",
                 "policy_id": POLICY,
                 "week_definition": "utc_iso_week",
+                "week_53_baselines": [],
                 "records": [
-                    week("VIIRS_SNPP", 2020, 27, "2020-06-29", "2020-07-05", 10, 100,
+                    week("VIIRS_SNPP", 2023, 27, "2023-07-03", "2023-07-09", 10, 100,
                          critical_status="critical", unusual_status="unusual"),
-                    week("VIIRS_SNPP", 2020, 28, "2020-07-06", "2020-07-12", 0, 100,
+                    week("VIIRS_SNPP", 2023, 28, "2023-07-10", "2023-07-16", 0, 100,
                          critical_status="not_critical", unusual_status="not_unusual"),
-                    week("VIIRS_SNPP", 2020, 29, "2020-07-13", "2020-07-19", 0, 0),
-                    week("VIIRS_SNPP", 2020, 30, "2020-07-20", "2020-07-26", 0, 0,
+                    week("VIIRS_SNPP", 2023, 29, "2023-07-17", "2023-07-23", 0, 0),
+                    week("VIIRS_SNPP", 2023, 30, "2023-07-24", "2023-07-30", 0, 0,
                          **missing("qa_unusable")),
                     week("VIIRS_SNPP", 2026, 45, "2026-11-02", "2026-11-08", 3, 100,
                          critical_status=None, unusual_status=None,
@@ -186,9 +189,20 @@ def sealed_boundary_calendar() -> dict:
         "registration_ref": None, "decision_at": None,
     }
     sealed = {"is_partial_period": True, "partial_period_reason": reason, "comparison_eligible": False,
-              "critical_status": None, "unusual_status": None}
+              "critical_status": None, "unusual_status": None,
+              "included_day_count": 2}  # both crossing weeks keep 2 permitted (outside-window) days
     data["weekly_series"] = [{
         "sensor": "MODIS_Aqua", "policy_id": POLICY, "week_definition": "utc_iso_week",
+        # Synthetic: 2026-W53 with prior week-53 years 2004/2009/2015 (2020 is sealed and excluded).
+        # Rule unregistered -> baseline insufficient -> no unusual label.
+        "week_53_baselines": [{
+            "target_year": 2026, "status": "insufficient_baseline",
+            "prior_observations": [
+                {"iso_year": 2004, "period_complete": True, "support_ok": True},
+                {"iso_year": 2009, "period_complete": True, "support_ok": True},
+                {"iso_year": 2015, "period_complete": True, "support_ok": True},
+            ],
+        }],
         "records": [
             week("MODIS_Aqua", 2019, 52, "2019-12-23", "2019-12-29", 5, 100,
                  critical_status="not_critical", unusual_status="not_unusual"),
@@ -196,6 +210,8 @@ def sealed_boundary_calendar() -> dict:
             week("MODIS_Aqua", 2021, 52, "2021-12-27", "2022-01-02", 5, 100, **sealed),
             week("MODIS_Aqua", 2022, 1, "2022-01-03", "2022-01-09", 5, 100,
                  critical_status="not_critical", unusual_status="not_unusual"),
+            week("MODIS_Aqua", 2026, 53, "2026-12-28", "2027-01-03", 5, 100,
+                 critical_status="insufficient_baseline", unusual_status="insufficient_baseline"),
         ],
     }]
     return data
@@ -431,7 +447,7 @@ def claim_audit(comp: dict | None = None, suffix: str = "") -> dict:
         "record_id": f"car-synthetic-1{suffix}",
         "statement": "Synthetic claim: activity rose in the target period.",
         "analyst_entity": None, "target_region": "Synthetic Test Region",
-        "date_range_tested": "2020-2021",
+        "date_range_tested": "2023",
         "dataset_versions": ["MODIS/061/MYD14A1", "NASA/VIIRS/002/VNP14A1"],
         "formulas_applied": ["R = 1000 * D / O (sums before division)"],
         "sensitivity_status": comp["sensitivity_status"],
@@ -457,13 +473,13 @@ def firms() -> dict:
         "firms_link": {
             "url": "https://firms.modaps.eosdis.nasa.gov/map/",
             "selected_area": {"west": 0.0, "south": 0.0, "east": 1.0, "north": 1.0},
-            "start_date": "2020-07-01", "end_date": "2020-07-07",
+            "start_date": "2023-07-03", "end_date": "2023-07-09",
             "manual_selection_required": True,
             "limitation": "Select the area and dates manually in FIRMS.",
         },
         "points": [{
             "point_id": "synthetic-1", "latitude": 0.5, "longitude": 0.5,
-            "acquired_at": "2020-07-01T10:30:00Z", "platform": "VIIRS_SNPP",
+            "acquired_at": "2023-07-03T10:30:00Z", "platform": "VIIRS_SNPP",
             "confidence_label": "nominal", "source_product": "synthetic",
         }],
         "feeds_grid_math": False, "inherits_grid_calibration": False,

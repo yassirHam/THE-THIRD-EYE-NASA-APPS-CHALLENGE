@@ -748,7 +748,7 @@ def test_partial_month_cannot_be_comparison_eligible_or_unflagged() -> None:
 def test_complete_snpp_month_before_cutoff_still_labelled_normally() -> None:
     cal = load(CAL)
     oct_rec = cal["monthly_series"][0]["records"][4]
-    assert (oct_rec["year"], oct_rec["month"]) == (2020, 10)
+    assert (oct_rec["year"], oct_rec["month"]) == (2023, 10)
     cal["monthly_series"][0]["records"][4] = {
         **oct_rec, "year": 2026, "month": 10, "detected_fire_cell_days": 5.0,
         "usable_land_cell_days": 100.0, "fire_activity_index": 50.0, "availability": "available",
@@ -820,14 +820,14 @@ def test_weekly_series_rejects_non_monday_start_for_iso_week() -> None:
     cal = load(CAL)
     # Tuesday to Monday period cannot be accepted as utc_iso_week
     cal["weekly_series"][0]["records"][0].update(
-        start_date="2020-06-30", end_date="2020-07-06"
+        start_date="2023-07-04", end_date="2023-07-10"
     )
     fails(MODELS[CAL], cal)
 
 
 def test_weekly_series_rejects_mismatched_iso_week_number() -> None:
     cal = load(CAL)
-    # 2020-06-29 is ISO week 27, cannot claim week 28
+    # 2023-07-03 is ISO week 27, cannot claim week 28
     cal["weekly_series"][0]["records"][0]["week_number"] = 28
     fails(MODELS[CAL], cal)
 
@@ -835,19 +835,19 @@ def test_weekly_series_rejects_mismatched_iso_week_number() -> None:
 def test_weekly_series_fixed_7_day_bins_validation() -> None:
     cal = load(CAL)
     cal["weekly_series"][0]["week_definition"] = "fixed_7_day_bins"
-    # Bin 1 for 2020 starts 2020-01-01
+    # Bin 1 for 2023 starts 2023-01-01
     cal["weekly_series"][0]["records"] = [
         {
             **cal["weekly_series"][0]["records"][0],
-            "year": 2020,
+            "year": 2023,
             "week_number": 1,
-            "start_date": "2020-01-01",
-            "end_date": "2020-01-07",
+            "start_date": "2023-01-01",
+            "end_date": "2023-01-07",
         }
     ]
     MODELS[CAL].model_validate_json(json.dumps(cal))
     # Bin 1 with wrong start date fails
-    cal["weekly_series"][0]["records"][0]["start_date"] = "2020-01-02"
+    cal["weekly_series"][0]["records"][0]["start_date"] = "2023-01-02"
     fails(MODELS[CAL], cal)
 
 
@@ -986,7 +986,7 @@ def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
     base = dict(
         sensor="MODIS_Aqua", availability="unavailable",
         unavailable_reason="source_not_available", comparison_eligible=False,
-        year=2020, week_number=1, start_date=date(2020, 1, 1), end_date=date(2020, 1, 7),
+        year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8),
     )
     # Decisions and partial-sentinel are strictly forbidden when observation is unavailable
     for status_field, decision in [
@@ -1016,15 +1016,15 @@ def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:
         comparison_eligible=False, critical_status="insufficient_baseline", unusual_status="insufficient_baseline",
     )
     # Overlapping dates in same series rejected
-    a = WeekRecord(year=2020, week_number=1, start_date=date(2020, 1, 1), end_date=date(2020, 1, 7), **common)
-    b = WeekRecord(year=2020, week_number=2, start_date=date(2020, 1, 5), end_date=date(2020, 1, 11), **common)
+    a = WeekRecord(year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8), **common)
+    b = WeekRecord(year=2023, week_number=2, start_date=date(2023, 1, 6), end_date=date(2023, 1, 12), **common)
     with pytest.raises(ValueError, match="overlap"):
-        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="utc_iso_week", records=[a, b])
+        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="utc_iso_week", week_53_baselines=[], records=[a, b])
 
     # Fixed 7-day bin crossing year boundary rejected
-    c = WeekRecord(year=2020, week_number=53, start_date=date(2020, 12, 30), end_date=date(2021, 1, 5), **common)
+    c = WeekRecord(year=2023, week_number=53, start_date=date(2023, 12, 31), end_date=date(2024, 1, 6), **common)
     with pytest.raises(ValueError, match="week_number cannot exceed 52"):
-        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="fixed_7_day_bins", records=[c])
+        WeeklyCalendarSeries(sensor="MODIS_Aqua", policy_id="p", week_definition="fixed_7_day_bins", week_53_baselines=[], records=[c])
 
 
 def test_non_snpp_sensor_week_on_same_dates_is_not_partial() -> None:

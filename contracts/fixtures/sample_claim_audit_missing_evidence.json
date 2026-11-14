@@ -2,7 +2,7 @@
   "contract_version": "1.2.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
-  "period_spec": "synthetic-2020-2021",
+  "period_spec": "synthetic-2023",
   "method_id": "claim_audit",
   "policy_id": "own_support_eligible",
   "data_classification": "synthetic_dev_fixture",
@@ -11,7 +11,7 @@
   "statement": "Synthetic claim: activity rose in the target period.",
   "analyst_entity": null,
   "target_region": "Synthetic Test Region",
-  "date_range_tested": "2020-2021",
+  "date_range_tested": "2023",
   "dataset_versions": [
     "MODIS/061/MYD14A1",
     "NASA/VIIRS/002/VNP14A1"
