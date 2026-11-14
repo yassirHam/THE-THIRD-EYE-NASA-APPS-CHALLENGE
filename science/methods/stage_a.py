@@ -82,6 +82,18 @@ Changes v4 (review response — two remaining safeguards):
     verifying the join is complete and lossless).  Spec §6: a_C uses 'each
     sensor’s pooled rate on the identical paired common-support cell-days';
     key-matching alone cannot confirm identical pairing.
+
+Changes v5 (support and input validation):
+  - Both fit functions require a frozen StageAConfig (policy, registered
+    strata, min_support_O) with no code defaults.  Every training year of
+    each variant must reach min_support_O summed O for each sensor and each
+    registered stratum; otherwise the variant is UNAVAILABLE and the failing
+    (sensor, year, stratum, O) cells are listed in support_failures.
+    Records with an unregistered stratum raise ValueError.
+  - apply_factor and assess_sensitivity reject negative or non-finite B and V
+    with ValueError before any calculation.  None still means unavailable.
+  The numeric min_support_O is not registered anywhere yet; P1/P2 must supply
+  and record it before factors are fitted, without reference to holdouts.
 """
 from __future__ import annotations
 
@@ -97,6 +109,56 @@ METHOD_ID = "stage_a_finite_factors"
 TRAINING_YEARS_DEFAULT: tuple[int, ...] = (2016, 2017, 2018)
 DEVELOPMENT_YEAR: int = 2019
 SCALE: float = 1000.0  # R = 1000 * D / O
+
+
+# ---------------------------------------------------------------------------
+# Frozen configuration (registered before outcome inspection)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class StageAConfig:
+    """
+    Registered Stage A fitting parameters.  No field has a default.
+
+    policy: the support policy this configuration applies to.
+    strata: the registered calendar strata (e.g. ("month_07", "month_08")).
+        Every training year must have records for every stratum.
+    min_support_O: minimum summed usable land-cell-days required for each
+        (sensor, training year, stratum).  Supply the registered value; do not
+        choose or adjust it using evaluation or holdout outcomes.
+    """
+
+    policy: Literal["own_support", "common_support"]
+    strata: tuple[str, ...]
+    min_support_O: int
+
+    def __post_init__(self) -> None:
+        if self.policy not in ("own_support", "common_support"):
+            raise ValueError(f"Unknown policy {self.policy!r}.")
+        if not isinstance(self.strata, tuple) or not self.strata:
+            raise ValueError("strata must be a non-empty tuple of registered strata.")
+        if len(set(self.strata)) != len(self.strata):
+            raise ValueError("strata must not contain duplicates.")
+        if not all(isinstance(s, str) and s for s in self.strata):
+            raise ValueError("Each stratum must be a non-empty string.")
+        if (isinstance(self.min_support_O, bool)
+                or not isinstance(self.min_support_O, int)
+                or self.min_support_O < 1):
+            raise ValueError("min_support_O must be an integer >= 1.")
+
+
+def _validate_rate(name: str, value: Optional[float]) -> None:
+    """Reject negative or non-finite rates.  None (unavailable) is allowed."""
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a number or None, got {value!r}.")
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite, got {value!r}.")
+    if value < 0:
+        raise ValueError(
+            f"{name} = {value!r} is negative; a fire-activity rate cannot be "
+            "negative.  Input rejected before any comparison is calculated."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +329,32 @@ class FactorResult:
     missing_aqua_years: list[int] = field(default_factory=list)
     missing_viirs_years: list[int] = field(default_factory=list)
     mismatched_strata: list[tuple[int, str]] = field(default_factory=list)
+    # (sensor, year, stratum, summed_O) cells below the registered minimum
+    support_failures: list[tuple[str, int, str, int]] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+
+
+def _check_registered_support(
+    aqua_records: list[ObsRecord],
+    viirs_records: list[ObsRecord],
+    training_years: tuple[int, ...],
+    config: StageAConfig,
+) -> list[tuple[str, int, str, int]]:
+    """
+    Return (sensor, year, stratum, summed_O) for every registered cell whose
+    summed O is below config.min_support_O.  A cell with no records has O = 0.
+    """
+    failures: list[tuple[str, int, str, int]] = []
+    for sensor, records in (("aqua", aqua_records), ("viirs", viirs_records)):
+        totals: dict[tuple[int, str], int] = {}
+        for r in records:
+            totals[(r.year, r.stratum)] = totals.get((r.year, r.stratum), 0) + r.O
+        for year in sorted(training_years):
+            for stratum in config.strata:
+                o = totals.get((year, stratum), 0)
+                if o < config.min_support_O:
+                    failures.append((sensor, year, stratum, o))
+    return failures
 
 
 def _check_year_support(
@@ -328,6 +415,7 @@ def _fit_factor(
     training_years: tuple[int, ...],
     aqua_records: list[ObsRecord],
     viirs_records: list[ObsRecord],
+    config: StageAConfig,
 ) -> FactorResult:
     """
     Core factor-fitting logic shared by a_H and a_C variants.
@@ -408,6 +496,30 @@ def _fit_factor(
             missing_aqua_years=[],
             missing_viirs_years=[],
             mismatched_strata=mismatched,
+            reasons=reasons,
+        )
+
+    # --- (v5) Registered minimum support per sensor, year and stratum ---
+    support_failures = _check_registered_support(
+        aqua_records, viirs_records, training_years, config
+    )
+    if support_failures:
+        reasons.append(
+            f"Registered minimum support min_support_O={config.min_support_O} "
+            f"not met for (sensor, year, stratum, summed_O): {support_failures}.  "
+            f"Factor variant '{variant_id}' is UNAVAILABLE."
+        )
+        return FactorResult(
+            variant_id=variant_id,
+            factor_type=factor_type,
+            training_years=training_years,
+            status=FactorStatus.UNAVAILABLE,
+            factor_value=None,
+            aqua_pooled_rate=None,
+            viirs_pooled_rate=None,
+            n_aqua_obs=0,
+            n_viirs_obs=0,
+            support_failures=support_failures,
             reasons=reasons,
         )
 
@@ -498,10 +610,32 @@ def _fit_factor(
 # ---------------------------------------------------------------------------
 # Public API — fit a_H (own-support) variants
 # ---------------------------------------------------------------------------
+def _validate_config_for(
+    config: StageAConfig,
+    expected_policy: str,
+    records: list[ObsRecord],
+    fn_name: str,
+) -> None:
+    if not isinstance(config, StageAConfig):
+        raise ValueError(f"{fn_name} requires a StageAConfig.")
+    if config.policy != expected_policy:
+        raise ValueError(
+            f"{fn_name} needs a '{expected_policy}' StageAConfig, got '{config.policy}'."
+        )
+    unregistered = sorted({r.stratum for r in records} - set(config.strata))
+    if unregistered:
+        raise ValueError(
+            f"{fn_name} received records with unregistered strata {unregistered}; "
+            f"registered strata are {list(config.strata)}."
+        )
+
+
 def fit_own_support_variants(
     aqua_records: list[ObsRecord],
     viirs_records: list[ObsRecord],
     training_years: tuple[int, ...] = TRAINING_YEARS_DEFAULT,
+    *,
+    config: StageAConfig,
 ) -> dict[str, FactorResult]:
     """
     Fit the full-training a_H factor and all leave-one-year-out variants.
@@ -527,6 +661,8 @@ def fit_own_support_variants(
                 f"fit_own_support_variants received a '{rec.policy}' record. "
                 "Pass only own_support records to this function."
             )
+    _validate_config_for(config, "own_support", aqua_records + viirs_records,
+                         "fit_own_support_variants")
 
     def _subset(
         records: list[ObsRecord], years: tuple[int, ...]
@@ -542,6 +678,7 @@ def fit_own_support_variants(
         training_years=training_years,
         aqua_records=_subset(aqua_records, training_years),
         viirs_records=_subset(viirs_records, training_years),
+        config=config,
     )
 
     for excluded_year in sorted(training_years):
@@ -553,6 +690,7 @@ def fit_own_support_variants(
             training_years=remaining,
             aqua_records=_subset(aqua_records, remaining),
             viirs_records=_subset(viirs_records, remaining),
+            config=config,
         )
 
     return results
@@ -567,6 +705,7 @@ def fit_common_support_variants(
     training_years: tuple[int, ...] = TRAINING_YEARS_DEFAULT,
     *,
     pairing_validated: bool,
+    config: StageAConfig,
 ) -> dict[str, FactorResult]:
     """
     Fit the full-training a_C diagnostic factor and leave-one-year-out variants.
@@ -593,6 +732,9 @@ def fit_common_support_variants(
                 f"fit_common_support_variants received a '{rec.policy}' record. "
                 "Pass only common_support records to this function."
             )
+    _validate_config_for(config, "common_support",
+                         aqua_common_records + viirs_common_records,
+                         "fit_common_support_variants")
 
     # (v4) Spatial cell-pairing attestation.
     # _check_stratum_match confirms (year, stratum) key presence but cannot
@@ -657,6 +799,7 @@ def fit_common_support_variants(
         training_years=training_years,
         aqua_records=_subset(aqua_common_records, training_years),
         viirs_records=_subset(viirs_common_records, training_years),
+        config=config,
     )
 
     for excluded_year in sorted(training_years):
@@ -668,6 +811,7 @@ def fit_common_support_variants(
             training_years=remaining,
             aqua_records=_subset(aqua_common_records, remaining),
             viirs_records=_subset(viirs_common_records, remaining),
+            config=config,
         )
 
     return results
@@ -719,6 +863,10 @@ def assess_sensitivity(
     Returns (SensitivityStatus, list[reason_strings]).
     """
     reasons: list[str] = []
+
+    # --- (v5) reject invalid rates before anything is computed ---
+    _validate_rate("baseline_B", baseline_B)
+    _validate_rate("viirs_V", viirs_V)
 
     # --- target unavailability takes precedence over everything else ---
     if baseline_B is None:
@@ -888,6 +1036,10 @@ def apply_factor(
     AppliedComparison with all status dimensions set independently.
     """
     reasons: list[str] = []
+
+    # --- (v5) reject invalid rates before anything is computed ---
+    _validate_rate("baseline_B", baseline_B)
+    _validate_rate("viirs_V", viirs_V)
 
     # --- guard: tau must be non-negative if supplied ---
     if practical_margin_tau is not None and practical_margin_tau < 0:

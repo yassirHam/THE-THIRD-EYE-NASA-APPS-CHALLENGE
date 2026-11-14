@@ -54,7 +54,15 @@ from science.methods.stage_a import (
     _pooled_rate,
     _check_year_support,
     _check_stratum_match,
+    StageAConfig,
 )
+
+# Synthetic test configurations.  min_support_O=1 reproduces the earlier
+# "O > 0" behaviour for legacy fixtures; it is NOT a registered value.
+OWN_CFG = StageAConfig(policy="own_support", strata=("annual",), min_support_O=1)
+COMMON_CFG = StageAConfig(policy="common_support", strata=("annual",), min_support_O=1)
+OWN_CFG_JUL_AUG = StageAConfig(policy="own_support", strata=("month_07", "month_08"),
+                               min_support_O=1)
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +196,7 @@ class TestFitOwnSupportVariants:
 
     def test_full_training_factor_value(self, records):
         aqua, viirs = records
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         full = variants["full_training_2016_2017_2018"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.factor_value == pytest.approx(1.25)
@@ -196,7 +204,7 @@ class TestFitOwnSupportVariants:
 
     def test_all_four_variant_keys_present(self, records):
         aqua, viirs = records
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         assert "full_training_2016_2017_2018" in variants
         assert "ex_2016" in variants
         assert "ex_2017" in variants
@@ -204,19 +212,19 @@ class TestFitOwnSupportVariants:
 
     def test_leave_one_out_ex_2016(self, records):
         aqua, viirs = records
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         # ex_2016: Aqua D=350, O=3500 → 100.0; VIIRS D=280, O=3500 → 80.0 → 1.25
         assert variants["ex_2016"].factor_value == pytest.approx(1.25)
 
     def test_leave_one_out_uses_only_remaining_years(self, records):
         aqua, viirs = records
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         # ex_2017 must use only 2016 and 2018
         assert set(variants["ex_2017"].training_years) == {2016, 2018}
 
     def test_aqua_and_viirs_pooled_rates_stored(self, records):
         aqua, viirs = records
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         full = variants["full_training_2016_2017_2018"]
         assert full.aqua_pooled_rate == pytest.approx(100.0)
         assert full.viirs_pooled_rate == pytest.approx(80.0)
@@ -226,14 +234,14 @@ class TestFitOwnSupportVariants:
         aqua, viirs = records
         aqua_with_dev = aqua + [_own("aqua", 2019, D=999, O=1000)]
         viirs_with_dev = viirs + [_own("viirs", 2019, D=1,   O=1000)]
-        variants = fit_own_support_variants(aqua_with_dev, viirs_with_dev)
+        variants = fit_own_support_variants(aqua_with_dev, viirs_with_dev, config=OWN_CFG)
         assert variants["full_training_2016_2017_2018"].factor_value == pytest.approx(1.25)
 
     def test_zero_viirs_rate_yields_unavailable(self):
         """VIIRS D=0, O>0 → pooled rate = 0 → factor UNAVAILABLE."""
         aqua = [_own("aqua", 2016, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=0,   O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         full_key = "full_training_2016"
         assert variants[full_key].status == FactorStatus.UNAVAILABLE
         assert variants[full_key].factor_value is None
@@ -243,14 +251,14 @@ class TestFitOwnSupportVariants:
         """Aqua O=0 in only training year → UNAVAILABLE."""
         aqua = [_own("aqua", 2016, D=0, O=0)]
         viirs = [_own("viirs", 2016, D=50, O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         assert variants["full_training_2016"].status == FactorStatus.UNAVAILABLE
 
     def test_policy_guard_raises_on_common_support_record(self):
         aqua = [_common("aqua", 2016, D=10, O=100)]  # wrong policy
         viirs = [_own("viirs", 2016, D=10, O=100)]
         with pytest.raises(ValueError, match="own_support"):
-            fit_own_support_variants(aqua, viirs, training_years=(2016,))
+            fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +294,7 @@ class TestFitCommonSupportVariants:
         aqua, viirs = records
         variants = fit_common_support_variants(aqua, viirs,
                                                training_years=(2016, 2017),
-                                               pairing_validated=True)
+                                               pairing_validated=True, config=COMMON_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.factor_value == pytest.approx(1.25)
@@ -296,7 +304,7 @@ class TestFitCommonSupportVariants:
         aqua, viirs = records
         variants = fit_common_support_variants(aqua, viirs,
                                                training_years=(2016, 2017),
-                                               pairing_validated=True)
+                                               pairing_validated=True, config=COMMON_CFG)
         for v in variants.values():
             assert v.factor_type == "common_support_a_C", (
                 "a_C variants must never carry the own_support_a_H type"
@@ -307,7 +315,7 @@ class TestFitCommonSupportVariants:
         viirs = [_common("viirs", 2016, D=10, O=100)]
         with pytest.raises(ValueError, match="common_support"):
             fit_common_support_variants(aqua, viirs, training_years=(2016,),
-                                        pairing_validated=True)
+                                        pairing_validated=True, config=COMMON_CFG)
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +332,7 @@ class TestMissingDataGuardrail:
         viirs = [_own("viirs", 2016, D=0, O=0),
                  _own("viirs", 2017, D=0, O=0)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert full.factor_value is None
@@ -350,7 +358,7 @@ class TestMissingDataGuardrail:
         """
         aqua  = [_own("aqua",  2016, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=80,  O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         full = variants["full_training_2016"]
 
         result = apply_factor(
@@ -385,7 +393,7 @@ class TestYearSupportCheck:
         viirs = [_own("viirs", 2016, D=80,  O=1000),
                  _own("viirs", 2017, D=80,  O=1000)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert 2017 in full.missing_aqua_years
@@ -399,7 +407,7 @@ class TestYearSupportCheck:
                  _own("aqua",  2017, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=80,  O=1000)]  # 2017 absent entirely
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert 2017 in full.missing_viirs_years
@@ -414,7 +422,7 @@ class TestYearSupportCheck:
         viirs = [_own("viirs", 2016, D=80,  O=1000),
                  _own("viirs", 2017, D=80,  O=1000)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert 2017 in full.missing_aqua_years
@@ -444,7 +452,7 @@ class TestYearSupportCheck:
         viirs = [_own("viirs", 2016, D=80,  O=1000),
                  _own("viirs", 2017, D=80,  O=1000)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.missing_aqua_years == []
@@ -611,7 +619,7 @@ class TestAssessSensitivity:
         """
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in [2016, 2017, 2018]]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         # B=90, V=80: Delta = 1.25*80 - 90 = +10 for all variants
         status, reasons = assess_sensitivity(variants, baseline_B=90.0, viirs_V=80.0)
         assert status == SensitivityStatus.STABLE
@@ -624,7 +632,7 @@ class TestAssessSensitivity:
         """
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in [2016, 2017, 2018]]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         status, reasons = assess_sensitivity(variants, baseline_B=110.0, viirs_V=80.0)
         assert status == SensitivityStatus.STABLE
 
@@ -653,7 +661,7 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", 2016, D=50,  O=1000),
                  _own("viirs", 2017, D=100, O=1000)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         # Verify the factors (hand-computed):
         # full: Aqua D=300, O=2000 → 150.0;  VIIRS D=150, O=2000 → 75.0 → a=2.0
         # ex_2016 (2017 only): Aqua 100.0, VIIRS 100.0 → a=1.0
@@ -688,7 +696,7 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", 2016, D=50,  O=1000),
                  _own("viirs", 2017, D=100, O=1000)]
         variants = fit_own_support_variants(aqua, viirs,
-                                            training_years=(2016, 2017))
+                                            training_years=(2016, 2017), config=OWN_CFG)
         status, reasons = assess_sensitivity(
             variants, baseline_B=50.0, viirs_V=80.0
         )
@@ -697,7 +705,7 @@ class TestAssessSensitivity:
     def test_unresolved_when_target_B_is_none(self):
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in [2016, 2017, 2018]]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         status, reasons = assess_sensitivity(
             variants, baseline_B=None, viirs_V=80.0
         )
@@ -707,7 +715,7 @@ class TestAssessSensitivity:
     def test_unresolved_when_target_V_is_none(self):
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in [2016, 2017, 2018]]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         status, reasons = assess_sensitivity(
             variants, baseline_B=90.0, viirs_V=None
         )
@@ -731,7 +739,7 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", 2016, D=0,   O=1000),
                  _own("viirs", 2017, D=80,  O=1000),
                  _own("viirs", 2018, D=0,   O=1000)]
-        variants = fit_own_support_variants(aqua, viirs)
+        variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         assert variants["ex_2017"].status == FactorStatus.UNAVAILABLE
 
         required = [
@@ -792,7 +800,7 @@ class TestApplicabilityStatus:
         """apply_factor must accept any of the five statuses without error."""
         aqua  = [_own("aqua",  2016, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=80,  O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         full = variants["full_training_2016"]
 
         for status in ApplicabilityStatus:
@@ -814,7 +822,7 @@ class TestApplicabilityStatus:
         """
         aqua  = [_own("aqua",  2016, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=80,  O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         full = variants["full_training_2016"]
 
         result = apply_factor(
@@ -853,7 +861,7 @@ class TestApplyFactor:
     def full_factor(self):
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in TRAINING_YEARS_DEFAULT]
-        return fit_own_support_variants(aqua, viirs)["full_training_2016_2017_2018"]
+        return fit_own_support_variants(aqua, viirs, config=OWN_CFG)["full_training_2016_2017_2018"]
 
     def test_delta_and_direction_no_change(self, full_factor):
         result = apply_factor(
@@ -993,7 +1001,7 @@ class TestApplyFactor:
     def test_unavailable_factor_yields_unresolved_direction(self):
         aqua  = [_own("aqua",  2016, D=0, O=0)]
         viirs = [_own("viirs", 2016, D=0, O=0)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         unavail = variants["full_training_2016"]
         assert unavail.status == FactorStatus.UNAVAILABLE
 
@@ -1012,13 +1020,13 @@ class TestApplyFactor:
         """a_H and a_C applied to the same target are distinct objects."""
         a_own  = [_own("aqua",  2016, D=100, O=1000)]
         v_own  = [_own("viirs", 2016, D=80,  O=1000)]
-        h_vars = fit_own_support_variants(a_own, v_own, training_years=(2016,))
+        h_vars = fit_own_support_variants(a_own, v_own, training_years=(2016,), config=OWN_CFG)
         full_H = h_vars["full_training_2016"]
 
         a_comm = [_common("aqua",  2016, D=60, O=800)]
         v_comm = [_common("viirs", 2016, D=48, O=800)]
         c_vars = fit_common_support_variants(a_comm, v_comm, training_years=(2016,),
-                                             pairing_validated=True)
+                                             pairing_validated=True, config=COMMON_CFG)
         full_C = c_vars["full_training_2016"]
 
         res_H = apply_factor(
@@ -1069,7 +1077,7 @@ class TestSensitivityNonUniform:
                  _own("aqua",  2017, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=50,  O=1000),
                  _own("viirs", 2017, D=100, O=1000)]
-        return fit_own_support_variants(aqua, viirs, training_years=(2016, 2017))
+        return fit_own_support_variants(aqua, viirs, training_years=(2016, 2017), config=OWN_CFG)
 
     def test_full_training_factor(self, asymmetric_variants):
         v = asymmetric_variants["full_training_2016_2017"]
@@ -1119,7 +1127,7 @@ class TestApplicabilityGatesDirection:
     def factor_and_inputs(self):
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in TRAINING_YEARS_DEFAULT]
-        full = fit_own_support_variants(aqua, viirs)["full_training_2016_2017_2018"]
+        full = fit_own_support_variants(aqua, viirs, config=OWN_CFG)["full_training_2016_2017_2018"]
         return full, 90.0, 80.0  # factor, B, V
 
     _NON_EVALUATED = [
@@ -1322,7 +1330,8 @@ class TestStratumMatch:
         viirs = [
             ObsRecord("viirs", 2016, "month_07", "own_support", 80, 1000),
         ]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,),
+                                            config=OWN_CFG_JUL_AUG)
         full = variants["full_training_2016"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert (2016, "month_08") in full.mismatched_strata
@@ -1342,7 +1351,10 @@ class TestStratumMatch:
             ObsRecord("viirs", 2016, "month_07", "common_support", 48, 800),
         ]
         variants = fit_common_support_variants(aqua, viirs, training_years=(2016,),
-                                        pairing_validated=True)
+                                        pairing_validated=True,
+                                        config=StageAConfig(policy="common_support",
+                                                            strata=("month_07", "month_09"),
+                                                            min_support_O=1))
         full = variants["full_training_2016"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert (2016, "month_09") in full.mismatched_strata
@@ -1379,7 +1391,8 @@ class TestStratumMatch:
             ObsRecord("viirs", 2017, "month_07", "own_support", 40, 1000),
             ObsRecord("viirs", 2017, "month_08", "own_support", 10, 1000),
         ]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016, 2017))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016, 2017),
+                                            config=OWN_CFG_JUL_AUG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.factor_value == pytest.approx(2.0)
@@ -1392,7 +1405,7 @@ class TestStratumMatch:
         """
         aqua  = [_own("aqua",  2016, D=100, O=1000)]
         viirs = [_own("viirs", 2016, D=80,  O=1000)]
-        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_own_support_variants(aqua, viirs, training_years=(2016,), config=OWN_CFG)
         full = variants["full_training_2016"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.mismatched_strata == []
@@ -1422,7 +1435,7 @@ class TestEvaluatedDoesNotMeanPassed:
     def factor_b90_v80(self):
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in TRAINING_YEARS_DEFAULT]
-        full = fit_own_support_variants(aqua, viirs)["full_training_2016_2017_2018"]
+        full = fit_own_support_variants(aqua, viirs, config=OWN_CFG)["full_training_2016_2017_2018"]
         return full  # a_H=1.25; apply with B=90, V=80 -> delta=+10
 
     def test_evaluated_passed_true_emits_direction(self, factor_b90_v80):
@@ -1561,8 +1574,7 @@ class TestPairingValidated:
         aqua, viirs = common_records
         variants = fit_common_support_variants(
             aqua, viirs, training_years=(2016, 2017),
-            pairing_validated=False,
-        )
+            pairing_validated=False, config=COMMON_CFG)
         for vid, v in variants.items():
             assert v.status == FactorStatus.UNAVAILABLE, (
                 f"Variant {vid} must be UNAVAILABLE when pairing_validated=False"
@@ -1575,8 +1587,7 @@ class TestPairingValidated:
         aqua, viirs = common_records
         variants = fit_common_support_variants(
             aqua, viirs, training_years=(2016, 2017),
-            pairing_validated=False,
-        )
+            pairing_validated=False, config=COMMON_CFG)
         for vid, v in variants.items():
             assert len(v.reasons) > 0
             assert any(
@@ -1592,8 +1603,7 @@ class TestPairingValidated:
         aqua, viirs = common_records
         variants = fit_common_support_variants(
             aqua, viirs, training_years=(2016, 2017),
-            pairing_validated=False,
-        )
+            pairing_validated=False, config=COMMON_CFG)
         assert "full_training_2016_2017" in variants
         assert "ex_2016" in variants
         assert "ex_2017" in variants
@@ -1610,8 +1620,7 @@ class TestPairingValidated:
         aqua, viirs = common_records
         variants = fit_common_support_variants(
             aqua, viirs, training_years=(2016, 2017),
-            pairing_validated=True,
-        )
+            pairing_validated=True, config=COMMON_CFG)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.factor_value == pytest.approx(1.25)
@@ -1626,8 +1635,7 @@ class TestPairingValidated:
         with pytest.raises(ValueError, match="common_support"):
             fit_common_support_variants(
                 aqua, viirs, training_years=(2016,),
-                pairing_validated=False,
-            )
+                pairing_validated=False, config=COMMON_CFG)
 
     def test_pairing_validated_false_is_independent_of_stratum_match(
         self, common_records
@@ -1640,9 +1648,187 @@ class TestPairingValidated:
         aqua, viirs = common_records
         variants = fit_common_support_variants(
             aqua, viirs, training_years=(2016, 2017),
-            pairing_validated=False,
-        )
+            pairing_validated=False, config=COMMON_CFG)
         for v in variants.values():
             assert v.mismatched_strata == [], (
                 "mismatched_strata must be empty when pairing check fires first"
             )
+
+
+# ---------------------------------------------------------------------------
+# 16. (v5) Frozen StageAConfig: required, validated, policy- and stratum-bound
+# ---------------------------------------------------------------------------
+class TestStageAConfig:
+    def test_all_fields_required(self):
+        with pytest.raises(TypeError):
+            StageAConfig(policy="own_support", strata=("annual",))  # no min_support_O
+
+    @pytest.mark.parametrize("kwargs", [
+        dict(policy="own_support", strata=("annual",), min_support_O=0),
+        dict(policy="own_support", strata=("annual",), min_support_O=-5),
+        dict(policy="own_support", strata=("annual",), min_support_O=True),
+        dict(policy="own_support", strata=("annual",), min_support_O=2.5),
+        dict(policy="own_support", strata=(), min_support_O=10),
+        dict(policy="own_support", strata=("a", "a"), min_support_O=10),
+        dict(policy="own_support", strata=["annual"], min_support_O=10),
+        dict(policy="other", strata=("annual",), min_support_O=10),
+    ])
+    def test_invalid_values_raise(self, kwargs):
+        with pytest.raises(ValueError):
+            StageAConfig(**kwargs)
+
+    def test_fit_functions_require_config(self):
+        a = [_own("aqua", 2016, D=100, O=1000)]
+        v = [_own("viirs", 2016, D=80, O=1000)]
+        with pytest.raises(TypeError):
+            fit_own_support_variants(a, v, training_years=(2016,))
+        with pytest.raises(TypeError):
+            fit_common_support_variants([_common("aqua", 2016, 1, 10)],
+                                        [_common("viirs", 2016, 1, 10)],
+                                        training_years=(2016,), pairing_validated=True)
+
+    def test_policy_mismatch_raises(self):
+        a = [_own("aqua", 2016, D=100, O=1000)]
+        v = [_own("viirs", 2016, D=80, O=1000)]
+        with pytest.raises(ValueError, match="StageAConfig"):
+            fit_own_support_variants(a, v, training_years=(2016,), config=COMMON_CFG)
+
+    def test_unregistered_stratum_raises(self):
+        a = [ObsRecord("aqua", 2016, "month_07", "own_support", 10, 100)]
+        v = [ObsRecord("viirs", 2016, "month_07", "own_support", 8, 100)]
+        with pytest.raises(ValueError, match="unregistered strata"):
+            fit_own_support_variants(a, v, training_years=(2016,), config=OWN_CFG)
+
+
+# ---------------------------------------------------------------------------
+# 17. (v5) Registered minimum support per sensor, training year and stratum
+# ---------------------------------------------------------------------------
+class TestRegisteredMinimumSupport:
+    """
+    Synthetic registered minimum: min_support_O = 500.
+    Aqua D=100, O=1000 (rate 100); VIIRS D=80, O=1000 (rate 80) -> a_H = 1.25.
+    """
+    CFG = StageAConfig(policy="own_support", strata=("annual",), min_support_O=500)
+
+    def _recs(self, viirs_2017_D=80, viirs_2017_O=1000):
+        aqua = [_own("aqua", y, D=100, O=1000) for y in (2016, 2017, 2018)]
+        viirs = [_own("viirs", 2016, D=80, O=1000),
+                 _own("viirs", 2017, D=viirs_2017_D, O=viirs_2017_O),
+                 _own("viirs", 2018, D=80, O=1000)]
+        return aqua, viirs
+
+    def test_all_cells_supported(self):
+        v = fit_own_support_variants(*self._recs(), config=self.CFG)
+        full = v["full_training_2016_2017_2018"]
+        assert full.status == FactorStatus.AVAILABLE
+        assert full.factor_value == pytest.approx(1.25)
+        assert full.support_failures == []
+
+    def test_one_under_supported_year_blocks_every_variant_that_uses_it(self):
+        # VIIRS 2017: D=32, O=400 -> rate 80, but O 400 < 500
+        v = fit_own_support_variants(*self._recs(32, 400), config=self.CFG)
+        for vid in ("full_training_2016_2017_2018", "ex_2016", "ex_2018"):
+            assert v[vid].status == FactorStatus.UNAVAILABLE
+            assert v[vid].factor_value is None
+            assert v[vid].support_failures == [("viirs", 2017, "annual", 400)]
+        # ex_2017 excludes 2017: 2016+2018 only -> a_H = 1.25
+        assert v["ex_2017"].status == FactorStatus.AVAILABLE
+        assert v["ex_2017"].factor_value == pytest.approx(1.25)
+
+    def test_threshold_is_inclusive(self):
+        # VIIRS 2017: D=40, O=500 -> exactly the minimum -> supported
+        v = fit_own_support_variants(*self._recs(40, 500), config=self.CFG)
+        assert v["full_training_2016_2017_2018"].status == FactorStatus.AVAILABLE
+
+    def test_support_is_summed_across_blocks(self):
+        # VIIRS 2017 split into two blocks of O=300: summed 600 >= 500
+        aqua, viirs = self._recs()
+        viirs = [r for r in viirs if r.year != 2017] + [
+            _own("viirs", 2017, D=24, O=300), _own("viirs", 2017, D=24, O=300)]
+        v = fit_own_support_variants(aqua, viirs, config=self.CFG)
+        assert v["full_training_2016_2017_2018"].status == FactorStatus.AVAILABLE
+
+    def test_tiny_O_from_crosscheck_is_unavailable(self):
+        cfg = StageAConfig(policy="own_support", strata=("annual",), min_support_O=5)
+        v = fit_own_support_variants([_own("aqua", 2016, 1, 3)], [_own("viirs", 2016, 1, 3)],
+                                     training_years=(2016,), config=cfg)
+        assert v["full_training_2016"].status == FactorStatus.UNAVAILABLE
+        assert ("aqua", 2016, "annual", 3) in v["full_training_2016"].support_failures
+
+    def test_registered_stratum_missing_in_both_sensors(self):
+        # Both sensors lack month_08 in 2016: strata still "match", but the
+        # registered stratum has O = 0 -> unavailable.
+        cfg = StageAConfig(policy="own_support", strata=("month_07", "month_08"),
+                           min_support_O=1)
+        a = [ObsRecord("aqua", 2016, "month_07", "own_support", 10, 100)]
+        v_ = [ObsRecord("viirs", 2016, "month_07", "own_support", 8, 100)]
+        res = fit_own_support_variants(a, v_, training_years=(2016,), config=cfg)
+        full = res["full_training_2016"]
+        assert full.status == FactorStatus.UNAVAILABLE
+        assert full.mismatched_strata == []
+        assert ("aqua", 2016, "month_08", 0) in full.support_failures
+        assert ("viirs", 2016, "month_08", 0) in full.support_failures
+
+    def test_common_support_uses_same_rule(self):
+        cfg = StageAConfig(policy="common_support", strata=("annual",), min_support_O=500)
+        a = [_common("aqua", 2016, 60, 800)]
+        v = [_common("viirs", 2016, 12, 160)]  # O 160 < 500
+        res = fit_common_support_variants(a, v, training_years=(2016,),
+                                          pairing_validated=True, config=cfg)
+        assert res["full_training_2016"].status == FactorStatus.UNAVAILABLE
+        assert res["full_training_2016"].support_failures == [("viirs", 2016, "annual", 160)]
+
+
+# ---------------------------------------------------------------------------
+# 18. (v5) Negative or non-finite rates rejected before any calculation
+# ---------------------------------------------------------------------------
+class TestRejectInvalidRates:
+    @pytest.fixture()
+    def factor(self):
+        a = [_own("aqua", y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
+        v = [_own("viirs", y, D=80, O=1000) for y in TRAINING_YEARS_DEFAULT]
+        return fit_own_support_variants(a, v, config=OWN_CFG)
+
+    @pytest.mark.parametrize("B,V", [
+        (-1.0, 80.0), (90.0, -1.0), (-0.001, 0.0),
+        (float("nan"), 80.0), (90.0, float("inf")), (True, 80.0), ("90", 80.0),
+    ])
+    def test_apply_factor_rejects(self, factor, B, V):
+        with pytest.raises(ValueError):
+            apply_factor(factor_result=factor["full_training_2016_2017_2018"],
+                         baseline_B=B, viirs_V=V,
+                         sensitivity_status=SensitivityStatus.STABLE,
+                         applicability_status=ApplicabilityStatus.EVALUATED,
+                         applicability_passed=True)
+
+    @pytest.mark.parametrize("B,V", [(-1.0, 80.0), (90.0, -0.5), (float("nan"), 1.0)])
+    def test_assess_sensitivity_rejects(self, factor, B, V):
+        with pytest.raises(ValueError):
+            assess_sensitivity(factor, baseline_B=B, viirs_V=V)
+
+    def test_rejected_even_when_factor_unavailable(self):
+        bad = fit_own_support_variants([_own("aqua", 2016, 0, 0)], [_own("viirs", 2016, 0, 0)],
+                                       training_years=(2016,), config=OWN_CFG)
+        with pytest.raises(ValueError):
+            apply_factor(factor_result=bad["full_training_2016"], baseline_B=-1.0, viirs_V=1.0,
+                         sensitivity_status=SensitivityStatus.UNRESOLVED,
+                         applicability_status=ApplicabilityStatus.INSUFFICIENT_EVIDENCE,
+                         applicability_passed=False)
+        with pytest.raises(ValueError):
+            assess_sensitivity(bad, baseline_B=None, viirs_V=-2.0)
+
+    def test_zero_and_none_still_accepted(self, factor):
+        r = apply_factor(factor_result=factor["full_training_2016_2017_2018"],
+                         baseline_B=0.0, viirs_V=0.0,
+                         sensitivity_status=SensitivityStatus.STABLE,
+                         applicability_status=ApplicabilityStatus.EVALUATED,
+                         applicability_passed=True)
+        assert r.delta == pytest.approx(0.0)
+        r2 = apply_factor(factor_result=factor["full_training_2016_2017_2018"],
+                          baseline_B=None, viirs_V=80.0,
+                          sensitivity_status=SensitivityStatus.STABLE,
+                          applicability_status=ApplicabilityStatus.EVALUATED,
+                          applicability_passed=True)
+        assert r2.delta is None and r2.headline_direction == HeadlineDirection.UNRESOLVED
+        status, _ = assess_sensitivity(factor, baseline_B=None, viirs_V=80.0)
+        assert status == SensitivityStatus.UNRESOLVED
