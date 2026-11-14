@@ -250,7 +250,7 @@ def pooled_rate(
     
     If required_blocks is provided, verifies that every required block
     is present and has usable observations (O > 0). If any required block
-    has O=0 or is missing, returns None (available=False).
+    has partial/unusable status, missing, or O=0, returns None immediately.
     """
     if not observations:
         return None
@@ -267,15 +267,26 @@ def pooled_rate(
 
     # Verify block completeness if required_blocks is provided
     if required_blocks is not None:
+        # Check for missing block_ids in observations
         available_blocks = {o.block_id for o in observations if o.block_id is not None}
         missing_blocks = set(required_blocks) - available_blocks
         if missing_blocks:
             return None  # Some required blocks are missing
         
-        # Check each required block has O > 0
+        # For each required block, check that at least one observation exists
+        # and that observation has usable status (is_available returns True)
         for block in required_blocks:
             block_obs = [o for o in observations if o.block_id == block]
-            total_block_O = sum(o.O for o in block_obs)
+            if not block_obs:
+                return None  # Required block has no observations
+            
+            # Find observations with this block_id that are available
+            available_block_obs = [o for o in block_obs if o.is_available]
+            if not available_block_obs:
+                return None  # No available observations for this block
+            
+            # Check each required block has O > 0 (summed across available obs)
+            total_block_O = sum(o.O for o in available_block_obs)
             if total_block_O == 0:
                 return None  # Required block has no usable observations
 

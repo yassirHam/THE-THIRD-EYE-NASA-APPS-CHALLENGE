@@ -532,6 +532,237 @@ def compute_week_baseline(
     )
 
 
+# ---------------------------------------------------------------------------
+# Critical week functions (P1-B-R2-03)
+# ---------------------------------------------------------------------------
+@dataclass
+class CriticalWeekLabel:
+    """
+    Label for a critical/busiest week.
+    
+    status: 'labeled' | 'baseline_unavailable' | 'target_unavailable' |
+            'target_partial' | 'target_insufficient_support'
+    is_critical is True only when status == 'labeled' and week is in top busiest.
+    rank: 1-indexed rank among all weeks (lower = busier)
+    tied_with: list of other week numbers that have the same rate (sorted)
+    """
+    calendar_month: int  # Week number (1-53)
+    target_year: int
+    sensor: SensorID
+    policy: PolicyID
+    is_critical: bool
+    target_rate: Optional[float]
+    threshold_rate: Optional[float]
+    rank: Optional[int]
+    tied_with: list[int]
+    status: str
+    reason: str = ""
+
+
+def compute_weekly_rates(
+    target_obs: list[PeriodObs],
+    target_year: int,
+    baseline: MonthBaseline,
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> dict[int, float]:
+    """
+    Compute rates for all weeks in a target year from available observations.
+    
+    Returns a dict mapping week_number -> rate for weeks that have sufficient support.
+    """
+    relevant = [
+        o for o in target_obs
+        if o.sensor == baseline.sensor and o.policy == baseline.policy
+        and o.year == target_year
+    ]
+    
+    if not relevant:
+        return {}
+    
+    if any(o.is_period_partial or o.is_after_cessation for o in relevant):
+        return {}
+    
+    # Group by week_number
+    from collections import defaultdict
+    by_week: dict[int, list[PeriodObs]] = defaultdict(list)
+    for o in relevant:
+        if o.week_number is not None:
+            by_week[o.week_number].append(o)
+    
+    rates: dict[int, float] = {}
+    for week_num, obs_list in by_week.items():
+        # Verify block completeness if required_blocks is provided
+        if required_blocks is not None:
+            available_blocks = {o.block_id for o in obs_list if o.block_id is not None}
+            missing_blocks = set(required_blocks) - available_blocks
+            if missing_blocks:
+                continue  # Skip this week
+            
+            # Check each required block has O > 0
+            blocks_ok = True
+            for block in required_blocks:
+                block_recs = [o for o in obs_list if o.block_id == block]
+                total_block_O = sum(o.O for o in block_recs)
+                if total_block_O == 0:
+                    blocks_ok = False
+                    break
+            
+            if not blocks_ok:
+                continue
+        
+        total_O = sum(o.O for o in obs_list)
+        if total_O == 0:
+            continue  # O = 0 is unavailable
+        if total_O < baseline.min_support_O:
+            continue
+        
+        rate = pooled_rate(obs_list, required_blocks=required_blocks)
+        if rate is not None:
+            rates[week_num] = rate
+    
+    return rates
+
+
+def compute_critical_weeks(
+    target_obs: list[PeriodObs],
+    target_year: int,
+    baseline: MonthBaseline,
+    top_n: int = 3,
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> list[CriticalWeekLabel]:
+    """
+    Identify the top busiest weeks by rate for a target year.
+    
+    Returns a sorted list (busiest first) of CriticalWeekLabel objects.
+    Ties are broken deterministically by week_number (lower week_number wins).
+    
+    Args:
+        target_obs: Target year observations
+        target_year: Target year for analysis
+        baseline: MonthBaseline from which to derive threshold (p90_rate)
+        top_n: Number of top weeks to identify
+        required_blocks: Optional tuple of required block IDs for spatial filtering
+    """
+    # Get all weekly rates
+    rates = compute_weekly_rates(target_obs, target_year, baseline, required_blocks)
+    
+    if not rates:
+        return []
+    
+    # Sort by rate descending, then by week_number ascending for deterministic tie-breaking
+    sorted_weeks = sorted(rates.items(), key=lambda x: (-x[1], x[0]))
+    
+    # Determine threshold: use p90 rate from baseline if available
+    threshold_rate = baseline.p90_rate if baseline.p90_rate is not None else None
+    
+    # Compute ranks with tie handling
+    result: list[CriticalWeekLabel] = []
+    i = 0
+    while i < len(sorted_weeks):
+        # Find all weeks with the same rate (ties)
+        current_rate = sorted_weeks[i][1]
+        tied_weeks = [w for w, r in sorted_weeks if r == current_rate]
+        tied_weeks.sort()  # Deterministic ordering
+        
+        rank = i + 1  # 1-indexed rank
+        
+        for week_num in tied_weeks:
+            rate = rates[week_num]
+            is_critical = rank <= top_n
+            status = "labeled" if is_critical else "not_in_top_n"
+            
+            # Check if unusual (rate > p90 threshold)
+            unusual = False
+            if threshold_rate is not None and rate > threshold_rate:
+                unusual = True
+                status = "unusual" if is_critical else "unusual_not_in_top_n"
+            
+            reason_parts = []
+            if unusual:
+                reason_parts.append(f"Rate {rate:.1f} exceeds p90 threshold {threshold_rate:.1f}")
+            if len(tied_weeks) > 1:
+                reason_parts.append(f"Tied with weeks {tied_weeks}")
+            if is_critical:
+                reason_parts.append(f"Ranked #{rank} of {len(sorted_weeks)} weeks")
+            
+            result.append(CriticalWeekLabel(
+                calendar_month=week_num,
+                target_year=target_year,
+                sensor=baseline.sensor,
+                policy=baseline.policy,
+                is_critical=is_critical,
+                target_rate=rate,
+                threshold_rate=threshold_rate,
+                rank=rank,
+                tied_with=[w for w in tied_weeks if w != week_num],
+                status=status,
+                reason=". ".join(reason_parts) if reason_parts else "",
+            ))
+        
+        i += len(tied_weeks)
+    
+    # Sort by rank to ensure proper ordering
+    result.sort(key=lambda x: (x.rank or 999, x.calendar_month))
+    
+    return result
+
+
+def label_critical_week(
+    target_obs: list[PeriodObs],
+    target_year: int,
+    week_number: int,
+    baseline: MonthBaseline,
+    top_n: int = 3,
+    required_blocks: Optional[tuple[str, ...]] = None,
+) -> CriticalWeekLabel:
+    """
+    Label a specific week as critical/busiest if it falls within the top N busiest weeks.
+    
+    Returns a CriticalWeekLabel with status and rank information.
+    """
+    # Validate week_number
+    if not (1 <= week_number <= 53):
+        raise ValueError(f"week_number must be 1-53, got {week_number}")
+    
+    # Verify baseline.target_year matches target_year (P1-B-R2-02)
+    if baseline.target_year != target_year:
+        raise ValueError(
+            f"Baseline was computed for target year {baseline.target_year}, "
+            f"not {target_year}."
+        )
+    
+    baseline_week = baseline.calendar_month
+    if baseline_week != week_number:
+        raise ValueError(
+            f"Baseline was computed for week {baseline_week}, not {week_number}."
+        )
+
+    # Compute all critical weeks
+    critical_weeks = compute_critical_weeks(
+        target_obs, target_year, baseline, top_n, required_blocks
+    )
+    
+    # Find the label for the specified week
+    for cw in critical_weeks:
+        if cw.calendar_month == week_number:
+            return cw
+    
+    # Week not in top N, return with is_critical=False
+    return CriticalWeekLabel(
+        calendar_month=week_number,
+        target_year=target_year,
+        sensor=baseline.sensor,
+        policy=baseline.policy,
+        is_critical=False,
+        target_rate=None,
+        threshold_rate=baseline.p90_rate,
+        rank=None,
+        tied_with=[],
+        status="not_in_top_n",
+        reason=f"Week {week_number} is not among the top {top_n} busiest weeks.",
+    )
+
+
 def label_unusual_week(
     target_obs: list[PeriodObs],
     target_year: int,
@@ -548,6 +779,13 @@ def label_unusual_week(
     # Validate week_number
     if not (1 <= week_number <= 53):
         raise ValueError(f"week_number must be 1-53, got {week_number}")
+    
+    # Verify baseline.target_year matches target_year (P1-B-R2-02)
+    if baseline.target_year != target_year:
+        raise ValueError(
+            f"Baseline was computed for target year {baseline.target_year}, "
+            f"not {target_year}."
+        )
     
     baseline_week = baseline.calendar_month
     if baseline_week != week_number:
