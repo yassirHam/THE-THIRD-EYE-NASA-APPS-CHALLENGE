@@ -369,9 +369,16 @@ def test_not_certified_footprint_blocks_comparison_eligibility() -> None:
     assert not artifact_ok(data)
 
 
+def registered_window_for_plain_fixture() -> dict:
+    # Synthetic window placed where the plain fixture has no records, so no period straddles it.
+    return {"start": "2011-01-01", "end": "2011-12-31", "registration_status": "registered",
+            "registration_ref": "synthetic-ref", "decision_date": "2026-11-15"}
+
+
 def test_production_eligible_periods_require_certified_footprint() -> None:
     data = plain_artifact()
-    data.update(data_classification="production", fixture_label=None)
+    data.update(data_classification="production", fixture_label=None,
+                sealed_window=registered_window_for_plain_fixture())
     assert not artifact_ok(data)  # available aggregates alone never imply completeness
     data["footprint_certification"] = {"geometry_id": data["geometry_id"], "status": "certified_complete",
                                        "certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"}
@@ -418,5 +425,38 @@ def test_config_entries_cannot_claim_frozen_without_date_and_reference() -> None
 
 def test_week_53_minimum_config_is_null_and_records_its_blockers() -> None:
     entry = CONFIG["week_53_minimum"]
-    assert entry["value"] is None
-    assert set(entry["blocked_by"]) == {"external-registry check", "P5 holdout-policy decision"}
+    assert entry["value"] is None and entry["registered"] is False
+    assert entry["blocked_by"] == ["external-registry check"]
+    assert [c["blocker"] for c in entry["cleared"]] == ["P5 holdout-policy decision"]
+
+
+# ------------------------------------------- P5 holdout decision (handoff d0b8c90), synthetic only
+
+
+def test_production_artifact_must_declare_a_registered_sealed_window() -> None:
+    data = plain_artifact()
+    data.update(data_classification="production", fixture_label=None, footprint_certification={
+        "geometry_id": data["geometry_id"], "status": "certified_complete",
+        "certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"})
+    assert data["sealed_window"] is None
+    assert not artifact_ok(data)  # no window -> sealed years could not be excluded
+    data["sealed_window"] = {**sealed_artifact()["sealed_window"], "registration_status": "proposed_unregistered"}
+    assert not artifact_ok(data)  # a proposed window is not enough for production
+
+
+def test_no_fixture_lists_sealed_years_as_baseline_prior_years() -> None:
+    for path in FIXTURES.glob("*.json"):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for baseline in data.get("seasonal_baselines", []):
+            sealed = [y for y in baseline["eligible_prior_years"] if SEALED_START.year <= y <= SEALED_END.year]
+            assert not sealed, (path.name, sealed)
+
+
+def test_too_few_years_after_excluding_sealed_years_must_be_insufficient_baseline() -> None:
+    data = sealed_artifact()
+    b = data["seasonal_baselines"][0]
+    b.update(eligible_prior_years=[2018, 2019], minimum_year_count=3)  # sealed years removed, now short
+    assert not artifact_ok(data)  # cannot stay "available"
+    b.update(status="insufficient_baseline", normal_season_start_month=None,
+             normal_season_end_month=None, peak_median_month=None)
+    assert artifact_ok(data)

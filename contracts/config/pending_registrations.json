@@ -28,15 +28,27 @@
     "decision_date": null,
     "reference": null,
     "blocked_by": [
-      "external-registry check",
-      "P5 holdout-policy decision"
+      "external-registry check"
     ],
-    "note": "P1: unfrozen. Do not register or hard-code any minimum (including three) until both blockers clear."
+    "note": "P1: unfrozen. P5's holdout policy is now recorded; the external-registry check is still open. Do not register or hard-code any minimum (including three).",
+    "cleared": [
+      {
+        "blocker": "P5 holdout-policy decision",
+        "reference": "origin/handoff d0b8c905447677e1888d9c48f11db6ee22740382: handoff/escalations/P4/P4-holdout-baselines-decision.md"
+      }
+    ]
   },
   "footprint_certification": {
     "registered": false,
     "decision_date": null,
     "reference": null,
     "note": "Whole-footprint completeness is conditional on P2's documented certification (Q3 response not available to P4-B)."
+  },
+  "holdout_baseline_policy": {
+    "source": "P5 binding decision",
+    "reference": "origin/handoff d0b8c905447677e1888d9c48f11db6ee22740382: handoff/escalations/P4/P4-holdout-baselines-decision.md",
+    "document_date_utc": "2026-11-14T19:10:00Z",
+    "commit_time_utc": "2026-11-14T19:08:07Z",
+    "note": "Document date is later than its commit time; both recorded as found, neither adjusted. Pre-freeze: 2020-2021 strictly ineligible in eligible_prior_years. Post-freeze inclusion needs P5's four conditions and a separate contract revision."
   }
 }

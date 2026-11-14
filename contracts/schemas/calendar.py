@@ -438,9 +438,11 @@ class CalendarArtifact(ArtifactIdentity):
             if series.policy_id != self.policy_id:
                 raise ValueError("calendar series policy must match artifact identity")
         window = self.sealed_window
-        if window is not None and self.data_classification == "production":
-            if window.registration_status != "registered":
-                raise ValueError("production artifacts require a registered sealed window")
+        if self.data_classification == "production":
+            # P5 binding decision (handoff d0b8c90): sealed years stay out of baselines.
+            # Exclusion is only enforceable against a declared window, so production must declare one.
+            if window is None or window.registration_status != "registered":
+                raise ValueError("production artifacts require a declared, registered sealed window")
         periods: list[tuple[str, date, date, str | None]] = []
         for m_series in self.monthly_series:
             for m in m_series.records:
