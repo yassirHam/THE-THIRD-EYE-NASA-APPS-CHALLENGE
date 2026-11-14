@@ -15,6 +15,23 @@ GUARDRAILS (non-negotiable):
 - Status dimensions (sensitivity, applicability, inference, practical_change)
   are strictly independent and must never be collapsed.
 - Stage B and Evidence Repair are out of scope here.
+
+Changes v2 (review response):
+  1. assess_sensitivity now requires a (baseline_B, viirs_V) target pair to
+     evaluate whether all variant Deltas agree in sign.  Directional
+     disagreement → SENSITIVE.  Stability is per the spec: "all required tested
+     variants agree", not merely "all factors are present and positive".
+  2. _fit_factor now verifies each required training year has at least one
+     available record (O > 0) per sensor.  A year present in training_years
+     but entirely absent or O=0 → UNAVAILABLE with an explicit year-missing
+     reason.  Silently pooling over fewer years than registered is forbidden.
+  3. ApplicabilityStatus gains FAILED_APPLICABILITY and MISSING_REQUIRED_SUPPORT,
+     matching the spec's five named output categories (§8B):
+       - evaluated_for_conditions      (evaluation performed)
+       - failed_applicability          (evaluation performed but failed)
+       - outside_evaluated_conditions  (domain not evaluated at all)
+       - missing_required_support      (required observations absent)
+       - insufficient_evidence         (checks incomplete/unavailable)
 """
 from __future__ import annotations
 
@@ -54,8 +71,26 @@ class SensitivityStatus(str, Enum):
 
 
 class ApplicabilityStatus(str, Enum):
+    """
+    Five named categories from §8B of the scientific plan.
+
+    evaluated_for_conditions    — the evaluation was performed and the domain
+                                   conditions are met.  Does NOT mean "passed".
+    failed_applicability        — the evaluation was performed but failed
+                                   (e.g. support shifted, QA changed).  Preserve
+                                   this separately; never collapse into out_of_domain.
+    outside_evaluated_conditions— the requested domain was never evaluated.
+                                   Raw observations may still be available.
+    missing_required_support    — required observations (O > 0) are absent;
+                                   the check cannot even be attempted.
+    insufficient_evidence       — the applicability check is incomplete or its
+                                   required preconditions are unavailable.
+    """
+
     EVALUATED = "evaluated_for_conditions"
+    FAILED_APPLICABILITY = "failed_applicability"
     OUTSIDE_EVALUATED = "outside_evaluated_conditions"
+    MISSING_REQUIRED_SUPPORT = "missing_required_support"
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
 
 
@@ -106,7 +141,7 @@ class ObsRecord:
             raise ValueError(f"D must be >= 0, got {self.D}")
         if self.O < 0:
             raise ValueError(f"O must be >= 0, got {self.O}")
-        # O = 0 with D > 0 would be nonsensical; flag it.
+        # O = 0 with D > 0 is nonsensical; flag it immediately.
         if self.O == 0 and self.D > 0:
             raise ValueError(
                 "O = 0 (unavailable period) cannot have D > 0.  "
@@ -165,6 +200,8 @@ class FactorResult:
     viirs_pooled_rate: 1000·ΣD_viirs / ΣO_viirs (None when unavailable).
     n_aqua_obs: count of AVAILABLE Aqua records used.
     n_viirs_obs: count of AVAILABLE VIIRS records used.
+    missing_aqua_years: training years with no available Aqua records.
+    missing_viirs_years: training years with no available VIIRS records.
     reasons: human-readable list of why the factor is unavailable (if applicable).
     """
 
@@ -177,7 +214,28 @@ class FactorResult:
     viirs_pooled_rate: Optional[float]
     n_aqua_obs: int
     n_viirs_obs: int
+    missing_aqua_years: list[int] = field(default_factory=list)
+    missing_viirs_years: list[int] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+
+
+def _check_year_support(
+    records: list[ObsRecord],
+    training_years: tuple[int, ...],
+    sensor_label: str,
+) -> list[int]:
+    """
+    Return the list of years in training_years that have NO available
+    (O > 0) records in `records`.
+
+    A required year with only O=0 records is treated the same as a year
+    that is entirely absent — it contributes nothing to the pooled rate
+    and must be flagged, not silently skipped.
+    """
+    years_with_support: set[int] = {
+        r.year for r in records if r.is_available
+    }
+    return sorted(y for y in training_years if y not in years_with_support)
 
 
 def _fit_factor(
@@ -194,11 +252,51 @@ def _fit_factor(
     Both sensor record lists must already be filtered to the correct
     policy and training years by the caller.
 
+    Precondition check (v2): every year in training_years must have at least
+    one available record (O > 0) for each sensor.  If any year is missing
+    support for either sensor, the factor is UNAVAILABLE and the missing
+    years are recorded explicitly.  Silently pooling over fewer years than
+    registered is a scientific error (§6: "registered training years").
+
     Returns FactorResult with status=UNAVAILABLE and factor_value=None
-    whenever the computation cannot proceed (zero O, zero VIIRS rate, etc.).
+    whenever the computation cannot proceed.
     """
     reasons: list[str] = []
 
+    # --- (v2) Check that every registered year has support ---
+    missing_aqua = _check_year_support(aqua_records, training_years, "Aqua")
+    missing_viirs = _check_year_support(viirs_records, training_years, "VIIRS")
+
+    if missing_aqua:
+        reasons.append(
+            f"Aqua has no usable observations (O > 0) in required training "
+            f"year(s): {missing_aqua}.  Factor variant '{variant_id}' is "
+            "UNAVAILABLE; cannot pool over fewer years than registered."
+        )
+    if missing_viirs:
+        reasons.append(
+            f"VIIRS has no usable observations (O > 0) in required training "
+            f"year(s): {missing_viirs}.  Factor variant '{variant_id}' is "
+            "UNAVAILABLE; cannot pool over fewer years than registered."
+        )
+
+    if reasons:
+        return FactorResult(
+            variant_id=variant_id,
+            factor_type=factor_type,
+            training_years=training_years,
+            status=FactorStatus.UNAVAILABLE,
+            factor_value=None,
+            aqua_pooled_rate=None,
+            viirs_pooled_rate=None,
+            n_aqua_obs=0,
+            n_viirs_obs=0,
+            missing_aqua_years=missing_aqua,
+            missing_viirs_years=missing_viirs,
+            reasons=reasons,
+        )
+
+    # All years have support — now pool
     aqua_available = [r for r in aqua_records if r.is_available]
     viirs_available = [r for r in viirs_records if r.is_available]
 
@@ -208,23 +306,25 @@ def _fit_factor(
     aqua_rate = _pooled_rate(aqua_available)
     viirs_rate = _pooled_rate(viirs_available)
 
+    # These cases should be unreachable after the year-support check above,
+    # but are kept as a defence-in-depth guard.
     if aqua_rate is None:
         reasons.append(
-            f"Aqua pooled rate unavailable: no usable observations (O > 0) "
-            f"in training years {training_years}."
+            f"Aqua pooled rate is None despite passing year-support check "
+            f"(unexpected; variant '{variant_id}')."
         )
     if viirs_rate is None:
         reasons.append(
-            f"VIIRS pooled rate unavailable: no usable observations (O > 0) "
-            f"in training years {training_years}."
+            f"VIIRS pooled rate is None despite passing year-support check "
+            f"(unexpected; variant '{variant_id}')."
         )
     if viirs_rate is not None and viirs_rate == 0.0:
         reasons.append(
             "VIIRS pooled rate is exactly zero (D = 0 across all training "
-            "observations).  Division undefined; factor is unavailable."
+            "observations with O > 0).  Division undefined; factor is unavailable."
         )
 
-    if reasons or viirs_rate == 0.0:
+    if reasons or (viirs_rate is not None and viirs_rate == 0.0):
         return FactorResult(
             variant_id=variant_id,
             factor_type=factor_type,
@@ -235,6 +335,8 @@ def _fit_factor(
             viirs_pooled_rate=viirs_rate,
             n_aqua_obs=n_aqua,
             n_viirs_obs=n_viirs,
+            missing_aqua_years=missing_aqua,
+            missing_viirs_years=missing_viirs,
             reasons=reasons,
         )
 
@@ -254,6 +356,8 @@ def _fit_factor(
             viirs_pooled_rate=viirs_rate,
             n_aqua_obs=n_aqua,
             n_viirs_obs=n_viirs,
+            missing_aqua_years=[],
+            missing_viirs_years=[],
             reasons=reasons,
         )
 
@@ -267,6 +371,8 @@ def _fit_factor(
         viirs_pooled_rate=viirs_rate,
         n_aqua_obs=n_aqua,
         n_viirs_obs=n_viirs,
+        missing_aqua_years=[],
+        missing_viirs_years=[],
         reasons=[],
     )
 
@@ -286,17 +392,17 @@ def fit_own_support_variants(
     Records outside training_years are silently ignored (they are not
     used for factor fitting; only training data may enter the denominator).
 
+    Every variant is returned, even if UNAVAILABLE.  Missing required
+    factors are UNAVAILABLE with explicit year-missing reasons, never dropped.
+
     Returns a dict keyed by variant_id, e.g.:
       {
-        "full_training_2016_2018": FactorResult(...),
+        "full_training_2016_2017_2018": FactorResult(...),
         "ex_2016": FactorResult(...),
         "ex_2017": FactorResult(...),
         "ex_2018": FactorResult(...),
       }
-
-    Missing required factors are UNAVAILABLE, never dropped silently.
     """
-    # Guard: only own-support records should be passed here
     for rec in aqua_records + viirs_records:
         if rec.policy != "own_support":
             raise ValueError(
@@ -311,7 +417,6 @@ def fit_own_support_variants(
 
     results: dict[str, FactorResult] = {}
 
-    # Full-training variant
     full_id = "_".join(["full_training"] + [str(y) for y in sorted(training_years)])
     results[full_id] = _fit_factor(
         variant_id=full_id,
@@ -321,7 +426,6 @@ def fit_own_support_variants(
         viirs_records=_subset(viirs_records, training_years),
     )
 
-    # Leave-one-year-out variants — one per training year
     for excluded_year in sorted(training_years):
         remaining = tuple(y for y in training_years if y != excluded_year)
         variant_id = f"ex_{excluded_year}"
@@ -393,52 +497,87 @@ def fit_common_support_variants(
 
 
 # ---------------------------------------------------------------------------
-# Sensitivity check
+# Sensitivity check  (v2: requires a target to evaluate directional agreement)
 # ---------------------------------------------------------------------------
+def _delta_for_factor(
+    factor_value: float,
+    baseline_B: float,
+    viirs_V: float,
+) -> float:
+    """Return Delta = factor * V - B.  Used only inside assess_sensitivity."""
+    return factor_value * viirs_V - baseline_B
+
+
 def assess_sensitivity(
     variant_results: dict[str, FactorResult],
+    baseline_B: Optional[float],
+    viirs_V: Optional[float],
     required_variant_ids: Optional[list[str]] = None,
 ) -> tuple[SensitivityStatus, list[str]]:
     """
     Determine calibration_sensitivity from a set of factor variants.
 
-    Rules (§7):
-    - Any required variant that is UNAVAILABLE → UNRESOLVED (takes precedence).
-    - If all available factors agree in direction of their Delta values and
-      the factors themselves are within the registered min-max envelope → STABLE.
-    - If factors produce directional disagreement → SENSITIVE.
-    - If the required_variant_ids list is supplied, all must be present and
-      AVAILABLE; otherwise the status is UNRESOLVED regardless.
+    Per §7: "Label agreement 'Stable across the registered calibration variants'"
+    requires that all registered variants' Deltas (= a*V - B) agree in sign.
+    Stability is a property of the variants applied to a specific target, not a
+    property of the factor values in isolation.
+
+    Parameters
+    ----------
+    variant_results:
+        Output of fit_own_support_variants / fit_common_support_variants.
+    baseline_B:
+        Pooled Aqua reference rate for the target comparison period.
+        None means the target is unavailable → UNRESOLVED.
+    viirs_V:
+        Raw VIIRS rate for the target comparison period.
+        None means the target is unavailable → UNRESOLVED.
+    required_variant_ids:
+        If supplied, every listed variant must be present AND AVAILABLE.
+        Any missing or UNAVAILABLE required variant → UNRESOLVED (takes
+        precedence over all other checks; spec §7: "a required undefined
+        factor remains unavailable and follows unresolved precedence; never
+        drop it to get a stable badge").
 
     Returns (SensitivityStatus, list[reason_strings]).
     """
     reasons: list[str] = []
 
-    # Collect available factor values
-    available_values: list[float] = []
+    # --- target unavailability takes precedence over everything else ---
+    if baseline_B is None:
+        reasons.append("Baseline (B) is unavailable; sensitivity cannot be assessed.")
+        return SensitivityStatus.UNRESOLVED, reasons
+    if viirs_V is None:
+        reasons.append("Target VIIRS rate (V) is unavailable; sensitivity cannot be assessed.")
+        return SensitivityStatus.UNRESOLVED, reasons
+
+    # --- collect available factor values ---
+    available: dict[str, float] = {}
     unavailable_ids: list[str] = []
 
     for vid, result in variant_results.items():
         if result.status == FactorStatus.AVAILABLE:
-            available_values.append(result.factor_value)  # type: ignore[arg-type]
+            available[vid] = result.factor_value  # type: ignore[assignment]
         else:
             unavailable_ids.append(vid)
 
-    # Check required variants
+    # --- check required variants (UNRESOLVED takes strict precedence) ---
     if required_variant_ids:
-        missing = [
+        missing_or_unavail = [
             vid
             for vid in required_variant_ids
             if vid not in variant_results
             or variant_results[vid].status == FactorStatus.UNAVAILABLE
         ]
-        if missing:
+        if missing_or_unavail:
             reasons.append(
-                f"Required variants unavailable or missing: {missing}. "
-                "Sensitivity is UNRESOLVED; a stable badge cannot be awarded."
+                f"Required variants unavailable or missing: {missing_or_unavail}. "
+                "Sensitivity is UNRESOLVED; a stable badge cannot be awarded "
+                "(spec §7: required undefined factor follows unresolved precedence)."
             )
             return SensitivityStatus.UNRESOLVED, reasons
 
+    # --- if any variant (not just required) is unavailable, cannot assess ---
     if unavailable_ids:
         reasons.append(
             f"Factor variants {unavailable_ids} are UNAVAILABLE. "
@@ -446,25 +585,53 @@ def assess_sensitivity(
         )
         return SensitivityStatus.UNRESOLVED, reasons
 
-    if len(available_values) < 2:
+    if len(available) < 2:
         reasons.append(
             "Fewer than 2 available factor variants; sensitivity cannot be assessed."
         )
         return SensitivityStatus.UNRESOLVED, reasons
 
-    factor_min = min(available_values)
-    factor_max = max(available_values)
+    # --- (v2) compute Deltas and check directional agreement ---
+    deltas: dict[str, float] = {
+        vid: _delta_for_factor(a, baseline_B, viirs_V)
+        for vid, a in available.items()
+    }
 
-    # Factors all positive and present — check if direction is consistent.
-    # At Stage A we do not apply factors to a target here; we can only note
-    # whether the factor spread is non-trivial.  Directional stability of Delta
-    # requires a target value and belongs in comparison logic (see apply_factor).
-    # Here we return STABLE if all factors are present and positive (no direction
-    # reversal is possible from the factors alone without a target).
-    reasons.append(
-        f"All {len(available_values)} registered variants available. "
-        f"Factor range [{factor_min:.6f}, {factor_max:.6f}]."
+    # Classify each Delta: positive, negative, or zero.
+    # Zero is compatible with either direction (no sign reversal).
+    positive_ids = [vid for vid, d in deltas.items() if d > 0.0]
+    negative_ids = [vid for vid, d in deltas.items() if d < 0.0]
+    zero_ids     = [vid for vid, d in deltas.items() if d == 0.0]
+
+    factor_min = min(available.values())
+    factor_max = max(available.values())
+    delta_min  = min(deltas.values())
+    delta_max  = max(deltas.values())
+
+    base_summary = (
+        f"All {len(available)} registered variants available. "
+        f"Factor range [{factor_min:.6f}, {factor_max:.6f}]. "
+        f"Delta range [{delta_min:.6f}, {delta_max:.6f}] "
+        f"(B={baseline_B:.6f}, V={viirs_V:.6f})."
     )
+
+    if positive_ids and negative_ids:
+        # Sign reversal across variants → SENSITIVE
+        reasons.append(base_summary)
+        reasons.append(
+            f"Directional disagreement: variants {positive_ids} give Delta > 0 "
+            f"(increase) while variants {negative_ids} give Delta < 0 (decrease). "
+            "Result is SENSITIVE to calibration assumptions."
+        )
+        return SensitivityStatus.SENSITIVE, reasons
+
+    # All non-zero Deltas share the same sign (some may be zero) → STABLE
+    reasons.append(base_summary)
+    if zero_ids:
+        reasons.append(
+            f"Variants {zero_ids} give Delta = 0 (equality); "
+            "these are compatible with the dominant direction."
+        )
     return SensitivityStatus.STABLE, reasons
 
 
@@ -485,9 +652,9 @@ class AppliedComparison:
     factor_value: Optional[float]
     factor_status: FactorStatus
     baseline_B: Optional[float]  # Aqua reference rate
-    viirs_V: Optional[float]  # Raw VIIRS target rate
-    mapped_Z: Optional[float]  # a * V
-    delta: Optional[float]  # mapped_Z - baseline_B
+    viirs_V: Optional[float]     # Raw VIIRS target rate
+    mapped_Z: Optional[float]    # a * V
+    delta: Optional[float]       # mapped_Z - baseline_B
     # --- independent status dimensions ---
     sensitivity_status: SensitivityStatus
     applicability_status: ApplicabilityStatus
@@ -520,9 +687,14 @@ def apply_factor(
         Raw VIIRS rate for the target period (None = unavailable).
     sensitivity_status:
         Pre-computed from assess_sensitivity(); passed in, not re-derived here.
+        The caller must supply the value from assess_sensitivity(B, V, ...) for
+        this specific (baseline_B, viirs_V) pair.
     applicability_status:
         Caller is responsible for determining whether this factor was
-        evaluated for the target region/period/policy.
+        evaluated for the target region/period/policy.  Use FAILED_APPLICABILITY
+        when an evaluation was performed and failed; MISSING_REQUIRED_SUPPORT
+        when required observations are absent; INSUFFICIENT_EVIDENCE when
+        checks are incomplete.  Do not collapse failed checks into OUTSIDE_EVALUATED.
     practical_margin_tau:
         Non-negative margin registered BEFORE outcome inspection (§7).
         None → practical_change = UNSPECIFIED.
