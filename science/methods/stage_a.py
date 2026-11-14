@@ -59,6 +59,29 @@ Changes v3 (review response — two remaining issues):
     Note: this check verifies (year, stratum) key presence, not sub-pixel
     spatial cell identity; spatial pairing of cell-days must be verified by
     the data layer before records are assembled and passed here.
+
+Changes v4 (review response — two remaining safeguards):
+  Issue 3 — evaluated_for_conditions does not mean the check passed
+    (stage_a.py:843 in v3):
+    apply_factor gains a required keyword parameter applicability_passed: bool.
+    A directional conclusion now requires BOTH applicability_status == EVALUATED
+    AND applicability_passed == True.  When EVALUATED but applicability_passed
+    is False, direction is withheld with an explicit reason.  The existing gate
+    for non-EVALUATED statuses remains; this is a second independent condition.
+    Spec §7: 'Evaluated does NOT mean passed.'  Spec §8B output categories:
+    'Consistent across tested corrections only when all required tested variants
+    agree AND all applicability gates pass.'
+
+  Issue 4 — a_C returns AVAILABLE without evidence that cell-pairing was
+    validated upstream (stage_a.py:266 in v3):
+    fit_common_support_variants gains a required keyword parameter
+    pairing_validated: bool.  When False (the caller must opt in explicitly),
+    every variant is UNAVAILABLE with an explicit reason.  The caller attests
+    that the data layer has confirmed the common-support records represent the
+    same spatial cell-days for both sensors (e.g. by joining on cell ID and
+    verifying the join is complete and lossless).  Spec §6: a_C uses 'each
+    sensor’s pooled rate on the identical paired common-support cell-days';
+    key-matching alone cannot confirm identical pairing.
 """
 from __future__ import annotations
 
@@ -542,6 +565,8 @@ def fit_common_support_variants(
     aqua_common_records: list[ObsRecord],
     viirs_common_records: list[ObsRecord],
     training_years: tuple[int, ...] = TRAINING_YEARS_DEFAULT,
+    *,
+    pairing_validated: bool,
 ) -> dict[str, FactorResult]:
     """
     Fit the full-training a_C diagnostic factor and leave-one-year-out variants.
@@ -552,6 +577,14 @@ def fit_common_support_variants(
     a_C is diagnostic only.  It MUST NOT substitute for a_H in historical
     comparisons; it does not replace the own-support historical target.
 
+    pairing_validated must be True for any variant to be AVAILABLE.  Pass
+    True only after the data layer has confirmed that every common-support
+    record in both sensor lists covers the SAME spatial cell-days (e.g. by
+    joining on a canonical cell ID and verifying the join is complete and
+    lossless for every (year, stratum) key).  Passing False is the safe
+    default: it makes the unverified-pairing assumption explicit and
+    machine-checked rather than documented-only.
+
     Returns the same variant structure as fit_own_support_variants.
     """
     for rec in aqua_common_records + viirs_common_records:
@@ -560,6 +593,55 @@ def fit_common_support_variants(
                 f"fit_common_support_variants received a '{rec.policy}' record. "
                 "Pass only common_support records to this function."
             )
+
+    # (v4) Spatial cell-pairing attestation.
+    # _check_stratum_match confirms (year, stratum) key presence but cannot
+    # verify that records for each key cover the identical cell-days in both
+    # sensors.  The caller must supply pairing_validated=True after the data
+    # layer has confirmed complete, lossless spatial pairing for all keys.
+    if not pairing_validated:
+        _pairing_reason = (
+            "fit_common_support_variants called with pairing_validated=False. "
+            "All a_C variants are UNAVAILABLE until the data layer confirms "
+            "that every common-support record covers the identical spatial "
+            "cell-days for both sensors (spec \u00a76: 'identical paired "
+            "common-support cell-days').  Pass pairing_validated=True after "
+            "verifying the join on a canonical cell ID is complete and lossless."
+        )
+        results_unvalidated: dict[str, FactorResult] = {}
+        full_id_u = "_".join(
+            ["full_training"] + [str(y) for y in sorted(training_years)]
+        )
+        results_unvalidated[full_id_u] = FactorResult(
+            variant_id=full_id_u,
+            factor_type="common_support_a_C",
+            training_years=training_years,
+            status=FactorStatus.UNAVAILABLE,
+            factor_value=None,
+            aqua_pooled_rate=None,
+            viirs_pooled_rate=None,
+            n_aqua_obs=0,
+            n_viirs_obs=0,
+            mismatched_strata=[],
+            reasons=[_pairing_reason],
+        )
+        for excluded_year in sorted(training_years):
+            remaining = tuple(y for y in training_years if y != excluded_year)
+            vid_u = f"ex_{excluded_year}"
+            results_unvalidated[vid_u] = FactorResult(
+                variant_id=vid_u,
+                factor_type="common_support_a_C",
+                training_years=remaining,
+                status=FactorStatus.UNAVAILABLE,
+                factor_value=None,
+                aqua_pooled_rate=None,
+                viirs_pooled_rate=None,
+                n_aqua_obs=0,
+                n_viirs_obs=0,
+                mismatched_strata=[],
+                reasons=[_pairing_reason],
+            )
+        return results_unvalidated
 
     def _subset(
         records: list[ObsRecord], years: tuple[int, ...]
@@ -767,6 +849,7 @@ def apply_factor(
     viirs_V: Optional[float],
     sensitivity_status: SensitivityStatus,
     applicability_status: ApplicabilityStatus,
+    applicability_passed: bool,
     practical_margin_tau: Optional[float] = None,
 ) -> AppliedComparison:
     """
@@ -790,6 +873,12 @@ def apply_factor(
         when an evaluation was performed and failed; MISSING_REQUIRED_SUPPORT
         when required observations are absent; INSUFFICIENT_EVIDENCE when
         checks are incomplete.  Do not collapse failed checks into OUTSIDE_EVALUATED.
+    applicability_passed:
+        True only when applicability_status == EVALUATED AND the applicability
+        evaluation actually passed all required gates.  False in all other cases,
+        including when status == EVALUATED but the evaluation found failures.
+        Spec §7: 'Evaluated does NOT mean passed.'  When False, headline_direction
+        is UNRESOLVED and practical_change is UNSPECIFIED regardless of delta.
     practical_margin_tau:
         Non-negative margin registered BEFORE outcome inspection (§7).
         None → practical_change = UNSPECIFIED.
@@ -843,25 +932,35 @@ def apply_factor(
                 )
             equality_break_a = None  # division undefined
 
-    # --- headline direction (v3: gated on applicability) ---
-    # Spec §7: "do not collapse these dimensions into a reassuring single badge
-    # or report a directional conclusion when its mandatory applicability evidence
-    # fails or is absent."
-    # Only ApplicabilityStatus.EVALUATED permits a directional answer.
-    # All other statuses → UNRESOLVED, with the reason recorded.
-    applicability_permits_direction = (
+    # --- headline direction (v3/v4: two independent applicability gates) ---
+    # Gate A: applicability_status == EVALUATED  (check was performed)
+    # Gate B: applicability_passed == True        (check actually passed)
+    # Spec §7: 'Evaluated does NOT mean passed.'  Both gates must be
+    # satisfied; failing either withholds the directional conclusion.
+    applicability_status_ok = (
         applicability_status == ApplicabilityStatus.EVALUATED
     )
+    applicability_permits_direction = applicability_status_ok and applicability_passed
 
     if delta is None:
         headline_direction = HeadlineDirection.UNRESOLVED
-    elif not applicability_permits_direction:
+    elif not applicability_status_ok:
+        # Gate A failed: check was not even performed for this domain
         headline_direction = HeadlineDirection.UNRESOLVED
         reasons.append(
             f"Headline direction withheld: applicability_status is "
             f"'{applicability_status.value}', not 'evaluated_for_conditions'. "
             "A directional conclusion requires passing applicability gates "
             "(spec §7)."
+        )
+    elif not applicability_passed:
+        # Gate B failed: check was performed but did not pass
+        headline_direction = HeadlineDirection.UNRESOLVED
+        reasons.append(
+            "Headline direction withheld: applicability_status is "
+            "'evaluated_for_conditions' but applicability_passed=False. "
+            "Spec §7: 'Evaluated does NOT mean passed'; a directional "
+            "conclusion requires the evaluation to have actually passed."
         )
     elif delta > 0.0:
         headline_direction = HeadlineDirection.INCREASE
@@ -871,9 +970,7 @@ def apply_factor(
         headline_direction = HeadlineDirection.NO_CHANGE
 
     # --- practical change (§7) ---
-    # Practical category also requires evaluated applicability: a category of
-    # "meaningful increase" is itself a directional claim and must not be
-    # emitted when applicability has failed or is absent.
+    # Requires both gates: evaluated AND passed.
     if delta is None or practical_margin_tau is None or not applicability_permits_direction:
         practical_change = PracticalChange.UNSPECIFIED
     elif delta > practical_margin_tau:

@@ -285,7 +285,8 @@ class TestFitCommonSupportVariants:
     def test_full_training_factor_value(self, records):
         aqua, viirs = records
         variants = fit_common_support_variants(aqua, viirs,
-                                               training_years=(2016, 2017))
+                                               training_years=(2016, 2017),
+                                               pairing_validated=True)
         full = variants["full_training_2016_2017"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.factor_value == pytest.approx(1.25)
@@ -294,7 +295,8 @@ class TestFitCommonSupportVariants:
     def test_factor_type_is_a_C_not_a_H(self, records):
         aqua, viirs = records
         variants = fit_common_support_variants(aqua, viirs,
-                                               training_years=(2016, 2017))
+                                               training_years=(2016, 2017),
+                                               pairing_validated=True)
         for v in variants.values():
             assert v.factor_type == "common_support_a_C", (
                 "a_C variants must never carry the own_support_a_H type"
@@ -304,7 +306,8 @@ class TestFitCommonSupportVariants:
         aqua = [_own("aqua", 2016, D=10, O=100)]  # wrong policy
         viirs = [_common("viirs", 2016, D=10, O=100)]
         with pytest.raises(ValueError, match="common_support"):
-            fit_common_support_variants(aqua, viirs, training_years=(2016,))
+            fit_common_support_variants(aqua, viirs, training_years=(2016,),
+                                        pairing_validated=True)
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +359,7 @@ class TestMissingDataGuardrail:
             viirs_V=None,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.delta is None
         assert result.mapped_Z is None
@@ -798,6 +802,7 @@ class TestApplicabilityStatus:
                 viirs_V=80.0,
                 sensitivity_status=SensitivityStatus.STABLE,
                 applicability_status=status,
+                applicability_passed=(status == ApplicabilityStatus.EVALUATED),
             )
             assert result.applicability_status == status
 
@@ -818,6 +823,7 @@ class TestApplicabilityStatus:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.FAILED_APPLICABILITY,
+            applicability_passed=False,
         )
         # Delta is still computed — the failed applicability is a separate dimension
         assert result.delta == pytest.approx(0.0)
@@ -856,6 +862,7 @@ class TestApplyFactor:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.mapped_Z == pytest.approx(100.0)
         assert result.delta    == pytest.approx(0.0)
@@ -868,6 +875,7 @@ class TestApplyFactor:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.delta == pytest.approx(10.0)
         assert result.headline_direction == HeadlineDirection.INCREASE
@@ -879,6 +887,7 @@ class TestApplyFactor:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.delta == pytest.approx(-10.0)
         assert result.headline_direction == HeadlineDirection.DECREASE
@@ -891,6 +900,7 @@ class TestApplyFactor:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.equality_break_a == pytest.approx(1.125)
 
@@ -902,6 +912,7 @@ class TestApplyFactor:
             viirs_V=0.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.equality_break_a is None
         assert result.delta == pytest.approx(-50.0)
@@ -916,6 +927,7 @@ class TestApplyFactor:
             viirs_V=0.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.equality_break_a is None
         assert result.delta == pytest.approx(0.0)
@@ -928,6 +940,7 @@ class TestApplyFactor:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.inference_status == InferenceStatus.NOT_ESTABLISHED
 
@@ -938,6 +951,7 @@ class TestApplyFactor:
             baseline_B=90.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
             practical_margin_tau=5.0,
         )
         assert result.practical_change == PracticalChange.MEANINGFUL_INCREASE
@@ -949,6 +963,7 @@ class TestApplyFactor:
             baseline_B=90.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
             practical_margin_tau=15.0,
         )
         assert result.practical_change == PracticalChange.WITHIN_MARGIN
@@ -959,6 +974,7 @@ class TestApplyFactor:
             baseline_B=90.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
             practical_margin_tau=None,
         )
         assert result.practical_change == PracticalChange.UNSPECIFIED
@@ -970,6 +986,7 @@ class TestApplyFactor:
                 baseline_B=100.0, viirs_V=80.0,
                 sensitivity_status=SensitivityStatus.STABLE,
                 applicability_status=ApplicabilityStatus.EVALUATED,
+                applicability_passed=True,
                 practical_margin_tau=-1.0,
             )
 
@@ -985,6 +1002,7 @@ class TestApplyFactor:
             baseline_B=100.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.UNRESOLVED,
             applicability_status=ApplicabilityStatus.INSUFFICIENT_EVIDENCE,
+            applicability_passed=False,
         )
         assert result.delta is None
         assert result.headline_direction == HeadlineDirection.UNRESOLVED
@@ -999,7 +1017,8 @@ class TestApplyFactor:
 
         a_comm = [_common("aqua",  2016, D=60, O=800)]
         v_comm = [_common("viirs", 2016, D=48, O=800)]
-        c_vars = fit_common_support_variants(a_comm, v_comm, training_years=(2016,))
+        c_vars = fit_common_support_variants(a_comm, v_comm, training_years=(2016,),
+                                             pairing_validated=True)
         full_C = c_vars["full_training_2016"]
 
         res_H = apply_factor(
@@ -1007,12 +1026,14 @@ class TestApplyFactor:
             baseline_B=100.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         res_C = apply_factor(
             factor_result=full_C,
             baseline_B=100.0, viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert res_H.factor_type == "own_support_a_H"
         assert res_C.factor_type == "common_support_a_C"
@@ -1123,6 +1144,7 @@ class TestApplicabilityGatesDirection:
             viirs_V=V,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=bad_status,
+            applicability_passed=False,
         )
         # delta is still computed (numeric dimensions are independent)
         assert result.delta == pytest.approx(10.0), (
@@ -1151,6 +1173,7 @@ class TestApplicabilityGatesDirection:
             viirs_V=V,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=bad_status,
+            applicability_passed=False,
             practical_margin_tau=5.0,  # delta=10 would normally be MEANINGFUL_INCREASE
         )
         assert result.practical_change == PracticalChange.UNSPECIFIED, (
@@ -1172,6 +1195,7 @@ class TestApplicabilityGatesDirection:
             viirs_V=V,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
         )
         assert result.headline_direction == HeadlineDirection.INCREASE
         assert result.delta == pytest.approx(10.0)
@@ -1192,6 +1216,7 @@ class TestApplicabilityGatesDirection:
             viirs_V=80.0,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.FAILED_APPLICABILITY,
+            applicability_passed=False,
         )
         assert result.delta == pytest.approx(0.0)
         assert result.headline_direction == HeadlineDirection.UNRESOLVED
@@ -1210,6 +1235,7 @@ class TestApplicabilityGatesDirection:
             viirs_V=V,
             sensitivity_status=SensitivityStatus.STABLE,
             applicability_status=ApplicabilityStatus.OUTSIDE_EVALUATED,
+            applicability_passed=False,
         )
         assert result.sensitivity_status == SensitivityStatus.STABLE
         assert result.headline_direction == HeadlineDirection.UNRESOLVED
@@ -1315,7 +1341,8 @@ class TestStratumMatch:
         viirs = [
             ObsRecord("viirs", 2016, "month_07", "common_support", 48, 800),
         ]
-        variants = fit_common_support_variants(aqua, viirs, training_years=(2016,))
+        variants = fit_common_support_variants(aqua, viirs, training_years=(2016,),
+                                        pairing_validated=True)
         full = variants["full_training_2016"]
         assert full.status == FactorStatus.UNAVAILABLE
         assert (2016, "month_09") in full.mismatched_strata
@@ -1369,3 +1396,253 @@ class TestStratumMatch:
         full = variants["full_training_2016"]
         assert full.status == FactorStatus.AVAILABLE
         assert full.mismatched_strata == []
+
+
+# ---------------------------------------------------------------------------
+# 14. (v4) evaluated_for_conditions does not mean the check passed
+#     Issue 3 from fourth review
+# ---------------------------------------------------------------------------
+class TestEvaluatedDoesNotMeanPassed:
+    """
+    Spec \u00a77: 'Evaluated does NOT mean passed.'
+    Spec \u00a75A: evaluated_calibration means 'the frozen region-specific
+    evaluation gates pass for the specified policy, period and claim domain.'
+
+    headline_direction requires BOTH:
+      Gate A: applicability_status == EVALUATED
+      Gate B: applicability_passed == True
+
+    Gate B is the new independent condition.  EVALUATED + passed=False must
+    produce UNRESOLVED, the same as any non-EVALUATED status.
+
+    Fixture: a_H=1.25, B=90.0, V=80.0 -> delta=+10.0 (would be INCREASE).
+    """
+
+    @pytest.fixture()
+    def factor_b90_v80(self):
+        aqua  = [_own("aqua",  y, D=100, O=1000) for y in TRAINING_YEARS_DEFAULT]
+        viirs = [_own("viirs", y, D=80,  O=1000) for y in TRAINING_YEARS_DEFAULT]
+        full = fit_own_support_variants(aqua, viirs)["full_training_2016_2017_2018"]
+        return full  # a_H=1.25; apply with B=90, V=80 -> delta=+10
+
+    def test_evaluated_passed_true_emits_direction(self, factor_b90_v80):
+        """Gate A + Gate B both pass -> INCREASE."""
+        result = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=90.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
+        )
+        assert result.headline_direction == HeadlineDirection.INCREASE
+        assert result.delta == pytest.approx(10.0)
+
+    def test_evaluated_passed_false_withholds_direction(self, factor_b90_v80):
+        """Gate A passes, Gate B fails -> UNRESOLVED despite delta > 0."""
+        result = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=90.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=False,
+        )
+        assert result.delta == pytest.approx(10.0), (
+            "delta must still be computed; only the directional claim is withheld"
+        )
+        assert result.headline_direction == HeadlineDirection.UNRESOLVED
+        assert any("passed=False" in r or "not mean passed" in r
+                   for r in result.reasons)
+
+    def test_evaluated_passed_false_withholds_practical_change(self, factor_b90_v80):
+        """practical_change must be UNSPECIFIED when passed=False, even with tau."""
+        result = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=90.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=False,
+            practical_margin_tau=5.0,  # delta=10 > tau; would be MEANINGFUL_INCREASE
+        )
+        assert result.practical_change == PracticalChange.UNSPECIFIED
+
+    def test_evaluated_passed_false_does_not_affect_delta_or_z(self, factor_b90_v80):
+        """
+        passed=False withholds direction only.  delta and mapped_Z are unchanged.
+        Z = 1.25 * 80 = 100.0,  delta = 100 - 90 = 10.0.
+        """
+        result = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=90.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=False,
+        )
+        assert result.mapped_Z == pytest.approx(100.0)
+        assert result.delta    == pytest.approx(10.0)
+
+    def test_gate_b_independent_of_sensitivity(self, factor_b90_v80):
+        """
+        SENSITIVE sensitivity + EVALUATED + passed=False -> UNRESOLVED.
+        Gate B is independent of sensitivity_status.
+        """
+        result = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=90.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.SENSITIVE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=False,
+        )
+        assert result.headline_direction == HeadlineDirection.UNRESOLVED
+
+    def test_gate_b_independent_of_inference(self, factor_b90_v80):
+        """inference_status is always NOT_ESTABLISHED regardless of passed."""
+        for passed in (True, False):
+            result = apply_factor(
+                factor_result=factor_b90_v80,
+                baseline_B=90.0, viirs_V=80.0,
+                sensitivity_status=SensitivityStatus.STABLE,
+                applicability_status=ApplicabilityStatus.EVALUATED,
+                applicability_passed=passed,
+            )
+            assert result.inference_status == InferenceStatus.NOT_ESTABLISHED
+
+    def test_decrease_also_withheld_when_passed_false(self, factor_b90_v80):
+        """
+        DECREASE would be emitted for B=110, V=80 (delta=-10) with passed=True.
+        With passed=False it must be UNRESOLVED.
+        """
+        result_true = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=110.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=True,
+        )
+        assert result_true.headline_direction == HeadlineDirection.DECREASE
+
+        result_false = apply_factor(
+            factor_result=factor_b90_v80,
+            baseline_B=110.0, viirs_V=80.0,
+            sensitivity_status=SensitivityStatus.STABLE,
+            applicability_status=ApplicabilityStatus.EVALUATED,
+            applicability_passed=False,
+        )
+        assert result_false.delta == pytest.approx(-10.0)
+        assert result_false.headline_direction == HeadlineDirection.UNRESOLVED
+
+
+# ---------------------------------------------------------------------------
+# 15. (v4) pairing_validated required for a_C to be AVAILABLE
+#     Issue 4 from fourth review
+# ---------------------------------------------------------------------------
+class TestPairingValidated:
+    """
+    fit_common_support_variants requires pairing_validated=True for any
+    variant to be AVAILABLE.  When False, all variants are UNAVAILABLE with
+    an explicit reason explaining what attestation is needed.
+
+    This makes the spatial-cell-pairing assumption machine-checked rather
+    than documented-only.  Spec \u00a76: a_C uses 'each sensor\'s pooled rate
+    on the identical paired common-support cell-days'; (year, stratum)
+    key-matching alone cannot confirm that.
+    """
+
+    @pytest.fixture()
+    def common_records(self):
+        aqua  = [_common("aqua",  2016, D=60,  O=800),
+                 _common("aqua",  2017, D=120, O=1600)]
+        viirs = [_common("viirs", 2016, D=48,  O=800),
+                 _common("viirs", 2017, D=96,  O=1600)]
+        return aqua, viirs
+
+    def test_pairing_validated_false_makes_all_variants_unavailable(
+        self, common_records
+    ):
+        aqua, viirs = common_records
+        variants = fit_common_support_variants(
+            aqua, viirs, training_years=(2016, 2017),
+            pairing_validated=False,
+        )
+        for vid, v in variants.items():
+            assert v.status == FactorStatus.UNAVAILABLE, (
+                f"Variant {vid} must be UNAVAILABLE when pairing_validated=False"
+            )
+            assert v.factor_value is None
+
+    def test_pairing_validated_false_records_explicit_reason(
+        self, common_records
+    ):
+        aqua, viirs = common_records
+        variants = fit_common_support_variants(
+            aqua, viirs, training_years=(2016, 2017),
+            pairing_validated=False,
+        )
+        for vid, v in variants.items():
+            assert len(v.reasons) > 0
+            assert any(
+                "pairing_validated" in r or "identical" in r.lower()
+                or "cell-days" in r.lower()
+                for r in v.reasons
+            ), f"Variant {vid} reason does not mention pairing: {v.reasons}"
+
+    def test_pairing_validated_false_covers_all_variants_including_loo(
+        self, common_records
+    ):
+        """Full-training AND all leave-one-out variants are unavailable."""
+        aqua, viirs = common_records
+        variants = fit_common_support_variants(
+            aqua, viirs, training_years=(2016, 2017),
+            pairing_validated=False,
+        )
+        assert "full_training_2016_2017" in variants
+        assert "ex_2016" in variants
+        assert "ex_2017" in variants
+        assert all(v.status == FactorStatus.UNAVAILABLE
+                   for v in variants.values())
+
+    def test_pairing_validated_true_allows_available_factor(
+        self, common_records
+    ):
+        """
+        With pairing_validated=True the normal computation proceeds.
+        Fixture: a_C = 75.0 / 60.0 = 1.25 (from TestFitCommonSupportVariants).
+        """
+        aqua, viirs = common_records
+        variants = fit_common_support_variants(
+            aqua, viirs, training_years=(2016, 2017),
+            pairing_validated=True,
+        )
+        full = variants["full_training_2016_2017"]
+        assert full.status == FactorStatus.AVAILABLE
+        assert full.factor_value == pytest.approx(1.25)
+
+    def test_pairing_validated_false_does_not_bypass_policy_guard(self):
+        """
+        Policy guard (wrong record type) raises before the pairing check,
+        regardless of pairing_validated value.
+        """
+        aqua  = [_own("aqua", 2016, D=10, O=100)]  # own_support, wrong policy
+        viirs = [_common("viirs", 2016, D=10, O=100)]
+        with pytest.raises(ValueError, match="common_support"):
+            fit_common_support_variants(
+                aqua, viirs, training_years=(2016,),
+                pairing_validated=False,
+            )
+
+    def test_pairing_validated_false_is_independent_of_stratum_match(
+        self, common_records
+    ):
+        """
+        When pairing_validated=False, all variants are UNAVAILABLE due to the
+        pairing check alone, before stratum matching is even attempted.
+        mismatched_strata should be empty (pairing check fires first).
+        """
+        aqua, viirs = common_records
+        variants = fit_common_support_variants(
+            aqua, viirs, training_years=(2016, 2017),
+            pairing_validated=False,
+        )
+        for v in variants.values():
+            assert v.mismatched_strata == [], (
+                "mismatched_strata must be empty when pairing check fires first"
+            )
