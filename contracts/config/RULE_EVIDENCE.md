@@ -1,4 +1,4 @@
-# P4-B contract 1.5.0: rule evidence and registration status
+# P4-B contract 1.6.0: rule evidence and registration status
 
 First prepared 2026-11-14T19:32:28Z; updated 2026-11-14T19:56:09Z and 2026-11-14T21:38:42Z (UTC,
 contract 1.4.0, Round 10) on `task/P4-B-001`. Plan file
@@ -237,6 +237,31 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
   partitions claim more coverage than the calendar's footprint certification (complete -> complete,
   partial -> partial, otherwise unverified) and a manifest whose data classification differs.
 - Breaking: 1.4.0 artifacts are rejected (version is a literal).
+
+## 16. Recorded owner decisions (contract 1.6.0, Round 12)
+
+Sources: P1 binding decision `handoff/escalations/P1/P1-decision-week-definition-and-week53.md`
+(`origin/handoff` `bb1bf4c`, decision time 2026-11-14T23:19:58Z) and P2 Round 11 verdict
+`handoff/verdicts/P4/P4-B-001/r11-P2.md` (`8f67011`, CONDITIONAL APPROVE).
+
+| Rule | Owner record | Contract 1.6.0 |
+|---|---|---|
+| UTC ISO weeks | P1 decision A | `week_definition` registered in config; schema still requires it per series |
+| Week-53 unusual baseline: >= 3 complete, supported eligible priors per sensor/policy; never weeks 52/1 | P1 decision B | `week_53_minimum` = 3 registered; fixtures carry the registered rule; per-series baselines |
+| Insufficient week-53 baseline: unusual label withheld (null) | P1 decision B3 | null required (1.5.0 required `insufficient_baseline`) |
+| Week-53 critical ranking OPEN (unranked) | P1 open item 1 | every week-53 record has `critical_status` null |
+| Sealed 2020-2021 boundary: permitted days only, partial, ineligible, null labels, never read sealed days | P1 decision C | window 2020-01-01..2021-12-31 and reason registered; rules unchanged |
+| Period wholly inside the sealed window: excluded, never missing / no_file / partition_boundary | P2 r11 s.3 | such records are rejected; the placeholder path and its `partition_boundary` derivation are removed |
+| C_MIN fail-closed; footprint unverified without cell-level evidence | P2 r11 s.3, condition 2 | unchanged |
+| `pipeline/grid/coverage.py` not cited as existing contract dependency | P2 r11 condition 4 | contract does not reference it |
+
+Breaking for 1.5.0 artifacts with week-53 labels or wholly sealed placeholders: version 1.6.0.
+
+Not decided by these records (still unregistered): label suppression for mid-record missing files,
+baseline year-validity threshold (P1 open item 6 confirms only "missing or incomplete required years
+-> unavailable", already implemented), paired-only scope, C_MIN, critical-week parameters, Stage A
+settings, P1-A mapping, footprint certification. Note: P1's record cites batch "items 1, 2, 3" but its
+item C answers sealed boundaries, not batch item 3 (label suppression for missing files).
 
 ## Test shim
 
