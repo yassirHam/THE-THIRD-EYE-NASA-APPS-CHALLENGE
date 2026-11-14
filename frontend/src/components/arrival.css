@@ -1,0 +1,76 @@
+/* First-visit opening film. Sits above the page and its loader, below the cursor. */
+.arrival {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: #000;
+  color: var(--ivory);
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.arrival.is-leaving { opacity: 0; pointer-events: none; }
+.arrival__gl { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+
+.arrival__hud { position: absolute; inset: 0; pointer-events: none; font-family: var(--ui); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ivory-dim); }
+.arrival__hud > * { position: absolute; margin: 0; }
+.arrival.is-leaving .arrival__hud { opacity: 0; transition: opacity 0.4s; }
+
+.arrival__corner { width: 16px; height: 16px; background: var(--ivory-faint); }
+.arrival__corner--tl { top: 14px; left: 14px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.arrival__corner--tr { top: 14px; right: 14px; clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.arrival__corner--bl { bottom: 14px; left: 14px; clip-path: polygon(0 0, 0 100%, 100% 100%); }
+.arrival__corner--br { bottom: 14px; right: 14px; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+
+.arrival__kicker { top: 40px; left: 48px; animation: arrival-in 1.4s 0.4s both; }
+
+.arrival__skip {
+  top: 30px; right: 40px;
+  pointer-events: auto;
+  display: inline-flex; gap: 10px; align-items: center;
+  padding: 8px 14px;
+  border: 1px solid var(--ivory-faint);
+  color: var(--ivory-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 11px;
+  transition: border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  animation: arrival-in 1.4s 0.8s both;
+}
+.arrival__skip:hover, .arrival__skip:focus-visible { border-color: var(--ivory); color: var(--ivory); }
+
+.arrival__captions { left: 50%; bottom: 13vh; translate: -50% 0; width: min(24em, 86vw); display: grid; align-items: end; text-align: center; font-size: clamp(22px, 2.3vw, 34px); }
+.arrival__caption {
+  grid-area: 1 / 1;
+  margin: 0;
+  font-family: var(--prose);
+  font-weight: 500;
+  font-size: 1em;
+  text-wrap: balance;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--ivory);
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  filter: blur(8px);
+  translate: 0 10px;
+  transition: opacity 0.9s var(--ease-out), filter 0.9s var(--ease-out), translate 0.9s var(--ease-out);
+}
+.arrival__caption.is-on { opacity: 1; filter: blur(0); translate: 0 0; }
+
+.arrival__load { left: 48px; bottom: 40px; display: grid; gap: 10px; animation: arrival-in 1.4s 1s both; }
+.arrival__load p { margin: 0; font-variant-numeric: tabular-nums; }
+.arrival__num { color: var(--ivory); font-size: 13px; letter-spacing: 0.06em; margin-right: 2px; }
+.arrival__meter { width: 160px; height: 1px; background: var(--ivory-faint); }
+.arrival__meter span { display: block; height: 100%; background: var(--amber); transform-origin: left; transition: transform 240ms var(--ease-out); }
+
+.arrival__credit { right: 48px; bottom: 40px; max-width: 32ch; text-align: right; font-size: 10px; color: var(--ivory-faint); animation: arrival-in 1.4s 1.2s both; }
+
+@keyframes arrival-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 720px) {
+  .arrival__kicker { top: 34px; left: 24px; max-width: 20ch; }
+  .arrival__skip { top: 26px; right: 22px; }
+  .arrival__load { left: 24px; bottom: 34px; }
+  .arrival__credit { display: none; }
+  .arrival__captions { bottom: 14vh; }
+}
