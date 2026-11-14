@@ -521,12 +521,12 @@ class TestLabelUnusual:
         # Test that label_unusual respects required_blocks
         # Target rate 100 > p90=90 -> unusual if blocks are complete
         target = [
-            _mo_block("MODIS_Aqua", 2020, 7, 91, 60, "BLOCK_A"),
-            _mo_block("MODIS_Aqua", 2020, 7, 91, 40, "BLOCK_B"),
+            _mo_block("MODIS_Aqua", 2020, 7, 60, 600, "BLOCK_A"),
+            _mo_block("MODIS_Aqua", 2020, 7, 40, 400, "BLOCK_B"),
         ]
         lab = label_unusual(target, 2020, 7, bl, required_blocks=("BLOCK_A", "BLOCK_B"))
-        # Rate = 1000 * 182 / 100 = 1820.0 > 90 -> unusual
-        assert lab.status == "labeled" and lab.is_unusual and lab.target_rate == pytest.approx(1820.0)
+        # Rate = 1000 * (60 + 40) / (600 + 400) = 100.0 > 90 -> unusual
+        assert lab.status == "labeled" and lab.is_unusual and lab.target_rate == pytest.approx(100.0)
         
         # Missing BLOCK_B -> unavailable for label
         target_no_b = [o for o in target if o.block_id != "BLOCK_B"]
@@ -639,13 +639,14 @@ class TestLabelUnusualWeek:
             label_unusual_week([_wk("MODIS_Aqua", 2020, 29, 99, 1000)], 2020, 29, bl_week)
 
     def test_block_completeness_for_weekly(self, bl_week):
-        # With block_id
+        # With block_id: rate = 1000 * (60 + 40) / (600 + 400) = 100.0 > p90 = 90
         target = [
-            _wk_block("MODIS_Aqua", 2020, 28, 91, 60, "BLOCK_A"),
-            _wk_block("MODIS_Aqua", 2020, 28, 91, 40, "BLOCK_B"),
+            _wk_block("MODIS_Aqua", 2020, 28, 60, 600, "BLOCK_A"),
+            _wk_block("MODIS_Aqua", 2020, 28, 40, 400, "BLOCK_B"),
         ]
         lab = label_unusual_week(target, 2020, 28, bl_week, required_blocks=("BLOCK_A", "BLOCK_B"))
         assert lab.status == "labeled" and lab.is_unusual
+        assert lab.target_rate == pytest.approx(100.0)
         
         # Missing BLOCK_B
         target_no_b = [o for o in target if o.block_id != "BLOCK_B"]
@@ -788,10 +789,10 @@ AB = ("BLOCK_A", "BLOCK_B")
 
 class TestBlockCompletenessRegression:
     def test_unregistered_extra_block_is_rejected(self):
-        # eb28eb2 pooled C too: 1000 * 520 / 300 = 1733.3, a different footprint.
+        # eb28eb2 pooled C too: 1000 * 120 / 300 = 400.0, a different footprint.
         obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
                _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B"),
-               _mo_block("MODIS_Aqua", 2016, 7, 500, 100, "BLOCK_C")]
+               _mo_block("MODIS_Aqua", 2016, 7, 100, 100, "BLOCK_C")]
         with pytest.raises(ValueError, match="unregistered"):
             pooled_rate(obs, required_blocks=AB)
 
@@ -972,3 +973,38 @@ class TestCriticalWeeksRegression:
     def test_config_rejects_bad_values(self, kw):
         with pytest.raises(ValueError):
             CriticalWeekConfig(**kw)
+
+
+# ===========================================================================
+# Regression: D <= O by construction (P2 decision record 2026-11-14-05)
+# ===========================================================================
+class TestDNotAboveO:
+    """D counts FireMask 7-9 on land; O counts FireMask 5 or 7-9 on land."""
+
+    @pytest.mark.parametrize("sensor", ["MODIS_Aqua", "VIIRS_SNPP", "VIIRS_NOAA20"])
+    def test_monthly_D_above_O_rejected(self, sensor):
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            _mo(sensor, 2016, 7, 101, 100)
+
+    def test_weekly_and_block_D_above_O_rejected(self):
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            _wk("MODIS_Aqua", 2016, 28, 101, 100)
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            _mo_block("MODIS_Aqua", 2016, 7, 101, 100, "BLOCK_A")
+
+    @pytest.mark.parametrize("D,O", [(91, 60), (91, 40)])
+    def test_former_fixture_values_now_rejected(self, D, O):
+        # Values used by the four replaced fixtures before this change.
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            _mo_block("MODIS_Aqua", 2020, 7, D, O, "BLOCK_A")
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            _wk_block("MODIS_Aqua", 2020, 28, D, O, "BLOCK_A")
+
+    def test_D_equal_O_accepted_rate_1000(self):
+        r = compute_rate(_mo("MODIS_Aqua", 2016, 7, 100, 100))
+        assert r.status == RateStatus.AVAILABLE
+        assert r.fire_activity_index == pytest.approx(1000.0)
+
+    def test_O_zero_message_takes_precedence(self):
+        with pytest.raises(ValueError, match="O = 0"):
+            _mo("MODIS_Aqua", 2016, 7, 5, 0)

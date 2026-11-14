@@ -122,6 +122,13 @@ class PeriodObs:
                 "O = 0 (unavailable period) cannot have D > 0.  "
                 "If the period was unobserved set both D = 0 and O = 0."
             )
+        # D <= O by construction (P2 decision record 2026-11-14-05: D counts
+        # FireMask 7-9 on land; O counts FireMask 5 or 7-9 on land).
+        if self.D > self.O:
+            raise ValueError(
+                f"D ({self.D}) > O ({self.O}): detected fire cell-days are a "
+                "subset of usable land cell-days, so D cannot exceed O."
+            )
         if self.month is None and self.week_number is None:
             raise ValueError("At least one of month or week_number must be set.")
         if self.month is not None and self.week_number is not None:
