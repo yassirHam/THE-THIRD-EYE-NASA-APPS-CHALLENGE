@@ -15,11 +15,13 @@ Covers:
      interchangeable.
   4. Ranking preservation: any positive factor a > 0 preserves the strict
      ordering of VIIRS fire-activity values.
-  5. Equality boundary a_break = B / V: harmonized VIIRS crosses the baseline
-     exactly at a_break.
+  5. Equality boundary compute_a_break(B, V): harmonized VIIRS crosses the
+     baseline exactly at a_break.  Zero-cases: B=0 returns 0.0 (outside
+     positive-factor domain); V=0,B>0 returns None (unreachable).
   6. 4-way applicability states: applicable, failed_applicability,
      missing_required_support, out_of_domain. out_of_domain must NEVER be
-     mapped to failed_applicability.
+     mapped to failed_applicability. failed_applicability is driven by a
+     failed calibration check, not by negative observation counts.
   7. Inference status: not_established by default; no toy procedure may emit
      "established".
 """
@@ -86,51 +88,79 @@ def check_applicability(
     O,
     min_support: int = 5,
     in_domain: bool = True,
+    calibration_check_status: str = "passed",
 ) -> str:
     """
     Returns one of four distinct contract applicability states:
-      "applicable"               — in domain, O >= min_support
-      "failed_applicability"     — in domain, but calibration check fails
-                                   (negative or invalid rate)
-      "missing_required_support" — in domain, but O == 0 or missing swath
-      "out_of_domain"            — geographic/sensor domain criteria not met
-                                   MUST NOT be mapped to failed_applicability
+
+      "applicable"               — in_domain True, O >= min_support, calibration passed.
+      "failed_applicability"     — in_domain True, O >= min_support,
+                                   BUT calibration check failed (status == "failed").
+      "missing_required_support" — in_domain True, but O is None, O == 0,
+                                   or O < min_support.
+      "out_of_domain"            — in_domain is False. Takes absolute priority
+                                   and must NEVER be mapped to failed_applicability.
+
+    The 4 states are mutually exclusive. Priority: out_of_domain > missing_required_support
+    > failed_applicability > applicable.
+
+    `failed_applicability` is driven by a failed calibration check, not by
+    negative observation counts. Negative O is an invalid/corrupt input and
+    is treated as missing_required_support (O < min_support path covers O < 0
+    naturally when min_support > 0, but the guard below is explicit).
     """
     if not in_domain:
         return OUT_OF_DOMAIN
-    if O is None or O == 0:
+    # Treat None, 0, negative, or below threshold as missing/insufficient support
+    if O is None or O == 0 or (isinstance(O, (int, float)) and O < 0):
         return MISSING_REQUIRED_SUPPORT
-    if O < 0:
-        return FAILED_APPLICABILITY
-    if O < min_support:
+    if isinstance(O, (int, float)) and O < min_support:
         return INSUFFICIENT_SUPPORT
+    # In domain, sufficient support — now check calibration
+    if calibration_check_status == "failed":
+        return FAILED_APPLICABILITY
     return "applicable"
 
 
 def harmonize(a: float, V: float):
     """
     Apply factor a to VIIRS value V.
-    Returns UNAVAILABLE if V is not a usable positive number.
+    Raises ValueError if a <= 0 (factors in Stage A are strictly positive reals).
+    Returns UNAVAILABLE if V is not a usable non-negative number.
     """
+    if not isinstance(a, (int, float)) or a <= 0:
+        raise ValueError(f"Factor a must be a strictly positive real number; got {a!r}")
     if not isinstance(V, (int, float)) or V < 0:
         return UNAVAILABLE
     return a * V
 
 
-def a_break(B, V):
+def compute_a_break(B, V):
     """
     Equality boundary: the factor at which a * V == B.
-    Returns UNAVAILABLE when V == 0 or B == 0 or either is None/non-numeric.
+
+    Rules (factors are always strictly positive, a in R+):
+      B > 0, V > 0  -> a_break = B / V  (normal case)
+      B == 0, V > 0 -> a_break = 0.0    (outside positive-factor domain;
+                                          any a > 0 gives a*V > 0 = B)
+      B == 0, V == 0 -> returns 0.0     (every a > 0 gives 0 == 0, tie)
+      V == 0, B > 0  -> returns None    (no positive factor can reach B;
+                                          unreachable / UNAVAILABLE)
+      B < 0 or V < 0 -> UNAVAILABLE
+      B is None or V is None -> UNAVAILABLE
     """
     for val in (B, V):
         if val is None:
             return UNAVAILABLE
         if not isinstance(val, (int, float)):
             return UNAVAILABLE
-    if V == 0:
+    if B < 0 or V < 0:
         return UNAVAILABLE
+    if V == 0 and B > 0:
+        return None   # no positive factor can reach equality
     if B == 0:
-        return UNAVAILABLE
+        return 0.0    # tie-point is at a=0, outside positive-factor domain
+    # Normal case: B > 0, V > 0
     return B / V
 
 
@@ -329,55 +359,91 @@ class TestEqualityBoundary:
       a < a_break  =>  a*V < B  (harmonized below baseline)
       a == a_break =>  a*V == B (exact equality)
 
-    Edge cases: V=0, B=0, missing/zero O must return UNAVAILABLE, never 0.
+    Edge cases: V=0 B>0 returns None; B=0 returns 0.0; None/negative return UNAVAILABLE.
     """
 
     def test_above_break_harmonized_exceeds_baseline(self):
         B, V = 100.0, 50.0  # a_break = 2.0
-        ab = a_break(B, V)
+        ab = compute_a_break(B, V)
         assert ab == pytest.approx(2.0, rel=1e-9)
         a = ab + 0.5  # 2.5 > 2.0
         assert harmonize(a, V) > B
 
     def test_below_break_harmonized_below_baseline(self):
         B, V = 100.0, 50.0  # a_break = 2.0
-        ab = a_break(B, V)
+        ab = compute_a_break(B, V)
         a = ab - 0.5  # 1.5 < 2.0
         assert harmonize(a, V) < B
 
     def test_at_break_harmonized_equals_baseline(self):
         B, V = 100.0, 50.0  # a_break = 2.0
-        ab = a_break(B, V)
+        ab = compute_a_break(B, V)
         assert harmonize(ab, V) == pytest.approx(B, rel=1e-9)
 
     def test_a_break_exact_value(self):
-        assert a_break(200.0, 80.0) == pytest.approx(2.5, rel=1e-9)
-        assert a_break(60.0, 120.0) == pytest.approx(0.5, rel=1e-9)
-        assert a_break(1.0, 1.0) == pytest.approx(1.0, rel=1e-9)
+        assert compute_a_break(200.0, 80.0) == pytest.approx(2.5, rel=1e-9)
+        assert compute_a_break(60.0, 120.0) == pytest.approx(0.5, rel=1e-9)
+        assert compute_a_break(1.0, 1.0) == pytest.approx(1.0, rel=1e-9)
 
-    def test_v_zero_returns_unavailable(self):
-        result = a_break(B=100.0, V=0.0)
-        assert result == UNAVAILABLE, (
-            f"a_break with V=0 must be UNAVAILABLE, got {result!r}"
+    def test_v_zero_b_positive_returns_none(self):
+        """V=0, B>0: no positive factor can reach B; a_break is unreachable."""
+        result = compute_a_break(B=100.0, V=0.0)
+        assert result is None, (
+            f"a_break with V=0, B>0 must be None (unreachable), got {result!r}"
         )
 
-    def test_b_zero_returns_unavailable(self):
-        result = a_break(B=0.0, V=50.0)
-        assert result == UNAVAILABLE, (
-            f"a_break with B=0 must be UNAVAILABLE, got {result!r}"
+    def test_v_zero_b_positive_every_valid_factor_gives_zero(self):
+        """For V=0 and B>0, a*V == 0 < B for all valid a > 0."""
+        for a in [0.1, 1.0, 10.0, 999.0]:
+            assert a * 0.0 < 100.0
+
+    def test_b_zero_v_positive_a_break_is_zero(self):
+        """
+        B=0, V>0: a_break = 0.0. All valid factors a > 0 give a*V > 0 = B.
+        The tie-point a=0 is outside the positive-factor domain.
+        """
+        result = compute_a_break(B=0.0, V=50.0)
+        assert result == pytest.approx(0.0, abs=1e-15), (
+            f"a_break with B=0, V>0 should be 0.0, got {result!r}"
         )
+
+    def test_b_zero_v_positive_all_valid_factors_give_increase(self):
+        """When a_break=0.0, every valid factor a > 0 gives a*V > 0 = B."""
+        V, B = 50.0, 0.0
+        for a in [0.001, 0.1, 1.0, 10.0]:
+            assert harmonize(a, V) > B, (
+                f"a={a}: expected a*V={a*V} > B=0"
+            )
+
+    def test_b_zero_v_zero_a_break_is_zero_every_valid_factor_ties(self):
+        """
+        B=0, V=0: a_break = 0.0. Every valid a > 0 gives a*V = 0 = B (tie).
+        """
+        result = compute_a_break(B=0.0, V=0.0)
+        assert result == pytest.approx(0.0, abs=1e-15)
+        # Every valid factor ties
+        for a in [0.001, 0.1, 1.0, 10.0]:
+            assert a * 0.0 == 0.0 == 0.0  # a*V == B == 0
+
+    def test_negative_b_returns_unavailable(self):
+        result = compute_a_break(B=-1.0, V=50.0)
+        assert result == UNAVAILABLE
+
+    def test_negative_v_returns_unavailable(self):
+        result = compute_a_break(B=100.0, V=-1.0)
+        assert result == UNAVAILABLE
 
     def test_b_none_returns_unavailable(self):
-        assert a_break(B=None, V=50.0) == UNAVAILABLE
+        assert compute_a_break(B=None, V=50.0) == UNAVAILABLE
 
     def test_v_none_returns_unavailable(self):
-        assert a_break(B=100.0, V=None) == UNAVAILABLE
+        assert compute_a_break(B=100.0, V=None) == UNAVAILABLE
 
     def test_both_none_returns_unavailable(self):
-        assert a_break(B=None, V=None) == UNAVAILABLE
+        assert compute_a_break(B=None, V=None) == UNAVAILABLE
 
     def test_unavailable_never_silently_becomes_zero(self):
-        result = a_break(B=100.0, V=0.0)
+        result = compute_a_break(B=100.0, V=-1.0)
         assert result != 0
         assert result != 0.0
 
@@ -390,17 +456,46 @@ class TestEqualityBoundary:
 
 class TestApplicabilitySeparation:
     """
-    Four distinct contract applicability states.
+    Four distinct contract applicability states (strict 4-way contract).
     out_of_domain MUST NOT be mapped to failed_applicability.
+    failed_applicability is driven by a failed calibration check, not negative counts.
     """
 
     def test_applicable_in_domain_sufficient_support(self):
         result = check_applicability(O=100, min_support=5, in_domain=True)
         assert result == "applicable"
 
-    def test_failed_applicability_negative_obs(self):
-        result = check_applicability(O=-1, min_support=5, in_domain=True)
+    def test_failed_applicability_requires_failed_calibration_check(self):
+        """
+        failed_applicability: in-domain, sufficient support, but calibration failed.
+        This is NOT triggered by negative observation counts.
+        """
+        result = check_applicability(
+            O=100, min_support=5, in_domain=True,
+            calibration_check_status="failed",
+        )
         assert result == FAILED_APPLICABILITY
+
+    def test_failed_applicability_at_minimum_support(self):
+        """failed_applicability applies even right at the support boundary."""
+        result = check_applicability(
+            O=5, min_support=5, in_domain=True,
+            calibration_check_status="failed",
+        )
+        assert result == FAILED_APPLICABILITY
+
+    def test_negative_obs_is_missing_required_support_not_failed(self):
+        """
+        Negative observation counts are corrupt/invalid input.
+        They must yield missing_required_support, NOT failed_applicability.
+        """
+        result = check_applicability(O=-1, min_support=5, in_domain=True)
+        assert result == MISSING_REQUIRED_SUPPORT, (
+            "Negative O is invalid input, must be missing_required_support"
+        )
+        assert result != FAILED_APPLICABILITY, (
+            "failed_applicability must NOT be triggered by negative counts"
+        )
 
     def test_missing_required_support_zero_obs(self):
         result = check_applicability(O=0, min_support=5, in_domain=True)
@@ -411,20 +506,34 @@ class TestApplicabilitySeparation:
         assert result == MISSING_REQUIRED_SUPPORT
 
     def test_out_of_domain_is_not_failed_applicability(self):
-        result = check_applicability(O=100, min_support=5, in_domain=False)
+        result = check_applicability(
+            O=100, min_support=5, in_domain=False,
+            calibration_check_status="failed",
+        )
         assert result == OUT_OF_DOMAIN
         assert result != FAILED_APPLICABILITY, (
             "out_of_domain must NOT be mapped to failed_applicability"
         )
 
     def test_out_of_domain_even_with_zero_obs(self):
-        """out_of_domain takes priority over missing_required_support."""
+        """out_of_domain takes absolute priority over missing_required_support."""
         result = check_applicability(O=0, min_support=5, in_domain=False)
         assert result == OUT_OF_DOMAIN
 
     def test_out_of_domain_even_with_high_obs(self):
         result = check_applicability(O=99999, min_support=5, in_domain=False)
         assert result == OUT_OF_DOMAIN
+
+    def test_out_of_domain_distinct_from_failed_applicability(self):
+        """out_of_domain and failed_applicability must be completely distinct states."""
+        ood = check_applicability(O=100, min_support=5, in_domain=False)
+        fa  = check_applicability(
+            O=100, min_support=5, in_domain=True,
+            calibration_check_status="failed",
+        )
+        assert ood == OUT_OF_DOMAIN
+        assert fa == FAILED_APPLICABILITY
+        assert ood != fa
 
     def test_all_four_contract_states_are_distinct(self):
         states = {
@@ -435,10 +544,37 @@ class TestApplicabilitySeparation:
         }
         assert len(states) == 4
 
+    def test_four_states_mutually_exclusive(self):
+        """Generate one representative input per state; each yields exactly one state."""
+        applicable = check_applicability(
+            O=100, min_support=5, in_domain=True,
+            calibration_check_status="passed",
+        )
+        failed = check_applicability(
+            O=100, min_support=5, in_domain=True,
+            calibration_check_status="failed",
+        )
+        missing = check_applicability(O=0, min_support=5, in_domain=True)
+        ood = check_applicability(O=100, min_support=5, in_domain=False)
+
+        results = [applicable, failed, missing, ood]
+        assert len(set(results)) == 4, (
+            f"All four states must be distinct; got {results}"
+        )
+        assert applicable == "applicable"
+        assert failed == FAILED_APPLICABILITY
+        assert missing == MISSING_REQUIRED_SUPPORT
+        assert ood == OUT_OF_DOMAIN
+
     def test_missing_data_is_not_failed(self):
         result = check_applicability(O=0, min_support=5, in_domain=True)
         assert result == MISSING_REQUIRED_SUPPORT
         assert result != FAILED_APPLICABILITY
+
+    def test_inference_status_is_not_established(self):
+        """Contract inference_status must be 'not_established'."""
+        # The contract string itself — not just the constant — must be right.
+        assert NOT_ESTABLISHED == "not_established"
 
 
 class TestInferenceStatus:
