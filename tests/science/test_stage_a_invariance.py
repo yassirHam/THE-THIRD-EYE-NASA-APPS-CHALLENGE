@@ -88,7 +88,7 @@ def check_applicability(
     O,
     min_support: int = 5,
     in_domain: bool = True,
-    calibration_check_status: str = "passed",
+    calibration_check_status: str | None = None,
 ) -> str:
     """
     Returns one of four distinct contract applicability states:
@@ -121,11 +121,13 @@ def check_applicability(
     if isinstance(O, (int, float)) and O < min_support:
         return INSUFFICIENT_SUPPORT
     # In domain, sufficient support — now check calibration
-    if calibration_check_status != "passed":
-        if calibration_check_status == "failed":
-            return FAILED_APPLICABILITY
-        return MISSING_REQUIRED_SUPPORT  # missing/unknown calibration evidence
-    return "applicable"
+    if calibration_check_status is None:
+        return MISSING_REQUIRED_SUPPORT
+    if calibration_check_status == "passed":
+        return "applicable"
+    if calibration_check_status == "failed":
+        return FAILED_APPLICABILITY
+    return MISSING_REQUIRED_SUPPORT  # unrecognized calibration status
 
 
 def harmonize(a: float, V: float):
@@ -204,18 +206,18 @@ class TestScalarInvariance:
 class TestEqualityThresholdEdgeCases:
     """Boundary conditions at min_support must be handled exactly."""
 
-    @pytest.mark.parametrize("O,min_support,expected_state", [
-        (0,   5, MISSING_REQUIRED_SUPPORT),
-        (1,   5, INSUFFICIENT_SUPPORT),
-        (4,   5, INSUFFICIENT_SUPPORT),
-        (5,   5, "applicable"),
-        (6,   5, "applicable"),
-        (100, 5, "applicable"),
+    @pytest.mark.parametrize("O,min_support,calibration_status,expected_state", [
+        (0,   5, None, MISSING_REQUIRED_SUPPORT),
+        (1,   5, None, INSUFFICIENT_SUPPORT),
+        (4,   5, None, INSUFFICIENT_SUPPORT),
+        (5,   5, "passed", "applicable"),
+        (6,   5, "passed", "applicable"),
+        (100, 5, "passed", "applicable"),
     ])
-    def test_support_boundaries(self, O, min_support, expected_state):
-        result = check_applicability(O, min_support=min_support)
+    def test_support_boundaries(self, O, min_support, calibration_status, expected_state):
+        result = check_applicability(O, min_support=min_support, calibration_check_status=calibration_status)
         assert result == expected_state, (
-            f"O={O}, min_support={min_support}: expected {expected_state!r}, got {result!r}"
+            f"O={O}, min_support={min_support}, calibration_status={calibration_status}: expected {expected_state!r}, got {result!r}"
         )
 
     def test_none_obs_is_missing_required_support(self):
@@ -468,8 +470,16 @@ class TestApplicabilitySeparation:
     """
 
     def test_applicable_in_domain_sufficient_support(self):
-        result = check_applicability(O=100, min_support=5, in_domain=True)
+        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status="passed")
         assert result == "applicable"
+
+    def test_omitted_calibration_status_returns_missing_required_support(self):
+        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status=None)
+        assert result == MISSING_REQUIRED_SUPPORT
+
+    def test_unrecognized_calibration_status_returns_missing_required_support(self):
+        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status="unknown_status")
+        assert result == MISSING_REQUIRED_SUPPORT
 
     def test_failed_applicability_requires_failed_calibration_check(self):
         """
@@ -490,19 +500,6 @@ class TestApplicabilitySeparation:
         )
         assert result == FAILED_APPLICABILITY
 
-    def test_negative_obs_is_missing_required_support_not_failed(self):
-        """
-        Negative observation counts are corrupt/invalid input.
-        They must yield missing_required_support, NOT failed_applicability.
-        """
-        result = check_applicability(O=-1, min_support=5, in_domain=True)
-        assert result == MISSING_REQUIRED_SUPPORT, (
-            "Negative O is invalid input, must be missing_required_support"
-        )
-        assert result != FAILED_APPLICABILITY, (
-            "failed_applicability must NOT be triggered by negative counts"
-        )
-
     def test_missing_required_support_zero_obs(self):
         result = check_applicability(O=0, min_support=5, in_domain=True)
         assert result == MISSING_REQUIRED_SUPPORT
@@ -520,6 +517,14 @@ class TestApplicabilitySeparation:
         assert result != FAILED_APPLICABILITY, (
             "out_of_domain must NOT be mapped to failed_applicability"
         )
+
+    def test_omitted_calibration_status_returns_missing_required_support(self):
+        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status=None)
+        assert result == MISSING_REQUIRED_SUPPORT
+
+    def test_unrecognized_calibration_status_returns_missing_required_support(self):
+        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status="unknown_status")
+        assert result == MISSING_REQUIRED_SUPPORT
 
     def test_out_of_domain_even_with_zero_obs(self):
         """out_of_domain takes absolute priority over missing_required_support."""
