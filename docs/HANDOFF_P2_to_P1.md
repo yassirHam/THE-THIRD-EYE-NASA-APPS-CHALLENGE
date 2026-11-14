@@ -21,7 +21,7 @@ D is a subset of O cell by cell, so every sum over cells, days, months or blocks
 |---|---|
 | D_aqua / O_aqua, D_viirs / O_viirs | fire is a subset of usable (above) |
 | D_aqua_common / O_common, D_viirs_common / O_common | common = usable_aqua AND usable_viirs on the same cell and day; D_common = fire_sensor AND common, a subset of common |
-| D_nh / O_nh (nominal+high, 8-9) | O_nh = O - (D - D_nh): class-7 cell-days are removed from O, not counted as "no fire". O_nh - D_nh = O - D >= 0 |
+| D_nh / O_nh (nominal+high, 8-9), own support only | O_nh = O - (D - D_nh): class-7 cell-days are removed from O, not counted as "no fire". O_nh - D_nh = O - D >= 0. Nominal/high common support is not exported and is unavailable (DR-2026-11-14-09 section 2). |
 
 Not counted in D or O: cloud (4), unknown (6), water (3), not processed (0-2), and any fire
 class on water or coast (land mask). A low-confidence fire excluded by the nh policy is removed
@@ -209,6 +209,8 @@ is withdrawn.
 
 - **Ready now, separate from sealed data:** `RIM_dev_long_2016_2019.csv` (64 blocks x 48 months x
   2 sensors x 3 support/confidence variants = 18,432 rows; split = train 2016-2018 / dev 2019).
+  The exported columns allow only own/all, own/nh and common/all, so these should be the three
+  variants and there is no common/nh variant; P2 to confirm against the file.
   2020-2021 exist only in the P5-only folder `AFTERIMAGE_P5_SEALED` and were never opened by P2.
   (At P2's decision, P1 also received `RIM_full_long_2016_2024.csv`, which contains no 2020-2021
   rows; using 2022-2024 only after the methods freeze is P1's responsibility.)
@@ -254,9 +256,16 @@ Definitions, per region, policy, support (own or common) and sensor:
 - included_days(year) = number of days in that year's included months (8.2);
 - N_fp = footprint cells (Q3);
 - O floor, per training year: O_year >= 0.20 x N_fp x included_days(year)
-  (representativeness: at least one fifth of the footprint cell-days usable);
+  (screening floor on the usable share of footprint cell-days; not evidence of
+  representativeness; the denominator N_fp x included_days is the same for every sensor, support
+  and confidence policy, and for nh the numerator is O_nh);
 - D floor, per fit: sum of D over the fit's years >= 100 fire cell-days
-  (minimum-information safeguard; not an uncertainty statement).
+  (minimum-information safeguard; not an uncertainty or precision statement: fire cell-days are
+  clustered, so no relative error can be read from 100).
+
+Revision note (P1 review draft, branch `proposal/DR-2026-11-14-09-p1-rev1`): the supported
+combinations, the interaction of the month rule, required years and each fit, and the P1-A
+changes needed are set out in DR-2026-11-14-09 sections 2, 8 and 9. All values remain unfrozen.
 
 Proposed P1-A record, one row per fit x sensor x support x policy x region:
 
