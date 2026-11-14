@@ -42,7 +42,11 @@ class ClaimAuditRecord(ArtifactIdentity):
     @model_validator(mode="after")
     def preserve_applicability_distinctions(self) -> "ClaimAuditRecord":
         check_applicability_consistency(self.applicability_status, self.applicability_checks)
-        complete = not bool(self.missing_evidence_reasons) and self.applicability_status != "missing_required_support"
+        has_missing_check = any(check.status == "missing" for check in self.applicability_checks)
+        has_missing_reasons = bool(self.missing_evidence_reasons)
+        is_missing_support = self.applicability_status == "missing_required_support"
+        complete = not has_missing_check and not has_missing_reasons and not is_missing_support
+
         if self.reviewed_summary.output_category != expected_output_category(
             self.applicability_status, self.sensitivity_status, complete=complete
         ):
@@ -54,9 +58,9 @@ class ClaimAuditRecord(ArtifactIdentity):
         ):
             raise ValueError("conclusion eligibility must follow applicability and sensitivity")
         if self.sensitivity_status == "unavailable":
-            if not self.missing_evidence_reasons or self.practical_change.category != "unavailable":
-                raise ValueError("unavailable sensitivity requires reasons and no practical category")
+            if (not has_missing_reasons and not has_missing_check and not is_missing_support) or self.practical_change.category != "unavailable":
+                raise ValueError("unavailable sensitivity requires reasons or missing check and no practical category")
         elif self.practical_change.category == "unavailable":
-            if not self.missing_evidence_reasons:
+            if not has_missing_reasons and not has_missing_check and not is_missing_support:
                 raise ValueError("practical change cannot be unavailable when sensitivity is available unless evidence is missing")
         return self

@@ -46,6 +46,7 @@ OutputCategory = Literal[
     "outside_evaluated_calibration",
     "calibration_check_failed",
     "calibration_check_failed_and_missing_evidence",
+    "outside_evaluated_calibration_and_missing_evidence",
 ]
 StatusLabel = Literal[
     "Consistent across tested corrections",
@@ -54,6 +55,7 @@ StatusLabel = Literal[
     "Outside evaluated calibration",
     "Calibration check failed",
     "Calibration check failed and required evidence missing",
+    "Outside evaluated calibration and required evidence missing",
 ]
 
 
@@ -64,6 +66,7 @@ SUMMARY_LABELS: dict[str, str] = {
     "outside_evaluated_calibration": "Outside evaluated calibration",
     "calibration_check_failed": "Calibration check failed",
     "calibration_check_failed_and_missing_evidence": "Calibration check failed and required evidence missing",
+    "outside_evaluated_calibration_and_missing_evidence": "Outside evaluated calibration and required evidence missing",
 }
 _CHECK_FOR_APPLICABILITY = {
     "applicable": "passed",
@@ -79,14 +82,14 @@ def expected_output_category(applicability: str, sensitivity: str, complete: boo
         if not complete:
             return "calibration_check_failed_and_missing_evidence"
         return "calibration_check_failed"
+    if applicability == "out_of_domain":
+        if not complete:
+            return "outside_evaluated_calibration_and_missing_evidence"
+        return "outside_evaluated_calibration"
     if not complete:
         return "not_enough_usable_evidence"
-    fixed = {
-        "missing_required_support": "not_enough_usable_evidence",
-        "out_of_domain": "outside_evaluated_calibration",
-    }.get(applicability)
-    if fixed is not None:
-        return fixed
+    if applicability == "missing_required_support":
+        return "not_enough_usable_evidence"
     return {
         "unavailable": "not_enough_usable_evidence",
         "sensitive_to_assumptions": "depends_on_the_correction",
@@ -213,7 +216,11 @@ class ComparisonResult(ArtifactIdentity):
         if len(supplied_ids) != len(set(supplied_ids)):
             raise ValueError("registered variant IDs must be unique")
         supplied = set(supplied_ids)
-        complete = required.issubset(supplied)
+        variants_complete = required.issubset(supplied)
+        has_missing_check = any(check.status == "missing" for check in self.applicability_checks)
+        has_missing_reasons = bool(self.missing_evidence_reasons)
+        is_missing_support = self.applicability_status == "missing_required_support"
+        complete = variants_complete and not has_missing_check and not has_missing_reasons and not is_missing_support
 
         check_applicability_consistency(self.applicability_status, self.applicability_checks)
         if self.reviewed_summary.output_category != expected_output_category(
@@ -227,7 +234,7 @@ class ComparisonResult(ArtifactIdentity):
         pc = self.practical_change
         available_variants = [v for v in self.registered_variants if v.variant_id in required]
 
-        if not complete:
+        if not variants_complete:
             if not self.missing_evidence_reasons:
                 raise ValueError("a missing required variant requires a missing evidence reason")
             if self.sensitivity_status == "stable_across_displayed_settings":
@@ -249,7 +256,11 @@ class ComparisonResult(ArtifactIdentity):
             return self
 
         if self.sensitivity_status == "unavailable":
-            raise ValueError("unavailable sensitivity requires a missing required variant")
+            if complete:
+                raise ValueError("unavailable sensitivity requires missing required support or variants")
+            if pc.category != "unavailable" or self.headline_direction != "unavailable":
+                raise ValueError("unavailable comparison cannot publish practical category or direction")
+            return self
 
         # Frozen sensitivity rule: recompute from full-precision effects.
         variants = available_variants
@@ -270,7 +281,7 @@ class ComparisonResult(ArtifactIdentity):
             expected_category = _PRACTICAL_FOR[next(iter(cats))]
         else:
             expected_category = "inconsistent_across_variants"
-        if pc.category != expected_category:
+        if pc.category != expected_category and not (not complete and pc.category == "unavailable"):
             raise ValueError("practical category contradicts the registered effects and margin")
 
         if not eligible:
