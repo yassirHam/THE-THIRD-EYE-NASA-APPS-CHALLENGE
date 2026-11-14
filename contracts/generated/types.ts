@@ -299,8 +299,8 @@ export interface ReviewedTemplateSummary {
   template_id: string;
   template_version: string;
   generated_by?: "reviewed_deterministic_template";
-  output_category: "consistent_across_tested_corrections" | "depends_on_the_correction" | "not_enough_usable_evidence" | "outside_evaluated_calibration" | "calibration_check_failed";
-  status_label: "Consistent across tested corrections" | "Depends on the correction" | "Not enough usable evidence" | "Outside evaluated calibration" | "Calibration check failed";
+  output_category: "consistent_across_tested_corrections" | "depends_on_the_correction" | "not_enough_usable_evidence" | "outside_evaluated_calibration" | "calibration_check_failed" | "calibration_check_failed_and_missing_evidence";
+  status_label: "Consistent across tested corrections" | "Depends on the correction" | "Not enough usable evidence" | "Outside evaluated calibration" | "Calibration check failed" | "Calibration check failed and required evidence missing";
   finding_sentence: string;
   limit_sentence: string;
 }

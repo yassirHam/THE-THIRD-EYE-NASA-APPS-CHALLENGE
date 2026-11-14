@@ -45,6 +45,7 @@ OutputCategory = Literal[
     "not_enough_usable_evidence",
     "outside_evaluated_calibration",
     "calibration_check_failed",
+    "calibration_check_failed_and_missing_evidence",
 ]
 StatusLabel = Literal[
     "Consistent across tested corrections",
@@ -52,6 +53,7 @@ StatusLabel = Literal[
     "Not enough usable evidence",
     "Outside evaluated calibration",
     "Calibration check failed",
+    "Calibration check failed and required evidence missing",
 ]
 
 
@@ -61,6 +63,7 @@ SUMMARY_LABELS: dict[str, str] = {
     "not_enough_usable_evidence": "Not enough usable evidence",
     "outside_evaluated_calibration": "Outside evaluated calibration",
     "calibration_check_failed": "Calibration check failed",
+    "calibration_check_failed_and_missing_evidence": "Calibration check failed and required evidence missing",
 }
 _CHECK_FOR_APPLICABILITY = {
     "applicable": "passed",
@@ -72,10 +75,13 @@ _CHECK_FOR_APPLICABILITY = {
 
 def expected_output_category(applicability: str, sensitivity: str, complete: bool = True) -> str:
     """Failed, missing, and out-of-domain stay distinct; none is hidden under sensitivity."""
+    if applicability == "failed_applicability":
+        if not complete:
+            return "calibration_check_failed_and_missing_evidence"
+        return "calibration_check_failed"
     if not complete:
         return "not_enough_usable_evidence"
     fixed = {
-        "failed_applicability": "calibration_check_failed",
         "missing_required_support": "not_enough_usable_evidence",
         "out_of_domain": "outside_evaluated_calibration",
     }.get(applicability)

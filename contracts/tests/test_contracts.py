@@ -373,6 +373,55 @@ def test_missing_required_variant_preserves_observed_sensitivity_while_unavailab
     fails(ComparisonResult, data)
 
 
+def test_failed_applicability_with_missing_variant_preserves_both_facts() -> None:
+    data = load("sample_comparison_stable_failed_applicability.json")
+    data["registered_variants"].pop()
+    data["missing_evidence_reasons"] = ["Required variant ex_2017 missing."]
+    data["sensitivity_status"] = "unavailable"
+    data["headline_direction"] = "unavailable"
+    data["practical_change"] = {"category": "unavailable"}
+    data["conclusion_eligible"] = False
+
+    # Hiding failed check under generic "not_enough_usable_evidence" is rejected
+    data["reviewed_summary"]["output_category"] = "not_enough_usable_evidence"
+    data["reviewed_summary"]["status_label"] = "Not enough usable evidence"
+    fails(ComparisonResult, data)
+
+    # Hiding missing evidence under "calibration_check_failed" is rejected
+    data["reviewed_summary"]["output_category"] = "calibration_check_failed"
+    data["reviewed_summary"]["status_label"] = "Calibration check failed"
+    fails(ComparisonResult, data)
+
+    # Both facts preserved in compound category passes
+    data["reviewed_summary"]["output_category"] = "calibration_check_failed_and_missing_evidence"
+    data["reviewed_summary"]["status_label"] = "Calibration check failed and required evidence missing"
+    ComparisonResult.model_validate_json(json.dumps(data))
+
+
+def test_claim_audit_failed_applicability_with_missing_evidence_preserves_both() -> None:
+    data = load("sample_claim_audit_stable_failed_applicability.json")
+    data["missing_evidence_reasons"] = ["Required factor variant support file missing."]
+    data["sensitivity_status"] = "unavailable"
+    data["practical_change"] = {"category": "unavailable"}
+    data["conclusion_eligible"] = False
+
+    # Hiding failed check under generic "not_enough_usable_evidence" is rejected
+    data["reviewed_summary"]["output_category"] = "not_enough_usable_evidence"
+    data["reviewed_summary"]["status_label"] = "Not enough usable evidence"
+    fails(ClaimAuditRecord, data)
+
+    # Hiding missing evidence under "calibration_check_failed" is rejected
+    data["reviewed_summary"]["output_category"] = "calibration_check_failed"
+    data["reviewed_summary"]["status_label"] = "Calibration check failed"
+    fails(ClaimAuditRecord, data)
+
+    # Both facts preserved in compound category passes
+    data["reviewed_summary"]["output_category"] = "calibration_check_failed_and_missing_evidence"
+    data["reviewed_summary"]["status_label"] = "Calibration check failed and required evidence missing"
+    ClaimAuditRecord.model_validate_json(json.dumps(data))
+
+
+
 # ---- Fix 2: claim audit preserves failed / missing / out-of-domain -----------------
 
 AUDIT = {
