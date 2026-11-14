@@ -621,7 +621,10 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
         variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         # B=90, V=80: Delta = 1.25*80 - 90 = +10 for all variants
-        status, reasons = assess_sensitivity(variants, baseline_B=90.0, viirs_V=80.0)
+        status, reasons = assess_sensitivity(
+            variants, baseline_B=90.0, viirs_V=80.0,
+            required_variant_ids=("full_training_2016_2017_2018", "ex_2016", "ex_2017", "ex_2018"),
+        )
         assert status == SensitivityStatus.STABLE
 
     def test_stable_when_all_deltas_same_sign_negative(self):
@@ -633,7 +636,10 @@ class TestAssessSensitivity:
         aqua  = [_own("aqua",  y, D=100, O=1000) for y in [2016, 2017, 2018]]
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
         variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
-        status, reasons = assess_sensitivity(variants, baseline_B=110.0, viirs_V=80.0)
+        status, reasons = assess_sensitivity(
+            variants, baseline_B=110.0, viirs_V=80.0,
+            required_variant_ids=("full_training_2016_2017_2018", "ex_2016", "ex_2017", "ex_2018"),
+        )
         assert status == SensitivityStatus.STABLE
 
     def test_sensitive_when_variants_produce_opposing_deltas(self):
@@ -671,7 +677,8 @@ class TestAssessSensitivity:
         assert variants["ex_2017"].factor_value == pytest.approx(4.0)
 
         status, reasons = assess_sensitivity(
-            variants, baseline_B=150.0, viirs_V=80.0
+            variants, baseline_B=150.0, viirs_V=80.0,
+            required_variant_ids=("full_training_2016_2017", "ex_2016", "ex_2017"),
         )
         assert status == SensitivityStatus.SENSITIVE
         assert any("disagree" in r.lower() or "delta" in r.lower() or
@@ -698,7 +705,8 @@ class TestAssessSensitivity:
         variants = fit_own_support_variants(aqua, viirs,
                                             training_years=(2016, 2017), config=OWN_CFG)
         status, reasons = assess_sensitivity(
-            variants, baseline_B=50.0, viirs_V=80.0
+            variants, baseline_B=50.0, viirs_V=80.0,
+            required_variant_ids=("full_training_2016_2017", "ex_2016", "ex_2017"),
         )
         assert status == SensitivityStatus.STABLE
 
@@ -707,7 +715,8 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
         variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         status, reasons = assess_sensitivity(
-            variants, baseline_B=None, viirs_V=80.0
+            variants, baseline_B=None, viirs_V=80.0,
+            required_variant_ids=("full_training_2016_2017_2018", "ex_2016", "ex_2017", "ex_2018"),
         )
         assert status == SensitivityStatus.UNRESOLVED
         assert any("B" in r or "baseline" in r.lower() for r in reasons)
@@ -717,7 +726,8 @@ class TestAssessSensitivity:
         viirs = [_own("viirs", y, D=80,  O=1000) for y in [2016, 2017, 2018]]
         variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         status, reasons = assess_sensitivity(
-            variants, baseline_B=90.0, viirs_V=None
+            variants, baseline_B=90.0, viirs_V=None,
+            required_variant_ids=("full_training_2016_2017_2018", "ex_2016", "ex_2017", "ex_2018"),
         )
         assert status == SensitivityStatus.UNRESOLVED
 
@@ -742,10 +752,10 @@ class TestAssessSensitivity:
         variants = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         assert variants["ex_2017"].status == FactorStatus.UNAVAILABLE
 
-        required = [
+        required = (
             "full_training_2016_2017_2018",
             "ex_2016", "ex_2017", "ex_2018",
-        ]
+        )
         status, reasons = assess_sensitivity(
             variants, baseline_B=90.0, viirs_V=80.0,
             required_variant_ids=required,
@@ -767,7 +777,10 @@ class TestAssessSensitivity:
                 n_viirs_obs=1,
             )
         }
-        status, reasons = assess_sensitivity(single, baseline_B=90.0, viirs_V=80.0)
+        status, reasons = assess_sensitivity(
+            single, baseline_B=90.0, viirs_V=80.0,
+            required_variant_ids=("full_training_2016",),
+        )
         assert status == SensitivityStatus.UNRESOLVED
 
 
@@ -1804,7 +1817,8 @@ class TestRejectInvalidRates:
     @pytest.mark.parametrize("B,V", [(-1.0, 80.0), (90.0, -0.5), (float("nan"), 1.0)])
     def test_assess_sensitivity_rejects(self, factor, B, V):
         with pytest.raises(ValueError):
-            assess_sensitivity(factor, baseline_B=B, viirs_V=V)
+            assess_sensitivity(factor, baseline_B=B, viirs_V=V,
+                               required_variant_ids=("full_training_2016_2017_2018",))
 
     def test_rejected_even_when_factor_unavailable(self):
         bad = fit_own_support_variants([_own("aqua", 2016, 0, 0)], [_own("viirs", 2016, 0, 0)],
@@ -1815,7 +1829,8 @@ class TestRejectInvalidRates:
                          applicability_status=ApplicabilityStatus.INSUFFICIENT_EVIDENCE,
                          applicability_passed=False)
         with pytest.raises(ValueError):
-            assess_sensitivity(bad, baseline_B=None, viirs_V=-2.0)
+            assess_sensitivity(bad, baseline_B=None, viirs_V=-2.0,
+                               required_variant_ids=("full_training_2016",))
 
     def test_zero_and_none_still_accepted(self, factor):
         r = apply_factor(factor_result=factor["full_training_2016_2017_2018"],
@@ -1830,5 +1845,6 @@ class TestRejectInvalidRates:
                           applicability_status=ApplicabilityStatus.EVALUATED,
                           applicability_passed=True)
         assert r2.delta is None and r2.headline_direction == HeadlineDirection.UNRESOLVED
-        status, _ = assess_sensitivity(factor, baseline_B=None, viirs_V=80.0)
+        status, _ = assess_sensitivity(factor, baseline_B=None, viirs_V=80.0,
+                                       required_variant_ids=("full_training_2016_2017_2018",))
         assert status == SensitivityStatus.UNRESOLVED

@@ -440,10 +440,21 @@ def _fit_factor(
     """
     reasons: list[str] = []
 
+    # --- (v5) Registered minimum support per sensor, year and stratum ---
+    # Compute support_failures FIRST, so ALL failing cells are reported
+    # even if other checks (year support, stratum match) fail.
+    support_failures = _check_registered_support(
+        aqua_records, viirs_records, training_years, config
+    )
+
     # --- (v2) Check that every registered year has support ---
     missing_aqua = _check_year_support(aqua_records, training_years, "Aqua")
     missing_viirs = _check_year_support(viirs_records, training_years, "VIIRS")
 
+    # --- (v3) Check that (year, stratum) keys are matched across sensors ---
+    mismatched = _check_stratum_match(aqua_records, viirs_records)
+
+    # Build reasons list; any failure means UNAVAILABLE
     if missing_aqua:
         reasons.append(
             f"Aqua has no usable observations (O > 0) in required training "
@@ -455,6 +466,19 @@ def _fit_factor(
             f"VIIRS has no usable observations (O > 0) in required training "
             f"year(s): {missing_viirs}.  Factor variant '{variant_id}' is "
             "UNAVAILABLE; cannot pool over fewer years than registered."
+        )
+    if mismatched:
+        reasons.append(
+            f"Calendar strata are not matched between Aqua and VIIRS available "
+            f"records.  Mismatched (year, stratum) keys: {mismatched}.  "
+            f"Spec §6 requires matched strata; factor variant '{variant_id}' "
+            "is UNAVAILABLE until the data layer supplies aligned records."
+        )
+    if support_failures:
+        reasons.append(
+            f"Registered minimum support min_support_O={config.min_support_O} "
+            f"not met for (sensor, year, stratum, summed_O): {support_failures}.  "
+            f"Factor variant '{variant_id}' is UNAVAILABLE."
         )
 
     if reasons:
@@ -470,55 +494,7 @@ def _fit_factor(
             n_viirs_obs=0,
             missing_aqua_years=missing_aqua,
             missing_viirs_years=missing_viirs,
-            mismatched_strata=[],
-            reasons=reasons,
-        )
-
-    # --- (v3) Check that (year, stratum) keys are matched across sensors ---
-    mismatched = _check_stratum_match(aqua_records, viirs_records)
-    if mismatched:
-        reasons.append(
-            f"Calendar strata are not matched between Aqua and VIIRS available "
-            f"records.  Mismatched (year, stratum) keys: {mismatched}.  "
-            f"Spec §6 requires matched strata; factor variant '{variant_id}' "
-            "is UNAVAILABLE until the data layer supplies aligned records."
-        )
-        return FactorResult(
-            variant_id=variant_id,
-            factor_type=factor_type,
-            training_years=training_years,
-            status=FactorStatus.UNAVAILABLE,
-            factor_value=None,
-            aqua_pooled_rate=None,
-            viirs_pooled_rate=None,
-            n_aqua_obs=0,
-            n_viirs_obs=0,
-            missing_aqua_years=[],
-            missing_viirs_years=[],
             mismatched_strata=mismatched,
-            reasons=reasons,
-        )
-
-    # --- (v5) Registered minimum support per sensor, year and stratum ---
-    support_failures = _check_registered_support(
-        aqua_records, viirs_records, training_years, config
-    )
-    if support_failures:
-        reasons.append(
-            f"Registered minimum support min_support_O={config.min_support_O} "
-            f"not met for (sensor, year, stratum, summed_O): {support_failures}.  "
-            f"Factor variant '{variant_id}' is UNAVAILABLE."
-        )
-        return FactorResult(
-            variant_id=variant_id,
-            factor_type=factor_type,
-            training_years=training_years,
-            status=FactorStatus.UNAVAILABLE,
-            factor_value=None,
-            aqua_pooled_rate=None,
-            viirs_pooled_rate=None,
-            n_aqua_obs=0,
-            n_viirs_obs=0,
             support_failures=support_failures,
             reasons=reasons,
         )
@@ -833,7 +809,7 @@ def assess_sensitivity(
     variant_results: dict[str, FactorResult],
     baseline_B: Optional[float],
     viirs_V: Optional[float],
-    required_variant_ids: Optional[list[str]] = None,
+    required_variant_ids: tuple[str, ...],
 ) -> tuple[SensitivityStatus, list[str]]:
     """
     Determine calibration_sensitivity from a set of factor variants.
@@ -854,11 +830,10 @@ def assess_sensitivity(
         Raw VIIRS rate for the target comparison period.
         None means the target is unavailable → UNRESOLVED.
     required_variant_ids:
-        If supplied, every listed variant must be present AND AVAILABLE.
+        Tuple of variant IDs that MUST be present AND AVAILABLE.
         Any missing or UNAVAILABLE required variant → UNRESOLVED (takes
-        precedence over all other checks; spec §7: "a required undefined
-        factor remains unavailable and follows unresolved precedence; never
-        drop it to get a stable badge").
+        precedence over all other checks; stability is strictly forbidden
+        when required variants are missing; spec §7).
 
     Returns (SensitivityStatus, list[reason_strings]).
     """
@@ -886,30 +861,29 @@ def assess_sensitivity(
         else:
             unavailable_ids.append(vid)
 
-    # --- check required variants (UNRESOLVED takes strict precedence) ---
-    if required_variant_ids:
-        missing_or_unavail = [
-            vid
-            for vid in required_variant_ids
-            if vid not in variant_results
-            or variant_results[vid].status == FactorStatus.UNAVAILABLE
-        ]
-        if missing_or_unavail:
-            reasons.append(
-                f"Required variants unavailable or missing: {missing_or_unavail}. "
-                "Sensitivity is UNRESOLVED; a stable badge cannot be awarded "
-                "(spec §7: required undefined factor follows unresolved precedence)."
-            )
-            return SensitivityStatus.UNRESOLVED, reasons
-
-    # --- if any variant (not just required) is unavailable, cannot assess ---
-    if unavailable_ids:
+    # --- check required variants first (UNRESOLVED takes strict precedence) ---
+    # If any required variant is missing or UNAVAILABLE → UNRESOLVED
+    # Stability is strictly forbidden when required variants are missing
+    missing_or_unavail = [
+        vid
+        for vid in required_variant_ids
+        if vid not in variant_results
+        or variant_results[vid].status == FactorStatus.UNAVAILABLE
+    ]
+    if missing_or_unavail:
         reasons.append(
-            f"Factor variants {unavailable_ids} are UNAVAILABLE. "
-            "Cannot assess sensitivity without all registered variants."
+            f"Required variants unavailable or missing: {missing_or_unavail}. "
+            "Sensitivity is UNRESOLVED; stability is strictly forbidden when "
+            "required variants are missing (spec §7)."
         )
         return SensitivityStatus.UNRESOLVED, reasons
 
+    # --- check if any non-required variant is unavailable ---
+    non_required_unavail = [
+        vid for vid in unavailable_ids if vid not in required_variant_ids
+    ]
+
+    # Check if we have enough variants for assessment
     if len(available) < 2:
         reasons.append(
             "Fewer than 2 available factor variants; sensitivity cannot be assessed."
@@ -942,7 +916,14 @@ def assess_sensitivity(
 
     if positive_ids and negative_ids:
         # Sign reversal across variants → SENSITIVE
+        # Preserve SENSITIVE even if some variants are unavailable
+        # Note incomplete variants in the reasons
         reasons.append(base_summary)
+        if non_required_unavail:
+            reasons.append(
+                f"Note: variants {non_required_unavail} are UNAVAILABLE; "
+                "assessment is based on available variants only."
+            )
         reasons.append(
             f"Directional disagreement: variants {positive_ids} give Delta > 0 "
             f"(increase) while variants {negative_ids} give Delta < 0 (decrease). "
@@ -956,6 +937,11 @@ def assess_sensitivity(
         reasons.append(
             f"Variants {zero_ids} give Delta = 0 (equality); "
             "these are compatible with the dominant direction."
+        )
+    if non_required_unavail:
+        reasons.append(
+            f"Note: variants {non_required_unavail} are UNAVAILABLE; "
+            "assessment is based on available variants only."
         )
     return SensitivityStatus.STABLE, reasons
 
