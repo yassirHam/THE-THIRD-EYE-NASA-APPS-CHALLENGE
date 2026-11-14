@@ -36,9 +36,11 @@ import math
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
-from science.calendar.rates import PeriodObs, PolicyID, SensorID, pooled_rate
+from science.calendar.rates import (
+    PeriodObs, PolicyID, SensorID, block_problems, pooled_rate,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -200,30 +202,12 @@ def compute_month_baseline(
             reasons.append(f"{yr}: partial or after-cessation record present.")
             continue
         
-        # Check block completeness if required_blocks is provided
         recs_available = [r for r in recs if r.is_available]
-        if required_blocks is not None:
-            # Group by block_id
-            blocks_present = {r.block_id for r in recs_available if r.block_id is not None}
-            missing_blocks = set(required_blocks) - blocks_present
-            if missing_blocks:
-                missing.append(yr)
-                reasons.append(f"{yr}: missing blocks {sorted(missing_blocks)}.")
-                continue
-            
-            # Check each required block has O > 0
-            blocks_ok = True
-            for block in required_blocks:
-                block_recs = [r for r in recs_available if r.block_id == block]
-                total_block_O = sum(r.O for r in block_recs)
-                if total_block_O == 0:
-                    missing.append(yr)
-                    reasons.append(f"{yr}: block {block} has O=0.")
-                    blocks_ok = False
-                    break
-            
-            if not blocks_ok:
-                continue
+        blk = block_problems(recs, required_blocks)
+        if blk:
+            missing.append(yr)
+            reasons.extend(f"{yr}: {b}" for b in blk)
+            continue
         
         total_O = sum(r.O for r in recs_available)
         if total_O < config.min_support_O:
@@ -300,21 +284,10 @@ def label_unusual(
         return _label("target_partial", p90=baseline.p90_rate,
                       reason="Target month is partial or after S-NPP cessation.")
     
-    # Verify block completeness if required_blocks is provided
-    if required_blocks is not None:
-        available_blocks = {o.block_id for o in relevant if o.block_id is not None}
-        missing_blocks = set(required_blocks) - available_blocks
-        if missing_blocks:
-            return _label("target_unavailable", p90=baseline.p90_rate,
-                          reason=f"Missing required blocks: {sorted(missing_blocks)}")
-        
-        # Check each required block has O > 0
-        for block in required_blocks:
-            block_recs = [o for o in relevant if o.block_id == block]
-            total_block_O = sum(o.O for o in block_recs)
-            if total_block_O == 0:
-                return _label("target_unavailable", p90=baseline.p90_rate,
-                              reason=f"Block {block} has O=0.")
+    blk = block_problems(relevant, required_blocks)
+    if blk:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="; ".join(blk))
     
     total_O = sum(o.O for o in relevant)
     if total_O == 0:
@@ -473,30 +446,12 @@ def compute_week_baseline(
             reasons.append(f"{yr}: partial or after-cessation record present.")
             continue
         
-        # Check block completeness if required_blocks is provided
         recs_available = [r for r in recs if r.is_available]
-        if required_blocks is not None:
-            # Group by block_id
-            blocks_present = {r.block_id for r in recs_available if r.block_id is not None}
-            missing_blocks = set(required_blocks) - blocks_present
-            if missing_blocks:
-                missing.append(yr)
-                reasons.append(f"{yr}: missing blocks {sorted(missing_blocks)}.")
-                continue
-            
-            # Check each required block has O > 0
-            blocks_ok = True
-            for block in required_blocks:
-                block_recs = [r for r in recs_available if r.block_id == block]
-                total_block_O = sum(r.O for r in block_recs)
-                if total_block_O == 0:
-                    missing.append(yr)
-                    reasons.append(f"{yr}: block {block} has O=0.")
-                    blocks_ok = False
-                    break
-            
-            if not blocks_ok:
-                continue
+        blk = block_problems(recs, required_blocks)
+        if blk:
+            missing.append(yr)
+            reasons.extend(f"{yr}: {b}" for b in blk)
+            continue
         
         total_O = sum(r.O for r in recs_available)
         if total_O < config.min_support_O:
@@ -533,234 +488,154 @@ def compute_week_baseline(
 
 
 # ---------------------------------------------------------------------------
-# Critical week functions (P1-B-R2-03)
+# Critical weeks of the typical year (plan Section 3A)
 # ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class CriticalWeekConfig:
+    """
+    Registered critical-week rules.  No field has a default.
+
+    n_busiest_weeks: how many busiest weeks of the typical year are critical.
+    ranked_weeks: the ISO week numbers that are ranked (e.g. 1..52).  Every
+        listed week must have an available weekly baseline.
+    tie_rule: how ties at the cut-off are handled.
+        "include_all_tied": weeks tied with the last selected week are also
+            critical, so more than n_busiest_weeks may be returned.
+        "lower_week_number_first": exactly n_busiest_weeks; ties go to the
+            lower ISO week number.
+    The typical-year value of a week is its baseline median rate across the
+    registered prior years (same sensor and policy).
+    """
+    n_busiest_weeks: int
+    ranked_weeks: tuple[int, ...]
+    tie_rule: Literal["include_all_tied", "lower_week_number_first"]
+
+    def __post_init__(self) -> None:
+        if (not isinstance(self.ranked_weeks, tuple) or not self.ranked_weeks
+                or len(set(self.ranked_weeks)) != len(self.ranked_weeks)
+                or not all(isinstance(w, int) and not isinstance(w, bool)
+                           and 1 <= w <= 53 for w in self.ranked_weeks)):
+            raise ValueError("ranked_weeks must be a non-empty tuple of unique ISO weeks 1-53.")
+        if (isinstance(self.n_busiest_weeks, bool) or not isinstance(self.n_busiest_weeks, int)
+                or not (1 <= self.n_busiest_weeks <= len(self.ranked_weeks))):
+            raise ValueError("n_busiest_weeks must be an integer in 1..len(ranked_weeks).")
+        if self.tie_rule not in ("include_all_tied", "lower_week_number_first"):
+            raise ValueError(f"Unknown tie_rule {self.tie_rule!r}.")
+
+
+@dataclass
+class CriticalWeeks:
+    """
+    status: 'available' | 'insufficient_baseline' | 'no_detected_activity'
+    critical_weeks: selected weeks in rank order (busiest first).
+    ranking: (week, typical_rate, rank) for every ranked week; rank uses
+        competition ranking (tied weeks share a rank).
+    cutoff_rate: typical rate of the last selected week.
+    tied_at_cutoff: weeks whose typical rate equals cutoff_rate.
+    """
+    target_year: int
+    sensor: SensorID
+    policy: PolicyID
+    status: str
+    critical_weeks: list[int] = field(default_factory=list)
+    ranking: list[tuple[int, float, int]] = field(default_factory=list)
+    cutoff_rate: Optional[float] = None
+    tied_at_cutoff: list[int] = field(default_factory=list)
+    missing_weeks: list[int] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
+
+
 @dataclass
 class CriticalWeekLabel:
-    """
-    Label for a critical/busiest week.
-    
-    status: 'labeled' | 'baseline_unavailable' | 'target_unavailable' |
-            'target_partial' | 'target_insufficient_support'
-    is_critical is True only when status == 'labeled' and week is in top busiest.
-    rank: 1-indexed rank among all weeks (lower = busier)
-    tied_with: list of other week numbers that have the same rate (sorted)
-    """
-    calendar_month: int  # Week number (1-53)
+    """status: 'labeled' | 'not_ranked' | 'unavailable'"""
+    week_number: int
     target_year: int
     sensor: SensorID
     policy: PolicyID
     is_critical: bool
-    target_rate: Optional[float]
-    threshold_rate: Optional[float]
     rank: Optional[int]
-    tied_with: list[int]
+    typical_rate: Optional[float]
     status: str
     reason: str = ""
 
 
-def compute_weekly_rates(
-    target_obs: list[PeriodObs],
-    target_year: int,
-    baseline: MonthBaseline,
-    required_blocks: Optional[tuple[str, ...]] = None,
-) -> dict[int, float]:
-    """
-    Compute rates for all weeks in a target year from available observations.
-    
-    Returns a dict mapping week_number -> rate for weeks that have sufficient support.
-    """
-    relevant = [
-        o for o in target_obs
-        if o.sensor == baseline.sensor and o.policy == baseline.policy
-        and o.year == target_year
-    ]
-    
-    if not relevant:
-        return {}
-    
-    if any(o.is_period_partial or o.is_after_cessation for o in relevant):
-        return {}
-    
-    # Group by week_number
-    from collections import defaultdict
-    by_week: dict[int, list[PeriodObs]] = defaultdict(list)
-    for o in relevant:
-        if o.week_number is not None:
-            by_week[o.week_number].append(o)
-    
-    rates: dict[int, float] = {}
-    for week_num, obs_list in by_week.items():
-        # Verify block completeness if required_blocks is provided
-        if required_blocks is not None:
-            available_blocks = {o.block_id for o in obs_list if o.block_id is not None}
-            missing_blocks = set(required_blocks) - available_blocks
-            if missing_blocks:
-                continue  # Skip this week
-            
-            # Check each required block has O > 0
-            blocks_ok = True
-            for block in required_blocks:
-                block_recs = [o for o in obs_list if o.block_id == block]
-                total_block_O = sum(o.O for o in block_recs)
-                if total_block_O == 0:
-                    blocks_ok = False
-                    break
-            
-            if not blocks_ok:
-                continue
-        
-        total_O = sum(o.O for o in obs_list)
-        if total_O == 0:
-            continue  # O = 0 is unavailable
-        if total_O < baseline.min_support_O:
-            continue
-        
-        rate = pooled_rate(obs_list, required_blocks=required_blocks)
-        if rate is not None:
-            rates[week_num] = rate
-    
-    return rates
-
-
 def compute_critical_weeks(
-    target_obs: list[PeriodObs],
     target_year: int,
-    baseline: MonthBaseline,
-    top_n: int = 3,
+    all_obs: list[PeriodObs],
+    config: BaselineConfig,
+    cw_config: CriticalWeekConfig,
     required_blocks: Optional[tuple[str, ...]] = None,
-) -> list[CriticalWeekLabel]:
+) -> CriticalWeeks:
     """
-    Identify the top busiest weeks by rate for a target year.
-    
-    Returns a sorted list (busiest first) of CriticalWeekLabel objects.
-    Ties are broken deterministically by week_number (lower week_number wins).
-    
-    Args:
-        target_obs: Target year observations
-        target_year: Target year for analysis
-        baseline: MonthBaseline from which to derive threshold (p90_rate)
-        top_n: Number of top weeks to identify
-        required_blocks: Optional tuple of required block IDs for spatial filtering
+    Busiest weeks of the typical year from registered prior years only.
+
+    Each ranked week needs an AVAILABLE weekly baseline (all required years
+    present with registered support and complete blocks).  If any ranked week
+    is unavailable, no critical weeks are returned: the set is not computed
+    over a silently reduced list of weeks.  The target year's own outcomes
+    never enter.
     """
-    # Get all weekly rates
-    rates = compute_weekly_rates(target_obs, target_year, baseline, required_blocks)
-    
-    if not rates:
-        return []
-    
-    # Sort by rate descending, then by week_number ascending for deterministic tie-breaking
-    sorted_weeks = sorted(rates.items(), key=lambda x: (-x[1], x[0]))
-    
-    # Determine threshold: use p90 rate from baseline if available
-    threshold_rate = baseline.p90_rate if baseline.p90_rate is not None else None
-    
-    # Compute ranks with tie handling
-    result: list[CriticalWeekLabel] = []
-    i = 0
-    while i < len(sorted_weeks):
-        # Find all weeks with the same rate (ties)
-        current_rate = sorted_weeks[i][1]
-        tied_weeks = [w for w, r in sorted_weeks if r == current_rate]
-        tied_weeks.sort()  # Deterministic ordering
-        
-        rank = i + 1  # 1-indexed rank
-        
-        for week_num in tied_weeks:
-            rate = rates[week_num]
-            is_critical = rank <= top_n
-            status = "labeled" if is_critical else "not_in_top_n"
-            
-            # Check if unusual (rate > p90 threshold)
-            unusual = False
-            if threshold_rate is not None and rate > threshold_rate:
-                unusual = True
-                status = "unusual" if is_critical else "unusual_not_in_top_n"
-            
-            reason_parts = []
-            if unusual:
-                reason_parts.append(f"Rate {rate:.1f} exceeds p90 threshold {threshold_rate:.1f}")
-            if len(tied_weeks) > 1:
-                reason_parts.append(f"Tied with weeks {tied_weeks}")
-            if is_critical:
-                reason_parts.append(f"Ranked #{rank} of {len(sorted_weeks)} weeks")
-            
-            result.append(CriticalWeekLabel(
-                calendar_month=week_num,
-                target_year=target_year,
-                sensor=baseline.sensor,
-                policy=baseline.policy,
-                is_critical=is_critical,
-                target_rate=rate,
-                threshold_rate=threshold_rate,
-                rank=rank,
-                tied_with=[w for w in tied_weeks if w != week_num],
-                status=status,
-                reason=". ".join(reason_parts) if reason_parts else "",
-            ))
-        
-        i += len(tied_weeks)
-    
-    # Sort by rank to ensure proper ordering
-    result.sort(key=lambda x: (x.rank or 999, x.calendar_month))
-    
-    return result
+    def _out(status, **kw):
+        return CriticalWeeks(target_year=target_year, sensor=config.sensor,
+                             policy=config.policy, status=status, **kw)
+
+    medians: dict[int, float] = {}
+    missing: list[int] = []
+    reasons: list[str] = []
+    for w in cw_config.ranked_weeks:
+        bl = compute_week_baseline(w, target_year, all_obs, config, required_blocks)
+        if bl.status != BaselineStatus.AVAILABLE or bl.median_rate is None:
+            missing.append(w)
+            reasons.append(f"week {w}: baseline {bl.status.value}.")
+        else:
+            medians[w] = bl.median_rate
+
+    if missing:
+        reasons.insert(0, f"Ranked weeks {missing} lack an available baseline; "
+                          "critical weeks are not computed.")
+        return _out("insufficient_baseline", missing_weeks=missing, reasons=reasons)
+
+    if max(medians.values()) <= 0.0:
+        return _out("no_detected_activity",
+                    reasons=["Every ranked week has a typical rate of 0."])
+
+    ordered = sorted(medians.items(), key=lambda kv: (-kv[1], kv[0]))
+    ranking: list[tuple[int, float, int]] = []
+    for i, (w, r) in enumerate(ordered):
+        rank = i + 1 if i == 0 or r != ordered[i - 1][1] else ranking[-1][2]
+        ranking.append((w, r, rank))
+
+    n = cw_config.n_busiest_weeks
+    cutoff_rate = ordered[n - 1][1]
+    tied = sorted(w for w, r in ordered if r == cutoff_rate)
+    if cw_config.tie_rule == "include_all_tied":
+        selected = [w for w, r in ordered if r >= cutoff_rate]
+    else:
+        selected = [w for w, _ in ordered[:n]]
+
+    if len(tied) > 1:
+        reasons.append(f"Weeks {tied} tie at the cut-off rate {cutoff_rate}; "
+                       f"tie rule '{cw_config.tie_rule}' applied.")
+    return _out("available", critical_weeks=selected, ranking=ranking,
+                cutoff_rate=cutoff_rate, tied_at_cutoff=tied, reasons=reasons)
 
 
-def label_critical_week(
-    target_obs: list[PeriodObs],
-    target_year: int,
-    week_number: int,
-    baseline: MonthBaseline,
-    top_n: int = 3,
-    required_blocks: Optional[tuple[str, ...]] = None,
-) -> CriticalWeekLabel:
-    """
-    Label a specific week as critical/busiest if it falls within the top N busiest weeks.
-    
-    Returns a CriticalWeekLabel with status and rank information.
-    """
-    # Validate week_number
-    if not (1 <= week_number <= 53):
-        raise ValueError(f"week_number must be 1-53, got {week_number}")
-    
-    # Verify baseline.target_year matches target_year (P1-B-R2-02)
-    if baseline.target_year != target_year:
-        raise ValueError(
-            f"Baseline was computed for target year {baseline.target_year}, "
-            f"not {target_year}."
-        )
-    
-    baseline_week = baseline.calendar_month
-    if baseline_week != week_number:
-        raise ValueError(
-            f"Baseline was computed for week {baseline_week}, not {week_number}."
-        )
+def label_critical_week(week_number: int, result: CriticalWeeks) -> CriticalWeekLabel:
+    """Whether a week belongs to the registered critical weeks of the typical year."""
+    def _lab(is_critical, rank, rate, status, reason=""):
+        return CriticalWeekLabel(week_number=week_number, target_year=result.target_year,
+                                 sensor=result.sensor, policy=result.policy,
+                                 is_critical=is_critical, rank=rank, typical_rate=rate,
+                                 status=status, reason=reason)
 
-    # Compute all critical weeks
-    critical_weeks = compute_critical_weeks(
-        target_obs, target_year, baseline, top_n, required_blocks
-    )
-    
-    # Find the label for the specified week
-    for cw in critical_weeks:
-        if cw.calendar_month == week_number:
-            return cw
-    
-    # Week not in top N, return with is_critical=False
-    return CriticalWeekLabel(
-        calendar_month=week_number,
-        target_year=target_year,
-        sensor=baseline.sensor,
-        policy=baseline.policy,
-        is_critical=False,
-        target_rate=None,
-        threshold_rate=baseline.p90_rate,
-        rank=None,
-        tied_with=[],
-        status="not_in_top_n",
-        reason=f"Week {week_number} is not among the top {top_n} busiest weeks.",
-    )
+    if result.status != "available":
+        return _lab(False, None, None, "unavailable",
+                    f"Critical weeks status is {result.status}.")
+    for w, r, rank in result.ranking:
+        if w == week_number:
+            return _lab(w in result.critical_weeks, rank, r, "labeled")
+    return _lab(False, None, None, "not_ranked",
+                f"Week {week_number} is not in the registered ranked weeks.")
 
 
 def label_unusual_week(
@@ -818,21 +693,10 @@ def label_unusual_week(
         return _label("target_partial", p90=baseline.p90_rate,
                       reason="Target week is partial or after S-NPP cessation.")
     
-    # Verify block completeness if required_blocks is provided
-    if required_blocks is not None:
-        available_blocks = {o.block_id for o in relevant if o.block_id is not None}
-        missing_blocks = set(required_blocks) - available_blocks
-        if missing_blocks:
-            return _label("target_unavailable", p90=baseline.p90_rate,
-                          reason=f"Missing required blocks: {sorted(missing_blocks)}")
-        
-        # Check each required block has O > 0
-        for block in required_blocks:
-            block_recs = [o for o in relevant if o.block_id == block]
-            total_block_O = sum(o.O for o in block_recs)
-            if total_block_O == 0:
-                return _label("target_unavailable", p90=baseline.p90_rate,
-                              reason=f"Block {block} has O=0.")
+    blk = block_problems(relevant, required_blocks)
+    if blk:
+        return _label("target_unavailable", p90=baseline.p90_rate,
+                      reason="; ".join(blk))
     
     total_O = sum(o.O for o in relevant)
     if total_O == 0:

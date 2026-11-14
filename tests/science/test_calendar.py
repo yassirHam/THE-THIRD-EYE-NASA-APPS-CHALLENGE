@@ -435,9 +435,10 @@ class TestMonthBaseline:
             _mo_block("MODIS_Aqua", 2019, 7, 54, 60, "BLOCK_A"),
             _mo_block("MODIS_Aqua", 2019, 7, 54, 60, "BLOCK_B"),
         ]
-        # Without required_blocks, should work (summed O=5600 >= 100)
-        bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100))
-        assert bl.status == BaselineStatus.AVAILABLE
+        # Block-level records without a registered block list are rejected:
+        # the analysed footprint must be registered, not inferred.
+        with pytest.raises(ValueError, match="no registered"):
+            compute_month_baseline(7, 2020, obs, _cfg(min_support=100))
         
         # With required_blocks, both must be present with O > 0
         bl = compute_month_baseline(7, 2020, obs, _cfg(min_support=100),
@@ -771,3 +772,203 @@ class TestNormalSeason:
         bls[3] = _stub(3, 5.0, target_year=2021)
         with pytest.raises(ValueError, match="mix target years"):
             derive_normal_season(bls, _cfg())
+
+
+# ===========================================================================
+# Regression: block completeness (review of eb28eb2)
+# Each case passed silently or gave a number under eb28eb2.
+# ===========================================================================
+from science.calendar.rates import block_problems  # noqa: E402
+from science.calendar.baseline import (  # noqa: E402
+    CriticalWeekConfig, compute_critical_weeks, label_critical_week,
+)
+
+AB = ("BLOCK_A", "BLOCK_B")
+
+
+class TestBlockCompletenessRegression:
+    def test_unregistered_extra_block_is_rejected(self):
+        # eb28eb2 pooled C too: 1000 * 520 / 300 = 1733.3, a different footprint.
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B"),
+               _mo_block("MODIS_Aqua", 2016, 7, 500, 100, "BLOCK_C")]
+        with pytest.raises(ValueError, match="unregistered"):
+            pooled_rate(obs, required_blocks=AB)
+
+    def test_record_without_block_id_is_rejected(self):
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B"),
+               _mo("MODIS_Aqua", 2016, 7, 10, 100)]
+        with pytest.raises(ValueError, match="unregistered or missing block_id"):
+            pooled_rate(obs, required_blocks=AB)
+
+    def test_duplicate_block_record_is_rejected(self):
+        # eb28eb2 double-counted A: 1000 * 30 / 300 = 100.0
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B")]
+        with pytest.raises(ValueError, match="more than one record"):
+            pooled_rate(obs, required_blocks=AB)
+
+    @pytest.mark.parametrize("bad", [(), ["BLOCK_A", "BLOCK_B"], ("BLOCK_A", "BLOCK_A"), ("BLOCK_A", "")])
+    def test_invalid_required_blocks(self, bad):
+        with pytest.raises(ValueError, match="required_blocks"):
+            pooled_rate([_mo_block("MODIS_Aqua", 2016, 7, 1, 10, "BLOCK_A")], required_blocks=bad)
+
+    def test_block_completeness_checked_per_period(self):
+        # July has A and B; August lacks B.  eb28eb2 checked the union of
+        # periods, saw both blocks, and returned 1000 * 40 / 400 = 100.0.
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B"),
+               _mo_block("MODIS_Aqua", 2016, 8, 20, 200, "BLOCK_A")]
+        assert pooled_rate(obs, required_blocks=AB) is None
+        assert block_problems(obs, AB) == ["2016-08: required block BLOCK_B missing."]
+
+    def test_partial_block_makes_period_unavailable(self):
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_B", partial=True)]
+        assert pooled_rate(obs, required_blocks=AB) is None
+        assert block_problems(obs, AB) == ["2016-07: required block BLOCK_B has no usable observations."]
+
+    def test_complete_blocks_pool_sums_before_division(self):
+        # 1000 * (10 + 30) / (100 + 300) = 100.0
+        obs = [_mo_block("MODIS_Aqua", 2016, 7, 10, 100, "BLOCK_A"),
+               _mo_block("MODIS_Aqua", 2016, 7, 30, 300, "BLOCK_B")]
+        assert block_problems(obs, AB) == []
+        assert pooled_rate(obs, required_blocks=AB) == pytest.approx(100.0)
+
+    def test_unblocked_aggregates_still_allowed(self):
+        obs = [_mo("MODIS_Aqua", 2016, 7, 10, 100)]
+        assert block_problems(obs, None) == []
+        assert pooled_rate(obs) == pytest.approx(100.0)
+
+    def test_baseline_and_label_reject_unregistered_block(self):
+        obs = [_mo_block("MODIS_Aqua", y, 7, 10, 500, b)
+               for y in (2016, 2017, 2018) for b in ("BLOCK_A", "BLOCK_B", "BLOCK_C")]
+        with pytest.raises(ValueError, match="unregistered"):
+            compute_month_baseline(7, 2019, obs, _cfg(), required_blocks=AB)
+        good = [o for o in obs if o.block_id != "BLOCK_C"]
+        bl = compute_month_baseline(7, 2019, good, _cfg(), required_blocks=AB)
+        assert bl.status == BaselineStatus.AVAILABLE
+        target = [_mo_block("MODIS_Aqua", 2019, 7, 10, 500, b) for b in ("BLOCK_A", "BLOCK_C")]
+        with pytest.raises(ValueError, match="unregistered"):
+            label_unusual(target, 2019, 7, bl, required_blocks=AB)
+
+    def test_weekly_baseline_reason_names_period_and_block(self):
+        obs = [_wk_block("MODIS_Aqua", y, 28, 10, 500, b)
+               for y in (2016, 2017, 2018) for b in AB]
+        obs = [o for o in obs if not (o.year == 2017 and o.block_id == "BLOCK_B")]
+        bl = compute_week_baseline(28, 2019, obs, _cfg(), required_blocks=AB)
+        assert bl.status == BaselineStatus.MISSING_REQUIRED_YEARS
+        assert bl.missing_years == [2017]
+        assert "2017: 2017-W28: required block BLOCK_B missing." in bl.reasons
+
+
+# ===========================================================================
+# Regression: critical weeks of the typical year (review of eb28eb2)
+# ===========================================================================
+class TestCriticalWeeksRegression:
+    """
+    Synthetic fixture, target 2019, required prior years 2016-2018, O = 1000.
+    Weekly rates (1000 * D / O) per year -> conventional median:
+      week 10: 10, 10, 10 -> 10
+      week 11: 40, 50, 60 -> 50
+      week 12: 80, 80, 80 -> 80
+      week 13: 50, 50, 50 -> 50   (ties with week 11)
+    Order by (-median, week): 12 (rank 1), 11 (rank 2), 13 (rank 2), 10 (rank 4).
+    """
+    WEEKS = (10, 11, 12, 13)
+    D = {10: (10, 10, 10), 11: (40, 50, 60), 12: (80, 80, 80), 13: (50, 50, 50)}
+
+    def _obs(self, drop=None):
+        out = []
+        for w, ds in self.D.items():
+            for y, d in zip((2016, 2017, 2018), ds):
+                if drop != (y, w):
+                    out.append(_wk("MODIS_Aqua", y, w, d, 1000))
+        return out
+
+    def _cw(self, n, tie):
+        return CriticalWeekConfig(n_busiest_weeks=n, ranked_weeks=self.WEEKS, tie_rule=tie)
+
+    def test_ranking_and_include_all_tied(self):
+        r = compute_critical_weeks(2019, self._obs(), _cfg(), self._cw(2, "include_all_tied"))
+        assert r.status == "available"
+        assert r.ranking == [(12, 80.0, 1), (11, 50.0, 2), (13, 50.0, 2), (10, 10.0, 4)]
+        assert r.critical_weeks == [12, 11, 13]
+        assert r.cutoff_rate == pytest.approx(50.0)
+        assert r.tied_at_cutoff == [11, 13]
+
+    def test_lower_week_number_first(self):
+        r = compute_critical_weeks(2019, self._obs(), _cfg(), self._cw(2, "lower_week_number_first"))
+        assert r.critical_weeks == [12, 11]
+        assert r.tied_at_cutoff == [11, 13]
+
+    def test_single_busiest_week(self):
+        r = compute_critical_weeks(2019, self._obs(), _cfg(), self._cw(1, "include_all_tied"))
+        assert r.critical_weeks == [12] and r.tied_at_cutoff == [12]
+
+    def test_target_year_outcomes_never_enter(self):
+        # eb28eb2 ranked the target year's own weeks.  Extreme and partial 2019
+        # records must not change the typical-year result.
+        noise = [_wk("MODIS_Aqua", 2019, 10, 999, 1000),
+                 _wk("MODIS_Aqua", 2019, 11, 5, 100, partial=True)]
+        base = compute_critical_weeks(2019, self._obs(), _cfg(), self._cw(2, "include_all_tied"))
+        with_noise = compute_critical_weeks(2019, self._obs() + noise, _cfg(),
+                                            self._cw(2, "include_all_tied"))
+        assert with_noise.critical_weeks == base.critical_weeks == [12, 11, 13]
+        assert with_noise.ranking == base.ranking
+
+    def test_missing_week_blocks_result(self):
+        # Week 13 missing for 2017: no critical set over a reduced list.
+        r = compute_critical_weeks(2019, self._obs(drop=(2017, 13)), _cfg(),
+                                   self._cw(2, "include_all_tied"))
+        assert r.status == "insufficient_baseline"
+        assert r.missing_weeks == [13] and r.critical_weeks == []
+
+    def test_missing_block_blocks_result(self):
+        obs = [_wk_block("MODIS_Aqua", y, w, d // 2, 500, b)
+               for w, ds in self.D.items() for y, d in zip((2016, 2017, 2018), ds) for b in AB]
+        obs = [o for o in obs if not (o.year == 2016 and o.week_number == 12 and o.block_id == "BLOCK_B")]
+        r = compute_critical_weeks(2019, obs, _cfg(), self._cw(2, "include_all_tied"), required_blocks=AB)
+        assert r.status == "insufficient_baseline" and r.missing_weeks == [12]
+
+    def test_all_zero_gives_no_activity(self):
+        obs = [_wk("MODIS_Aqua", y, w, 0, 1000) for w in self.WEEKS for y in (2016, 2017, 2018)]
+        r = compute_critical_weeks(2019, obs, _cfg(), self._cw(2, "include_all_tied"))
+        assert r.status == "no_detected_activity" and r.critical_weeks == []
+
+    def test_labels(self):
+        r = compute_critical_weeks(2019, self._obs(), _cfg(), self._cw(2, "include_all_tied"))
+        lab13 = label_critical_week(13, r)
+        assert (lab13.is_critical, lab13.rank, lab13.typical_rate, lab13.status) == (True, 2, 50.0, "labeled")
+        lab10 = label_critical_week(10, r)
+        assert (lab10.is_critical, lab10.rank) == (False, 4)
+        assert label_critical_week(30, r).status == "not_ranked"
+        bad = compute_critical_weeks(2019, self._obs(drop=(2017, 13)), _cfg(), self._cw(2, "include_all_tied"))
+        lab = label_critical_week(12, bad)
+        assert lab.status == "unavailable" and not lab.is_critical
+
+    def test_week_53_not_valid_for_52_week_target(self):
+        # 2019 has 52 ISO weeks; registering week 53 is rejected, not skipped.
+        cw = CriticalWeekConfig(n_busiest_weeks=1, ranked_weeks=(52, 53), tie_rule="include_all_tied")
+        with pytest.raises(ValueError, match="not a valid ISO week"):
+            compute_critical_weeks(2019, self._obs(), _cfg(), cw)
+
+    def test_config_has_no_defaults(self):
+        with pytest.raises(TypeError):
+            CriticalWeekConfig(ranked_weeks=(1, 2))  # type: ignore[call-arg]
+
+    @pytest.mark.parametrize("kw", [
+        dict(n_busiest_weeks=0, ranked_weeks=(1, 2), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=3, ranked_weeks=(1, 2), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=True, ranked_weeks=(1, 2), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=1, ranked_weeks=(), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=1, ranked_weeks=(1, 1), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=1, ranked_weeks=(54,), tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=1, ranked_weeks=[1, 2], tie_rule="include_all_tied"),
+        dict(n_busiest_weeks=1, ranked_weeks=(1, 2), tie_rule="random"),
+    ])
+    def test_config_rejects_bad_values(self, kw):
+        with pytest.raises(ValueError):
+            CriticalWeekConfig(**kw)

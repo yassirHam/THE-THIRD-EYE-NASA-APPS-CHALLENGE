@@ -238,6 +238,73 @@ def compute_rate(obs: PeriodObs) -> RateResult:
     return _result(SCALE * obs.D / obs.O, RateStatus.AVAILABLE, [])
 
 
+def block_problems(
+    observations: list[PeriodObs],
+    required_blocks: Optional[tuple[str, ...]],
+) -> list[str]:
+    """
+    Single block-completeness check used by every rate and baseline function.
+
+    Raises ValueError for invalid input (cannot be fixed by marking unavailable):
+      - required_blocks is not a non-empty tuple of unique non-empty strings;
+      - required_blocks is None but some record carries a block_id
+        (block-level records need a registered block list);
+      - a record has no block_id or an unregistered block_id
+        (pooling it would silently change the analysed footprint);
+      - two records share the same block and period (double counting).
+
+    Returns a list of reasons the data are unavailable (empty means complete):
+      - a required block has no record in a period present in the input;
+      - a required block has no usable record (all O = 0, partial or after
+        cessation) in that period.
+    A block with O = 0 is not treated as zero activity and is not dropped:
+    the period is unavailable for a whole-area value.
+    """
+    if required_blocks is None:
+        tagged = sorted({o.block_id for o in observations if o.block_id is not None})
+        if tagged:
+            raise ValueError(
+                f"Records carry block_ids {tagged} but no registered "
+                "required_blocks were supplied."
+            )
+        return []
+
+    if (not isinstance(required_blocks, tuple) or not required_blocks
+            or len(set(required_blocks)) != len(required_blocks)
+            or not all(isinstance(b, str) and b for b in required_blocks)):
+        raise ValueError(
+            "required_blocks must be a non-empty tuple of unique, non-empty "
+            f"strings; got {required_blocks!r}."
+        )
+    registered = set(required_blocks)
+    unregistered = sorted({str(o.block_id) for o in observations
+                           if o.block_id not in registered})
+    if unregistered:
+        raise ValueError(
+            f"Records with unregistered or missing block_id {unregistered}; "
+            f"registered blocks are {list(required_blocks)}."
+        )
+
+    by_period: dict[tuple, dict[str, list[PeriodObs]]] = {}
+    for o in observations:
+        key = (o.year, o.month, o.week_number)
+        by_period.setdefault(key, {}).setdefault(o.block_id, []).append(o)  # type: ignore[arg-type]
+
+    problems: list[str] = []
+    for key in sorted(by_period, key=lambda k: (k[0], k[1] or 0, k[2] or 0)):
+        blocks = by_period[key]
+        label = f"{key[0]}-{key[1]:02d}" if key[1] is not None else f"{key[0]}-W{key[2]:02d}"
+        dupes = sorted(b for b, recs in blocks.items() if len(recs) > 1)
+        if dupes:
+            raise ValueError(f"Period {label}: more than one record for block(s) {dupes}.")
+        for b in required_blocks:
+            if b not in blocks:
+                problems.append(f"{label}: required block {b} missing.")
+            elif not blocks[b][0].is_available:
+                problems.append(f"{label}: required block {b} has no usable observations.")
+    return problems
+
+
 def pooled_rate(
     observations: list[PeriodObs],
     required_blocks: Optional[tuple[str, ...]] = None,
@@ -245,12 +312,10 @@ def pooled_rate(
     """
     1000 * sum(D) / sum(O) across available observations.
 
-    Raises ValueError when records mix sensors, policies or period types.
-    Returns None when no available observation exists.
-    
-    If required_blocks is provided, verifies that every required block
-    is present and has usable observations (O > 0). If any required block
-    has partial/unusable status, missing, or O=0, returns None immediately.
+    Raises ValueError when records mix sensors, policies or period types, or
+    when block_problems() finds invalid block input.
+    Returns None when no available observation exists or when any required
+    block is missing or has no usable observations.
     """
     if not observations:
         return None
@@ -265,30 +330,8 @@ def pooled_rate(
     if len(period_types) > 1:
         raise ValueError("pooled_rate received both monthly and weekly records.")
 
-    # Verify block completeness if required_blocks is provided
-    if required_blocks is not None:
-        # Check for missing block_ids in observations
-        available_blocks = {o.block_id for o in observations if o.block_id is not None}
-        missing_blocks = set(required_blocks) - available_blocks
-        if missing_blocks:
-            return None  # Some required blocks are missing
-        
-        # For each required block, check that at least one observation exists
-        # and that observation has usable status (is_available returns True)
-        for block in required_blocks:
-            block_obs = [o for o in observations if o.block_id == block]
-            if not block_obs:
-                return None  # Required block has no observations
-            
-            # Find observations with this block_id that are available
-            available_block_obs = [o for o in block_obs if o.is_available]
-            if not available_block_obs:
-                return None  # No available observations for this block
-            
-            # Check each required block has O > 0 (summed across available obs)
-            total_block_O = sum(o.O for o in available_block_obs)
-            if total_block_O == 0:
-                return None  # Required block has no usable observations
+    if block_problems(observations, required_blocks):
+        return None
 
     total_D = 0
     total_O = 0
