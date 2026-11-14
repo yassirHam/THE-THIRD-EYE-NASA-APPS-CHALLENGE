@@ -764,6 +764,14 @@ class TestAssessSensitivity:
         assert any("unavailable" in r.lower() for r in reasons)
 
     def test_unresolved_with_fewer_than_two_available_variants(self):
+        """
+        F-01: When fewer than 2 available variants exist AND required_variant_ids
+        has len >= 2, the check proceeds to available-variants validation.
+        But if only 1 available variant exists, sensitivity cannot be assessed
+        (needs at least 2 for sign comparison).
+        """
+        # Need at least 2 required variants (F-02)
+        # But we'll only have 1 available variant
         single = {
             "full_training_2016": FactorResult(
                 variant_id="full_training_2016",
@@ -777,11 +785,268 @@ class TestAssessSensitivity:
                 n_viirs_obs=1,
             )
         }
+        # Use 2 required variants where one exists and one doesn't
+        # This should hit the "missing required variant" path and return UNRESOLVED
         status, reasons = assess_sensitivity(
             single, baseline_B=90.0, viirs_V=80.0,
-            required_variant_ids=("full_training_2016",),
+            required_variant_ids=("full_training_2016", "missing_variant"),
         )
         assert status == SensitivityStatus.UNRESOLVED
+        reasons_str = " ".join(reasons).lower()
+        assert "missing" in reasons_str or "unavailable" in reasons_str
+
+
+# ---------------------------------------------------------------------------
+# 19. (v6) F-01/F-02: required_variant_ids validation and directional conflict
+# ---------------------------------------------------------------------------
+class TestRequiredVariantIdsValidation:
+    """
+    F-01: A missing required variant must not erase observed sensitivity!
+    First validate required_variant_ids is non-empty tuple of strings (len >= 2),
+    otherwise raise ValueError. Then calculate Deltas for all available variants.
+    If any directional conflict (opposing signs) is observed, preserve SENSITIVE
+    with reasons noting both the conflict AND that required variants are missing.
+    Only return UNRESOLVED if available variants agree in sign but required
+    variants are missing or unavailable (stability strictly forbidden when
+    required variants are missing).
+
+    F-02: Validate required_variant_ids non-empty tuple (len >= 2). An empty
+    tuple must raise ValueError immediately before any assessment.
+    """
+
+    @pytest.fixture()
+    def variants_with_conflict(self):
+        """
+        Asymmetric fixture with factor range that spans a_break.
+        Factors: 1.0, 2.0, 4.0
+        Target: B=150, V=80 -> a_break=1.875
+        Delta(1.0)=-70 (decrease), Delta(2.0)=+10 (increase), Delta(4.0)=+170 (increase)
+        Directional conflict exists!
+        """
+        aqua = [
+            _own("aqua", 2016, D=200, O=1000),
+            _own("aqua", 2017, D=100, O=1000),
+        ]
+        viirs = [
+            _own("viirs", 2016, D=50, O=1000),
+            _own("viirs", 2017, D=100, O=1000),
+        ]
+        variants = fit_own_support_variants(
+            aqua, viirs, training_years=(2016, 2017), config=OWN_CFG
+        )
+        # Verify factors: full=2.0, ex_2016=1.0, ex_2017=4.0
+        assert variants["full_training_2016_2017"].factor_value == pytest.approx(2.0)
+        assert variants["ex_2016"].factor_value == pytest.approx(1.0)
+        assert variants["ex_2017"].factor_value == pytest.approx(4.0)
+        return variants
+
+    @pytest.fixture()
+    def variants_stable(self):
+        """
+        Stable fixture: all factors give same-sign Deltas.
+        Factors: all 1.25
+        Target: B=90, V=80 -> all Deltas positive
+        """
+        aqua = [
+            _own("aqua", y, D=100, O=1000) for y in [2016, 2017, 2018]
+        ]
+        viirs = [
+            _own("viirs", y, D=80, O=1000) for y in [2016, 2017, 2018]
+        ]
+        return fit_own_support_variants(aqua, viirs, config=OWN_CFG)
+
+    # --- F-02: validate required_variant_ids ---
+    def test_empty_tuple_raises_valueerror(self):
+        """F-02: Empty tuple must raise ValueError immediately."""
+        variants = {
+            "full": FactorResult(
+                variant_id="full",
+                factor_type="own_support_a_H",
+                training_years=(2016,),
+                status=FactorStatus.AVAILABLE,
+                factor_value=1.25,
+                aqua_pooled_rate=100.0,
+                viirs_pooled_rate=80.0,
+                n_aqua_obs=1,
+                n_viirs_obs=1,
+            )
+        }
+        with pytest.raises(ValueError, match="len >= 2"):
+            assess_sensitivity(
+                variants, baseline_B=90.0, viirs_V=80.0,
+                required_variant_ids=()
+            )
+
+    def test_single_element_tuple_raises_valueerror(self):
+        """F-02: len == 1 must raise ValueError."""
+        variants = {
+            "full": FactorResult(
+                variant_id="full",
+                factor_type="own_support_a_H",
+                training_years=(2016,),
+                status=FactorStatus.AVAILABLE,
+                factor_value=1.25,
+                aqua_pooled_rate=100.0,
+                viirs_pooled_rate=80.0,
+                n_aqua_obs=1,
+                n_viirs_obs=1,
+            )
+        }
+        with pytest.raises(ValueError, match="len >= 2"):
+            assess_sensitivity(
+                variants, baseline_B=90.0, viirs_V=80.0,
+                required_variant_ids=("full",)
+            )
+
+    def test_non_tuple_raises_valueerror(self):
+        """F-02: Non-tuple must raise ValueError."""
+        variants = {
+            "full": FactorResult(
+                variant_id="full",
+                factor_type="own_support_a_H",
+                training_years=(2016,),
+                status=FactorStatus.AVAILABLE,
+                factor_value=1.25,
+                aqua_pooled_rate=100.0,
+                viirs_pooled_rate=80.0,
+                n_aqua_obs=1,
+                n_viirs_obs=1,
+            )
+        }
+        with pytest.raises(ValueError, match="must be a tuple"):
+            assess_sensitivity(
+                variants, baseline_B=90.0, viirs_V=80.0,
+                required_variant_ids=["full", "ex_2016"]
+            )
+
+    def test_non_string_element_raises_valueerror(self):
+        """F-02: Non-string elements must raise ValueError."""
+        variants = {
+            "full": FactorResult(
+                variant_id="full",
+                factor_type="own_support_a_H",
+                training_years=(2016,),
+                status=FactorStatus.AVAILABLE,
+                factor_value=1.25,
+                aqua_pooled_rate=100.0,
+                viirs_pooled_rate=80.0,
+                n_aqua_obs=1,
+                n_viirs_obs=1,
+            )
+        }
+        with pytest.raises(ValueError, match="must contain only strings"):
+            assess_sensitivity(
+                variants, baseline_B=90.0, viirs_V=80.0,
+                required_variant_ids=("full", 123)
+            )
+
+    def test_len_zero_raises_valueerror_explicitly(self):
+        """F-02: Explicit len == 0 check."""
+        with pytest.raises(ValueError, match="len >= 2"):
+            assess_sensitivity(
+                {}, baseline_B=90.0, viirs_V=80.0,
+                required_variant_ids=()
+            )
+
+    # --- F-01: directional conflict preservation ---
+    def test_sensitive_preserved_when_required_missing_with_conflict(self, variants_with_conflict):
+        """
+        F-01: Directional conflict across available variants must preserve SENSITIVE
+        even when required variants are missing.
+
+        Available: full (2.0), ex_2016 (1.0), ex_2017 (4.0)
+        Target: B=150, V=80
+        Deltas: +10, -70, +170 -> conflict exists!
+        Required: ("full", "ex_2016", "ex_2017", "missing_variant")
+
+        Conflict + missing required -> SENSITIVE with reasons noting both.
+        """
+        status, reasons = assess_sensitivity(
+            variants_with_conflict,
+            baseline_B=150.0,
+            viirs_V=80.0,
+            required_variant_ids=(
+                "full_training_2016_2017",
+                "ex_2016",
+                "ex_2017",
+                "missing_variant",
+            ),
+        )
+        assert status == SensitivityStatus.SENSITIVE
+        # Check that reasons note both the conflict AND missing required
+        reasons_str = " ".join(reasons).lower()
+        assert "disagreement" in reasons_str or "delta" in reasons_str
+        assert "missing" in reasons_str or "unavailable" in reasons_str
+
+    def test_unresolved_when_required_missing_but_no_conflict(self, variants_stable):
+        """
+        F-01: When available variants agree in sign (no conflict) but required
+        variants are missing/unavailable, return UNRESOLVED.
+
+        All factors = 1.25, B=90, V=80 -> all Deltas = +10 (stable)
+        Required includes unavailable variant -> UNRESOLVED
+        """
+        status, reasons = assess_sensitivity(
+            variants_stable,
+            baseline_B=90.0,
+            viirs_V=80.0,
+            required_variant_ids=(
+                "full_training_2016_2017_2018",
+                "ex_2016",
+                "ex_2017",
+                "ex_2018",
+                "missing_variant",  # This one is missing
+            ),
+        )
+        assert status == SensitivityStatus.UNRESOLVED
+        reasons_str = " ".join(reasons).lower()
+        assert "missing" in reasons_str or "unavailable" in reasons_str
+
+    def test_stable_when_all_required_available_and_no_conflict(self, variants_stable):
+        """Baseline: all required available, no conflict -> STABLE."""
+        status, reasons = assess_sensitivity(
+            variants_stable,
+            baseline_B=90.0,
+            viirs_V=80.0,
+            required_variant_ids=(
+                "full_training_2016_2017_2018",
+                "ex_2016",
+            ),
+        )
+        assert status == SensitivityStatus.STABLE
+
+    def test_sensitive_when_available_variants_have_conflict(self, variants_with_conflict):
+        """
+        F-01: When available variants (that ARE all required) have conflicting
+        signs, return SENSITIVE even without missing required variants.
+        """
+        status, reasons = assess_sensitivity(
+            variants_with_conflict,
+            baseline_B=150.0,
+            viirs_V=80.0,
+            required_variant_ids=(
+                "full_training_2016_2017",
+                "ex_2016",
+                "ex_2017",
+            ),
+        )
+        assert status == SensitivityStatus.SENSITIVE
+        reasons_str = " ".join(reasons).lower()
+        assert "disagreement" in reasons_str or "delta" in reasons_str
+
+    def test_required_variant_ids_validated_before_target_checks(self):
+        """
+        F-01/F-02: Validation must happen BEFORE any target checks (baseline_B,
+        viirs_V, etc.). Invalid required_variant_ids should raise before
+        _validate_rate is even called.
+        """
+        with pytest.raises(ValueError, match="len >= 2"):
+            # Even with None rates (which would normally pass _validate_rate),
+            # the required_variant_ids check should fire first
+            assess_sensitivity(
+                {}, baseline_B=None, viirs_V=80.0,
+                required_variant_ids=("only_one",)
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -1846,5 +2111,5 @@ class TestRejectInvalidRates:
                           applicability_passed=True)
         assert r2.delta is None and r2.headline_direction == HeadlineDirection.UNRESOLVED
         status, _ = assess_sensitivity(factor, baseline_B=None, viirs_V=80.0,
-                                       required_variant_ids=("full_training_2016_2017_2018",))
+                                       required_variant_ids=("full_training_2016_2017_2018", "ex_2016"))
         assert status == SensitivityStatus.UNRESOLVED

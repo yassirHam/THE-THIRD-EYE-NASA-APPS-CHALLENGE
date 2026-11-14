@@ -831,13 +831,33 @@ def assess_sensitivity(
         None means the target is unavailable → UNRESOLVED.
     required_variant_ids:
         Tuple of variant IDs that MUST be present AND AVAILABLE.
-        Any missing or UNAVAILABLE required variant → UNRESOLVED (takes
-        precedence over all other checks; stability is strictly forbidden
-        when required variants are missing; spec §7).
+        Must be a non-empty tuple with len >= 2. Any missing or UNAVAILABLE
+        required variant → UNRESOLVED (takes precedence over all other checks;
+        stability is strictly forbidden when required variants are missing;
+        spec §7).
 
     Returns (SensitivityStatus, list[reason_strings]).
     """
     reasons: list[str] = []
+
+    # --- (v6) F-01/F-02: validate required_variant_ids is non-empty tuple with len >= 2 ---
+    if not isinstance(required_variant_ids, tuple):
+        raise ValueError(
+            f"required_variant_ids must be a tuple, got {type(required_variant_ids).__name__}"
+        )
+    if len(required_variant_ids) < 2:
+        raise ValueError(
+            f"required_variant_ids must have len >= 2, got len={len(required_variant_ids)}"
+        )
+    if not all(isinstance(vid, str) for vid in required_variant_ids):
+        raise ValueError(
+            f"required_variant_ids must contain only strings; "
+            f"found non-string elements in {required_variant_ids!r}"
+        )
+    if len(required_variant_ids) == 0:
+        raise ValueError(
+            "required_variant_ids must be a non-empty tuple with len >= 2"
+        )
 
     # --- (v5) reject invalid rates before anything is computed ---
     _validate_rate("baseline_B", baseline_B)
@@ -871,12 +891,50 @@ def assess_sensitivity(
         or variant_results[vid].status == FactorStatus.UNAVAILABLE
     ]
     if missing_or_unavail:
-        reasons.append(
-            f"Required variants unavailable or missing: {missing_or_unavail}. "
-            "Sensitivity is UNRESOLVED; stability is strictly forbidden when "
-            "required variants are missing (spec §7)."
+        # F-01: First calculate Deltas for all available variants
+        # to check for directional conflicts
+        deltas: dict[str, float] = {
+            vid: _delta_for_factor(a, baseline_B, viirs_V)
+            for vid, a in available.items()
+        }
+
+        positive_ids = [vid for vid, d in deltas.items() if d > 0.0]
+        negative_ids = [vid for vid, d in deltas.items() if d < 0.0]
+
+        # Build base summary with available variants info
+        base_summary = (
+            f"All {len(available)} registered variants available. "
+            f"Factor range [{min(available.values()) if available else 0:.6f}, "
+            f"{max(available.values()) if available else 0:.6f}]. "
+            f"Delta range [{min(deltas.values()) if deltas else 0:.6f}, "
+            f"{max(deltas.values()) if deltas else 0:.6f}] "
+            f"(B={baseline_B:.6f}, V={viirs_V:.6f})."
         )
-        return SensitivityStatus.UNRESOLVED, reasons
+
+        reasons.append(base_summary)
+
+        # Check for directional conflict across available variants
+        if positive_ids and negative_ids:
+            # F-01: Preserve SENSITIVE with reasons noting both the conflict AND missing required variants
+            reasons.append(
+                f"Directional disagreement: variants {positive_ids} give Delta > 0 "
+                f"(increase) while variants {negative_ids} give Delta < 0 (decrease)."
+            )
+            reasons.append(
+                f"Note: required variants {missing_or_unavail} are unavailable or missing. "
+                "Sensitivity is SENSITIVE due to directional conflict across available variants "
+                "AND missing required variants (spec §7)."
+            )
+            return SensitivityStatus.SENSITIVE, reasons
+        else:
+            # F-01: Available variants agree in sign, but required variants are missing/unavailable
+            # Return UNRESOLVED as per spec
+            reasons.append(
+                f"Required variants unavailable or missing: {missing_or_unavail}. "
+                "Sensitivity is UNRESOLVED; stability is strictly forbidden when "
+                "required variants are missing (spec §7)."
+            )
+            return SensitivityStatus.UNRESOLVED, reasons
 
     # --- check if any non-required variant is unavailable ---
     non_required_unavail = [
