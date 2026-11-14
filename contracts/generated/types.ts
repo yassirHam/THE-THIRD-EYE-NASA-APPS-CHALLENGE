@@ -1,6 +1,6 @@
 /**
  * THE THIRD EYE auto-generated TypeScript contract types.
- * Contract version 1.1.0. DO NOT EDIT.
+ * Contract version 1.2.0. DO NOT EDIT.
  * Source: contracts/schemas/*.py via `python -m contracts.generate_ts`.
  */
 
@@ -38,7 +38,7 @@ export interface CacheKey {
 }
 
 export interface CalendarArtifact {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -53,6 +53,9 @@ export interface CalendarArtifact {
   monthly_series: MonthlyCalendarSeries[];
   weekly_series: WeeklyCalendarSeries[];
   seasonal_baselines: SeasonalBaselineInfo[];
+  sealed_window: SealedWindow | null;
+  week_53_rule: Week53Rule | null;
+  footprint_certification: FootprintCertification | null;
 }
 
 export interface CalibrationFactorVariant {
@@ -65,7 +68,7 @@ export interface CalibrationFactorVariant {
 }
 
 export interface ClaimAuditRecord {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -95,7 +98,7 @@ export interface ClaimAuditRecord {
 }
 
 export interface ComparisonResult {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -117,7 +120,7 @@ export interface ComparisonResult {
 }
 
 export interface EvaluationSummary {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -135,7 +138,7 @@ export interface EvaluationSummary {
 }
 
 export interface FirmsHotspotArtifact {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -172,6 +175,13 @@ export interface FirmsHotspotPoint {
   platform: "MODIS" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
   confidence_label: string;
   source_product: string;
+}
+
+export interface FootprintCertification {
+  geometry_id: string;
+  status: "certified_complete" | "not_certified";
+  certification_ref?: string | null;
+  certified_at?: string | null;
 }
 
 export interface GeoJsonPolygon {
@@ -213,7 +223,7 @@ export interface MonthRecord {
   unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
   comparison_eligible: boolean;
-  partial_period_reason?: "snpp_record_ended_2026_11_02" | null;
+  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
 }
 
 export interface MonthlyCalendarSeries {
@@ -245,7 +255,7 @@ export interface PracticalChange {
 }
 
 export interface ProvenanceManifest {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -268,7 +278,7 @@ export interface ProvenanceManifest {
 }
 
 export interface RegionSelectorArtifact {
-  contract_version?: "1.1.0";
+  contract_version?: "1.2.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -305,6 +315,14 @@ export interface ReviewedTemplateSummary {
   limit_sentence: string;
 }
 
+export interface SealedWindow {
+  start: string;
+  end: string;
+  registration_status: "registered" | "proposed_unregistered";
+  registration_ref?: string | null;
+  decision_date?: string | null;
+}
+
 export interface SeasonalBaselineInfo {
   sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
   policy_id: string;
@@ -325,6 +343,13 @@ export interface SourceCollection {
   record_end_date?: string | null;
 }
 
+export interface Week53Rule {
+  registration_status: "registered" | "proposed_unregistered";
+  minimum_year_count?: number | null;
+  registration_ref?: string | null;
+  decision_at?: string | null;
+}
+
 export interface WeekRecord {
   detected_fire_cell_days?: number | null;
   usable_land_cell_days?: number | null;
@@ -339,7 +364,7 @@ export interface WeekRecord {
   critical_status: "critical" | "not_critical" | "insufficient_baseline" | "not_applicable" | null;
   unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
-  partial_period_reason?: "snpp_record_ended_2026_11_02" | null;
+  partial_period_reason?: "snpp_record_ended_2026_11_02" | "crosses_sealed_evaluation_boundary" | null;
   comparison_eligible: boolean;
 }
 

@@ -22,6 +22,7 @@ from .schemas import (
 )
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
+CONFIG_PATH = Path(__file__).parent / "config" / "pending_registrations.json"
 LABEL = "[SYNTHETIC DEV FIXTURE]"
 GEO = "geo-synthetic-primary"
 PERIOD = "synthetic-2020-2021"
@@ -150,6 +151,9 @@ def calendar() -> dict:
                 ],
             }
         ],
+        "sealed_window": None,
+        "week_53_rule": None,
+        "footprint_certification": None,
         "seasonal_baselines": [
             {
                 "sensor": "VIIRS_SNPP", "policy_id": POLICY, "status": "available",
@@ -166,6 +170,35 @@ def calendar() -> dict:
             },
         ],
     }
+
+
+def sealed_boundary_calendar() -> dict:
+    """Synthetic artifact with a PROPOSED (unregistered) sealed window read from config."""
+    cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    reason = cfg["sealed_partial_reason"]["value"]
+    data = calendar()
+    data["sealed_window"] = {
+        "start": cfg["sealed_window"]["start"], "end": cfg["sealed_window"]["end"],
+        "registration_status": "proposed_unregistered", "registration_ref": None, "decision_date": None,
+    }
+    data["week_53_rule"] = {
+        "registration_status": "proposed_unregistered", "minimum_year_count": None,
+        "registration_ref": None, "decision_at": None,
+    }
+    sealed = {"is_partial_period": True, "partial_period_reason": reason, "comparison_eligible": False,
+              "critical_status": None, "unusual_status": None}
+    data["weekly_series"] = [{
+        "sensor": "MODIS_Aqua", "policy_id": POLICY, "week_definition": "utc_iso_week",
+        "records": [
+            week("MODIS_Aqua", 2019, 52, "2019-12-23", "2019-12-29", 5, 100,
+                 critical_status="not_critical", unusual_status="not_unusual"),
+            week("MODIS_Aqua", 2020, 1, "2019-12-30", "2020-01-05", 5, 100, **sealed),
+            week("MODIS_Aqua", 2021, 52, "2021-12-27", "2022-01-02", 5, 100, **sealed),
+            week("MODIS_Aqua", 2022, 1, "2022-01-03", "2022-01-09", 5, 100,
+                 critical_status="not_critical", unusual_status="not_unusual"),
+        ],
+    }]
+    return data
 
 
 def variant(vid: str, factor: float, delta: float, years: list[int]) -> dict:
@@ -442,6 +475,7 @@ def firms() -> dict:
 def all_fixtures() -> dict[str, tuple[type, dict]]:
     out = {
         "sample_calendar.json": (CalendarArtifact, calendar()),
+        "sample_calendar_sealed_boundary.json": (CalendarArtifact, sealed_boundary_calendar()),
         "sample_region_selector.json": (RegionSelectorArtifact, selector()),
         "sample_evaluation_summary.json": (EvaluationSummary, evaluation(True)),
         "sample_evaluation_unavailable.json": (EvaluationSummary, evaluation(False)),

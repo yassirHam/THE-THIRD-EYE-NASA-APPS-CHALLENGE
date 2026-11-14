@@ -1,0 +1,280 @@
+{
+  "contract_version": "1.2.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2020-2021",
+  "method_id": "same_sensor_calendar",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "region_name": "Synthetic Test Region",
+  "measurement_name": "fire_activity_index",
+  "measurement_unit": "detected_fire_cell_days_per_1000_usable_land_cell_days",
+  "snpp_delivery_end_at": "2026-11-02T15:40:00Z",
+  "monthly_series": [
+    {
+      "sensor": "VIIRS_SNPP",
+      "policy_id": "own_support_eligible",
+      "records": [
+        {
+          "detected_fire_cell_days": 0,
+          "usable_land_cell_days": 200,
+          "fire_activity_index": 0.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "VIIRS_SNPP",
+          "year": 2020,
+          "month": 6,
+          "baseline_median": 1.0,
+          "baseline_p90": 4.0,
+          "unusual_status": "not_unusual",
+          "is_partial_period": false,
+          "comparison_eligible": true,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": 30,
+          "usable_land_cell_days": 200,
+          "fire_activity_index": 150.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "VIIRS_SNPP",
+          "year": 2020,
+          "month": 7,
+          "baseline_median": 1.0,
+          "baseline_p90": 4.0,
+          "unusual_status": "unusual",
+          "is_partial_period": false,
+          "comparison_eligible": true,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": 0.0,
+          "usable_land_cell_days": 0.0,
+          "fire_activity_index": null,
+          "availability": "unavailable",
+          "unavailable_reason": "zero_usable_support",
+          "sensor": "VIIRS_SNPP",
+          "year": 2020,
+          "month": 8,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "comparison_eligible": false,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": null,
+          "usable_land_cell_days": null,
+          "fire_activity_index": null,
+          "availability": "unavailable",
+          "unavailable_reason": "source_not_available",
+          "sensor": "VIIRS_SNPP",
+          "year": 2020,
+          "month": 9,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "comparison_eligible": false,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": null,
+          "usable_land_cell_days": null,
+          "fire_activity_index": null,
+          "availability": "unavailable",
+          "unavailable_reason": "incomplete_footprint",
+          "sensor": "VIIRS_SNPP",
+          "year": 2020,
+          "month": 10,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "comparison_eligible": false,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": 2,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 20.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "VIIRS_SNPP",
+          "year": 2026,
+          "month": 11,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": null,
+          "is_partial_period": true,
+          "comparison_eligible": false,
+          "partial_period_reason": "snpp_record_ended_2026_11_02"
+        }
+      ]
+    },
+    {
+      "sensor": "MODIS_Aqua",
+      "policy_id": "own_support_eligible",
+      "records": [
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 250,
+          "fire_activity_index": 20.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2020,
+          "month": 6,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "comparison_eligible": true,
+          "partial_period_reason": null
+        },
+        {
+          "detected_fire_cell_days": 0,
+          "usable_land_cell_days": 250,
+          "fire_activity_index": 0.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2020,
+          "month": 7,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": "insufficient_baseline",
+          "is_partial_period": false,
+          "comparison_eligible": true,
+          "partial_period_reason": null
+        }
+      ]
+    }
+  ],
+  "weekly_series": [
+    {
+      "sensor": "MODIS_Aqua",
+      "policy_id": "own_support_eligible",
+      "week_definition": "utc_iso_week",
+      "records": [
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 50.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2019,
+          "week_number": 52,
+          "start_date": "2019-12-23",
+          "end_date": "2019-12-29",
+          "critical_status": "not_critical",
+          "unusual_status": "not_unusual",
+          "is_partial_period": false,
+          "partial_period_reason": null,
+          "comparison_eligible": true
+        },
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 50.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2020,
+          "week_number": 1,
+          "start_date": "2019-12-30",
+          "end_date": "2020-01-05",
+          "critical_status": null,
+          "unusual_status": null,
+          "is_partial_period": true,
+          "partial_period_reason": "crosses_sealed_evaluation_boundary",
+          "comparison_eligible": false
+        },
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 50.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2021,
+          "week_number": 52,
+          "start_date": "2021-12-27",
+          "end_date": "2022-01-02",
+          "critical_status": null,
+          "unusual_status": null,
+          "is_partial_period": true,
+          "partial_period_reason": "crosses_sealed_evaluation_boundary",
+          "comparison_eligible": false
+        },
+        {
+          "detected_fire_cell_days": 5,
+          "usable_land_cell_days": 100,
+          "fire_activity_index": 50.0,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2022,
+          "week_number": 1,
+          "start_date": "2022-01-03",
+          "end_date": "2022-01-09",
+          "critical_status": "not_critical",
+          "unusual_status": "not_unusual",
+          "is_partial_period": false,
+          "partial_period_reason": null,
+          "comparison_eligible": true
+        }
+      ]
+    }
+  ],
+  "sealed_window": {
+    "start": "2020-01-01",
+    "end": "2021-12-31",
+    "registration_status": "proposed_unregistered",
+    "registration_ref": null,
+    "decision_date": null
+  },
+  "week_53_rule": {
+    "registration_status": "proposed_unregistered",
+    "minimum_year_count": null,
+    "registration_ref": null,
+    "decision_at": null
+  },
+  "footprint_certification": null,
+  "seasonal_baselines": [
+    {
+      "sensor": "VIIRS_SNPP",
+      "policy_id": "own_support_eligible",
+      "status": "available",
+      "reference_start_year": 2016,
+      "reference_end_year": 2019,
+      "eligible_prior_years": [
+        2016,
+        2017,
+        2018,
+        2019
+      ],
+      "minimum_year_count": 3,
+      "normal_season_start_month": 6,
+      "normal_season_end_month": 9,
+      "peak_median_month": 7
+    },
+    {
+      "sensor": "MODIS_Aqua",
+      "policy_id": "own_support_eligible",
+      "status": "insufficient_baseline",
+      "reference_start_year": 2016,
+      "reference_end_year": 2016,
+      "eligible_prior_years": [
+        2016
+      ],
+      "minimum_year_count": 3,
+      "normal_season_start_month": null,
+      "normal_season_end_month": null,
+      "peak_median_month": null
+    }
+  ]
+}

@@ -5,7 +5,7 @@
     "registered": false,
     "decision_date": null,
     "reference": null,
-    "note": "P4 stated choice of UTC ISO weeks; no conflicting prior registration found. P1 decision date not yet supplied."
+    "note": "P4 stated choice of UTC ISO weeks. No in-repo registry holds a conflicting entry, but no external registry has been checked and P1's approval date/time and decision reference are not supplied. Unfrozen."
   },
   "sealed_window": {
     "start": "2020-01-01",
@@ -22,11 +22,21 @@
     "reference": null,
     "note": "Proposed contract representation, not agreed."
   },
-  "week_53_rule": {
+  "week_53_minimum": {
     "value": null,
     "registered": false,
     "decision_date": null,
     "reference": null,
-    "note": "Baseline treatment of ISO week 53 (include/skip/merge) is a P1 science rule and is not frozen."
+    "blocked_by": [
+      "external-registry check",
+      "P5 holdout-policy decision"
+    ],
+    "note": "P1: unfrozen. Do not register or hard-code any minimum (including three) until both blockers clear."
+  },
+  "footprint_certification": {
+    "registered": false,
+    "decision_date": null,
+    "reference": null,
+    "note": "Whole-footprint completeness is conditional on P2's documented certification (Q3 response not available to P4-B)."
   }
 }

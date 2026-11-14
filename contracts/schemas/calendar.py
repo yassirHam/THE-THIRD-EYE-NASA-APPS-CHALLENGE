@@ -27,7 +27,10 @@ BaselineLabelStatus = Literal[
 ]
 BaselineAvailability = Literal["available", "insufficient_baseline"]
 WeekDefinition = Literal["utc_iso_week", "fixed_7_day_bins"]
-PartialReason = Literal["snpp_record_ended_2026_11_02"]
+# PROPOSED sealed-boundary reason: representation under P1/P2 review, not yet registered.
+SEALED_BOUNDARY_REASON = "crosses_sealed_evaluation_boundary"
+SNPP_CESSATION_REASON = "snpp_record_ended_2026_11_02"
+PartialReason = Literal["snpp_record_ended_2026_11_02", "crosses_sealed_evaluation_boundary"]
 SNPP_CESSATION_AT = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
 SNPP_LAST_RECORD_DATE = date(2026, 11, 2)
 # Incomplete periods carry explicit null labels. The "not_applicable" sentinel is
@@ -48,6 +51,101 @@ def snpp_period_status(start: date, end_inclusive: date) -> Literal["complete", 
     if period_end > SNPP_CESSATION_AT:
         return "partial"
     return "complete"
+
+
+def month_bounds(year: int, month: int) -> tuple[date, date]:
+    first = date(year, month, 1)
+    next_first = date(year + (month == 12), month % 12 + 1, 1)
+    return first, next_first - timedelta(days=1)
+
+
+def sealed_window_period_status(
+    start: date, end_inclusive: date, window_start: date, window_end: date
+) -> Literal["outside", "partial", "inside"]:
+    """Classify a UTC period against a sealed window using period dates only.
+
+    No observation is read: a period that straddles either edge is "partial" because
+    part of it lies in the window, whatever the data inside it would show. The window
+    comes from the artifact (configuration), never from a schema constant.
+    """
+    if end_inclusive < window_start or start > window_end:
+        return "outside"
+    if start >= window_start and end_inclusive <= window_end:
+        return "inside"
+    return "partial"
+
+
+class SealedWindow(StrictContractModel):
+    """Sealed evaluation window declared by the artifact, with its registration state."""
+
+    start: date
+    end: date
+    registration_status: Literal["registered", "proposed_unregistered"]
+    registration_ref: str | None = None
+    decision_date: date | None = None
+
+    @model_validator(mode="after")
+    def validate_window(self) -> "SealedWindow":
+        if self.end < self.start:
+            raise ValueError("sealed window end must not precede start")
+        registered = self.registration_status == "registered"
+        has_proof = bool(self.registration_ref) and self.decision_date is not None
+        if registered and not has_proof:
+            raise ValueError("a registered sealed window requires registration_ref and decision_date")
+        if not registered and (self.registration_ref is not None or self.decision_date is not None):
+            raise ValueError("an unregistered sealed window cannot carry a registration reference or date")
+        return self
+
+
+def _utc_aware(value: datetime | None, name: str) -> None:
+    if value is not None and (value.tzinfo is None or value.utcoffset() != timedelta(0)):
+        raise ValueError(f"{name} must be an explicit UTC timestamp")
+
+
+class Week53Rule(StrictContractModel):
+    """Carrier for the ISO week-53 baseline minimum. It is configuration, never a default.
+
+    While unregistered, the minimum is null: no value may be assumed or hard-coded.
+    """
+
+    registration_status: Literal["registered", "proposed_unregistered"]
+    minimum_year_count: int | None = Field(default=None, ge=1)
+    registration_ref: str | None = None
+    decision_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_rule(self) -> "Week53Rule":
+        _utc_aware(self.decision_at, "decision_at")
+        proof = (self.minimum_year_count, self.registration_ref, self.decision_at)
+        if self.registration_status == "registered":
+            if any(v is None for v in proof) or not self.registration_ref:
+                raise ValueError("a registered week-53 rule requires minimum, reference, and decision timestamp")
+        elif any(v is not None for v in proof):
+            raise ValueError("an unregistered week-53 rule cannot carry a minimum, reference, or timestamp")
+        return self
+
+
+class FootprintCertification(StrictContractModel):
+    """Whole-footprint completeness, certified by P2's documentation (PROPOSED shape).
+
+    Completeness is never inferred from availability == "available". Pending P2's Q3
+    coverage rules; the field set below may change when those rules are frozen.
+    """
+
+    geometry_id: str = Field(min_length=1)
+    status: Literal["certified_complete", "not_certified"]
+    certification_ref: str | None = None
+    certified_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_certification(self) -> "FootprintCertification":
+        _utc_aware(self.certified_at, "certified_at")
+        if self.status == "certified_complete":
+            if not self.certification_ref or self.certified_at is None:
+                raise ValueError("a footprint certification requires a documented reference and UTC timestamp")
+        elif self.certification_ref is not None or self.certified_at is not None:
+            raise ValueError("a not_certified footprint cannot carry a reference or timestamp")
+        return self
 
 
 class ObservationRecord(StrictContractModel):
@@ -124,15 +222,13 @@ class MonthRecord(ObservationRecord):
             raise ValueError("insufficient baseline cannot carry baseline thresholds")
         status = "complete"
         if self.sensor == "VIIRS_SNPP":
-            first = date(self.year, self.month, 1)
-            next_first = date(self.year + (self.month == 12), self.month % 12 + 1, 1)
-            status = snpp_period_status(first, next_first - timedelta(days=1))
+            status = snpp_period_status(*month_bounds(self.year, self.month))
         if status == "after_record":
             raise ValueError("S-NPP records cannot start after the 2026-11-02 15:40 UTC cessation")
         if status == "partial":
             if not self.is_partial_period or self.comparison_eligible:
                 raise ValueError("a month straddling the S-NPP cutoff must be partial and comparison-ineligible")
-            if self.partial_period_reason != "snpp_record_ended_2026_11_02":
+            if self.partial_period_reason != SNPP_CESSATION_REASON:
                 raise ValueError("a partial S-NPP month requires its cessation reason")
             if (
                 self.unusual_status is not None
@@ -142,8 +238,19 @@ class MonthRecord(ObservationRecord):
                 raise ValueError(
                     "a partial month requires an explicit null unusual label and null baseline thresholds"
                 )
+        elif self.partial_period_reason == SEALED_BOUNDARY_REASON:
+            if not self.is_partial_period or self.comparison_eligible:
+                raise ValueError("a sealed-boundary month must be partial and comparison-ineligible")
+            if (
+                self.unusual_status is not None
+                or self.baseline_median is not None
+                or self.baseline_p90 is not None
+            ):
+                raise ValueError(
+                    "a sealed-boundary month requires an explicit null unusual label and null baseline thresholds"
+                )
         elif self.is_partial_period or self.partial_period_reason is not None:
-            raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
+            raise ValueError("partial-period flags are only valid for periods straddling a registered boundary")
         elif status == "complete":
             if self.unusual_status == INCOMPLETE_LABEL:
                 raise ValueError("a complete month cannot use not_applicable sentinel")
@@ -183,12 +290,17 @@ class WeekRecord(ObservationRecord):
         if status == "partial":
             if not self.is_partial_period or self.comparison_eligible:
                 raise ValueError("a week straddling the S-NPP cutoff must be partial and comparison-ineligible")
-            if self.partial_period_reason != "snpp_record_ended_2026_11_02":
+            if self.partial_period_reason != SNPP_CESSATION_REASON:
                 raise ValueError("a partial S-NPP week requires its cessation reason")
             if self.critical_status is not None or self.unusual_status is not None:
                 raise ValueError("a partial week requires explicit null critical and unusual labels")
+        elif self.partial_period_reason == SEALED_BOUNDARY_REASON:
+            if not self.is_partial_period or self.comparison_eligible:
+                raise ValueError("a sealed-boundary week must be partial and comparison-ineligible")
+            if self.critical_status is not None or self.unusual_status is not None:
+                raise ValueError("a sealed-boundary week requires explicit null critical and unusual labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
-            raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
+            raise ValueError("partial-period flags are only valid for periods straddling a registered boundary")
         elif status == "complete":
             if self.critical_status == INCOMPLETE_LABEL or self.unusual_status == INCOMPLETE_LABEL:
                 raise ValueError("a complete week cannot use not_applicable sentinel")
@@ -312,6 +424,11 @@ class CalendarArtifact(ArtifactIdentity):
     monthly_series: list[MonthlyCalendarSeries] = Field(min_length=1)
     weekly_series: list[WeeklyCalendarSeries] = Field(min_length=1)
     seasonal_baselines: list[SeasonalBaselineInfo] = Field(min_length=1)
+    # Required key, nullable value. None means "no sealed window declared": the artifact
+    # then carries no sealed-boundary partials. There is no schema default window.
+    sealed_window: SealedWindow | None
+    week_53_rule: Week53Rule | None
+    footprint_certification: FootprintCertification | None
 
     @model_validator(mode="after")
     def validate_calendar(self) -> "CalendarArtifact":
@@ -320,5 +437,58 @@ class CalendarArtifact(ArtifactIdentity):
         for series in [*self.monthly_series, *self.weekly_series]:
             if series.policy_id != self.policy_id:
                 raise ValueError("calendar series policy must match artifact identity")
+        window = self.sealed_window
+        if window is not None and self.data_classification == "production":
+            if window.registration_status != "registered":
+                raise ValueError("production artifacts require a registered sealed window")
+        periods: list[tuple[str, date, date, str | None]] = []
+        for m_series in self.monthly_series:
+            for m in m_series.records:
+                first, last = month_bounds(m.year, m.month)
+                periods.append((f"{m.year}-{m.month:02d} month", first, last, m.partial_period_reason))
+        for w_series in self.weekly_series:
+            for w in w_series.records:
+                periods.append((f"{w.year}-W{w.week_number} week", w.start_date, w.end_date, w.partial_period_reason))
+        for label, start, end, reason in periods:
+            if window is None:
+                if reason == SEALED_BOUNDARY_REASON:
+                    raise ValueError(f"{label}: sealed-boundary partial without a declared sealed window")
+                continue
+            status = sealed_window_period_status(start, end, window.start, window.end)
+            if status == "partial" and reason != SEALED_BOUNDARY_REASON:
+                raise ValueError(f"{label}: period straddles the sealed window and must be sealed-boundary partial")
+            if status != "partial" and reason == SEALED_BOUNDARY_REASON:
+                raise ValueError(f"{label}: sealed-boundary reason on a period that does not straddle the window")
+
+        # Sealed years never feed later baselines.
+        if window is not None:
+            for baseline in self.seasonal_baselines:
+                for year in baseline.eligible_prior_years:
+                    if sealed_window_period_status(date(year, 1, 1), date(year, 12, 31), window.start, window.end) != "outside":
+                        raise ValueError(f"baseline year {year} overlaps the sealed window and cannot be a prior year")
+
+        # ISO week 53 carries no baseline decision until its minimum is registered.
+        week_53_registered = self.week_53_rule is not None and self.week_53_rule.registration_status == "registered"
+        decisions = {"critical", "not_critical", "unusual", "not_unusual"}
+        for w_series in self.weekly_series:
+            for w in w_series.records:
+                if w.week_number == 53 and not week_53_registered:
+                    if w.critical_status in decisions or w.unusual_status in decisions:
+                        raise ValueError(
+                            f"{w.year}-W53: no baseline decision before the week-53 minimum is registered"
+                        )
+
+        # Whole-footprint completeness is conditional on documented certification.
+        cert = self.footprint_certification
+        if cert is not None and cert.geometry_id != self.geometry_id:
+            raise ValueError("footprint certification must be for this artifact's geometry")
+        any_eligible = any(r.comparison_eligible for s in self.monthly_series for r in s.records) or any(
+            r.comparison_eligible for s in self.weekly_series for r in s.records
+        )
+        if any_eligible:
+            if cert is not None and cert.status == "not_certified":
+                raise ValueError("a not-certified footprint cannot support comparison-eligible periods")
+            if self.data_classification == "production" and (cert is None or cert.status != "certified_complete"):
+                raise ValueError("production comparison-eligible periods require a certified-complete footprint")
         return self
 

@@ -944,9 +944,17 @@ def test_available_aggregate_never_implies_whole_footprint_completeness() -> Non
     """
     from contracts.schemas.calendar import CalendarArtifact, MonthRecord, ObservationRecord, WeekRecord
 
-    for model in (ObservationRecord, MonthRecord, WeekRecord, CalendarArtifact):
+    from contracts.schemas.calendar import FootprintCertification
+
+    # No record-level field may claim completeness; the only carrier is the explicit,
+    # documented FootprintCertification object on the artifact (P2 certification).
+    for model in (ObservationRecord, MonthRecord, WeekRecord):
         for name in model.model_fields:
             assert not any(word in name for word in ("complete", "certif", "whole_footprint")), (model, name)
+    artifact_hits = [n for n in CalendarArtifact.model_fields if any(w in n for w in ("complete", "certif", "footprint"))]
+    assert artifact_hits == ["footprint_certification"]
+    assert CalendarArtifact.model_fields["footprint_certification"].is_required()
+    assert FootprintCertification.model_fields["status"].is_required()
     cal = load(CAL)
     rec = cal["monthly_series"][0]["records"][0]
     rec["unavailable_reason"] = "incomplete_footprint"  # available + incomplete footprint
