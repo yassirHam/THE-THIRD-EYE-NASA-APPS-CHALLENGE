@@ -33,6 +33,8 @@ from contracts.schemas.calendar import (
     snpp_period_status,
 )
 
+from contracts.tests._coverage import CalendarWithDerivedCoverage, WeeklySeriesWithDerivedCoverage
+
 CONTRACTS = Path(__file__).resolve().parents[1]
 CONFIG = json.loads((CONTRACTS / "config" / "pending_registrations.json").read_text(encoding="utf-8-sig"))
 FIXTURES = CONTRACTS / "fixtures"
@@ -66,7 +68,7 @@ def series(sensor: str, *records: dict, definition: str = "utc_iso_week") -> dic
 
 def series_ok(data: dict) -> bool:
     try:
-        WeeklyCalendarSeries.model_validate_json(json.dumps(data))
+        WeeklySeriesWithDerivedCoverage.model_validate_json(json.dumps(data))
     except ValidationError:
         return False
     return True
@@ -82,7 +84,7 @@ def plain_artifact() -> dict:
 
 def artifact_ok(data: dict) -> bool:
     try:
-        CalendarArtifact.model_validate_json(json.dumps(data))
+        CalendarWithDerivedCoverage.model_validate_json(json.dumps(data))
     except ValidationError:
         return False
     return True
@@ -333,9 +335,15 @@ def test_years_outside_the_window_remain_valid_baseline_years() -> None:
     data = sealed_artifact()
     data["seasonal_baselines"][0]["eligible_prior_years"] = [2016, 2017, 2018, 2019, 2022]
     data["seasonal_baselines"][0]["reference_end_year"] = 2022
-    assert not artifact_ok(data)  # 2022 has no declared VIIRS annual coverage yet
     data["annual_coverage"].append(bf.annual(data["sensor_coverage"], "VIIRS_SNPP", 2022))
+    assert not artifact_ok(data)  # 2020-2021 dropped silently from the 2016-2022 span
+    data["seasonal_baselines"][0]["excluded_years"] = [
+        {"year": 2020, "reason": "sealed_evaluation_window", "detail": None},
+        {"year": 2021, "reason": "sealed_evaluation_window", "detail": None},
+    ]
     assert artifact_ok(data)
+    data["annual_coverage"].pop()
+    assert not artifact_ok(data)  # 2022 has no declared VIIRS annual coverage
 
 
 # ---------------------------------------------------------------------- week-53 rule
@@ -498,11 +506,13 @@ def test_registered_rule_needs_reference_and_utc_timestamp() -> None:
 # ---------------------------------------------------------------------- footprint coverage
 # complete / partial / unverified, PROPOSED pending P2's Q3 certification rule.
 
-DOC = {"certification_ref": "synthetic-p2-doc", "certified_at": "2026-11-15T10:00:00Z"}
+DOC = {"certification_ref": "test-only-p2-doc", "certified_at": "2026-11-15T10:00:00Z",
+       "footprint_evidence": "cell_level"}
 
 
 def footprint(data: dict, status: str, **extra) -> dict:
     data["footprint_certification"] = {"geometry_id": data["geometry_id"], "status": status,
+                                       "footprint_evidence": "none",
                                        "certification_ref": None, "certified_at": None, "coverage_fraction": None,
                                        **extra}
     return data
@@ -542,7 +552,7 @@ def test_unverified_footprint_cannot_carry_documentation_or_fraction() -> None:
     for extra in (DOC, {"coverage_fraction": 0.5}):
         with pytest.raises(ValidationError):
             FootprintCertification.model_validate_json(json.dumps(
-                {"geometry_id": "g", "status": "unverified", **extra}))
+                {"geometry_id": "g", "status": "unverified", "footprint_evidence": "none", **extra}))
 
 
 @pytest.mark.parametrize("status,extra", [("partial", {"coverage_fraction": 0.8, **DOC}), ("unverified", {})])
@@ -562,6 +572,8 @@ def test_partial_or_unverified_footprint_is_valid_without_eligible_periods(statu
 
 def test_production_eligible_periods_require_p2_certified_complete_footprint() -> None:
     data = production(plain_artifact())
+    assert not artifact_ok(data)  # the fixture's synthetic certification cannot serve production
+    data["footprint_certification"] = None
     assert not artifact_ok(data)  # an available aggregate never implies completeness
     for status, extra in (("unverified", {}), ("partial", {"coverage_fraction": 0.9, **DOC})):
         assert not artifact_ok(footprint(production(plain_artifact()), status, **extra))
@@ -608,7 +620,9 @@ def test_included_day_count_only_on_sealed_boundary_partials() -> None:
 @pytest.mark.parametrize("key", ["sealed_window", "week_53_rule", "footprint_certification"])
 def test_registration_keys_are_required_explicit_nulls(key: str) -> None:
     data = plain_artifact()
-    assert key in data and data[key] is None
+    assert key in data
+    if key != "footprint_certification":  # the plain fixture now carries a synthetic certification
+        assert data[key] is None
     del data[key]
     assert not artifact_ok(data)
 
@@ -661,7 +675,11 @@ def test_no_fixture_lists_sealed_years_as_baseline_prior_years() -> None:
 def test_too_few_years_after_excluding_sealed_years_must_be_insufficient_baseline() -> None:
     data = sealed_artifact()
     b = data["seasonal_baselines"][0]
-    b.update(eligible_prior_years=[2018, 2019], minimum_year_count=3)  # sealed years removed, now short
+    # Span 2018-2021 with the sealed years excluded explicitly: two eligible years remain.
+    b.update(reference_start_year=2018, reference_end_year=2021, eligible_prior_years=[2018, 2019],
+             minimum_year_count=3, excluded_years=[
+                 {"year": 2020, "reason": "sealed_evaluation_window", "detail": None},
+                 {"year": 2021, "reason": "sealed_evaluation_window", "detail": None}])
     assert not artifact_ok(data)  # cannot stay "available"
     b.update(status="insufficient_baseline", normal_season_start_month=None,
              normal_season_end_month=None, peak_median_month=None)
@@ -801,7 +819,9 @@ def test_paired_comparison_requires_both_sensors_complete() -> None:
     assert viirs["paired_comparison_eligible"] and aqua["paired_comparison_eligible"]
     aqua["days_with_file"] = 29  # one Aqua day without a file
     assert not artifact_ok(data)  # Aqua can no longer be comparison-eligible
-    aqua.update(comparison_eligible=False, paired_comparison_eligible=False, unusual_status="insufficient_baseline")
+    # P2 r9: missing file days inside the record make the month partial with a null label.
+    aqua.update(comparison_eligible=False, paired_comparison_eligible=False, unusual_status=None,
+                is_partial_period=True, partial_period_reason="missing_days_or_tiles")
     assert not artifact_ok(data)  # VIIRS still claims a pair with an incomplete Aqua month
     viirs["paired_comparison_eligible"] = False
     assert artifact_ok(data)  # VIIRS stays comparison-eligible on its own; only the pair is dropped

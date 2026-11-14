@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "1.3.0"
+CONTRACT_VERSION = "1.4.0"
 SYNTHETIC_FIXTURE_LABEL = "[SYNTHETIC DEV FIXTURE]"
 
 SensorType = Literal["MODIS_Aqua", "VIIRS_SNPP", "VIIRS_NOAA20", "VIIRS_NOAA21"]
@@ -29,7 +29,7 @@ class StrictContractModel(BaseModel):
 class ArtifactIdentity(StrictContractModel):
     """Identity fields that prevent cross-area, cross-period, or cross-policy reuse."""
 
-    contract_version: Literal["1.3.0"] = CONTRACT_VERSION
+    contract_version: Literal["1.4.0"] = CONTRACT_VERSION
     artifact_version: str = Field(min_length=1)
     geometry_id: str = Field(min_length=1)
     period_spec: str = Field(min_length=1)

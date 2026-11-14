@@ -45,7 +45,7 @@
     "registered": false,
     "decision_date": null,
     "reference": null,
-    "note": "Statuses complete / partial / unverified; complete and partial need P2's documented reference and UTC timestamp; partial needs a coverage fraction; only complete supports comparison-eligible whole-area periods. PROPOSED shape: P2's Q3 certification rule is not in any ref P4-B can read."
+    "note": "P2 r9 Q3 rule (origin/handoff b18ed3e, handoff/verdicts/P4/P4-B-001/r9-P2.md section 1) represented in contract 1.4.0: complete/partial need cell_level footprint_evidence plus P2 reference and UTC timestamp; day_level or none never certify. P2 states no region-period is certified complete today (status unverified). Coverage minimum C_MIN (proposed 0.99, alternative 1.0) is NOT registered, so any processed coverage below 1.0 is flagged low_processed_coverage."
   },
   "holdout_baseline_policy": {
     "source": "P5 binding decision",
@@ -78,5 +78,39 @@
       "VIIRS_NOAA21"
     ],
     "note": "Data scope as stated by P2 in its r8 review; held as configuration and read by the fixture builder. Not hard-coded in the schema. The S-NPP 2026 cutoff is reserved/inactive while S-NPP coverage ends before 2026-11-02."
+  },
+  "coverage_minimum_c_min": {
+    "value": null,
+    "proposed_values": [
+      0.99,
+      1.0
+    ],
+    "registered": false,
+    "decision_date": null,
+    "reference": null,
+    "source_ref": "origin/handoff b18ed3e: handoff/verdicts/P4/P4-B-001/r9-P2.md section 1",
+    "note": "Unregistered. Until P1/P2 register it, the contract treats any processed_coverage < 1.0 as low_processed_coverage (fail closed)."
+  },
+  "mid_record_missing_files": {
+    "registered": false,
+    "decision_date": null,
+    "reference": null,
+    "source_ref": "origin/handoff b18ed3e: r9-P2.md section 3 and required change 1",
+    "rule_as_written_by_p2": "Sensor-period partial (missing_days_or_tiles) or unavailable (no_file); comparison_eligible false; labels suppressed; values from missing days null, never zero.",
+    "note": "P2 proposes label suppression and states the final display rule is P4/P1. Contract 1.4.0 suppresses labels (fail closed). P1 confirmation pending."
+  },
+  "baseline_year_validity": {
+    "registered": false,
+    "decision_date": null,
+    "reference": null,
+    "source_ref": "origin/handoff b18ed3e: r9-P2.md section 4",
+    "p2_proposal": "A year enters a baseline only if >= 9 of 12 months are kept AND the O floor is met, per sensor; if a required year is invalid the baseline is unavailable (required_year_invalid), never shortened, no replacement year.",
+    "note": "Representation (excluded_years, required_year_invalid, unavailable) is in contract 1.4.0. The validity threshold is a P1 decision and unregistered: until then any eligible prior year must have a file for every day."
+  },
+  "paired_comparison_scope": {
+    "source_ref": "origin/handoff b18ed3e: r9-P2.md section 2",
+    "answered_by": "P2",
+    "rule": "Only paired MODIS/VIIRS comparisons require both sensors complete; Aqua-only and cross-era comparisons judge each sensor on its own state.",
+    "note": "Matches paired_comparison_eligible as implemented since 1.3.0. P1 has not separately confirmed."
   }
 }

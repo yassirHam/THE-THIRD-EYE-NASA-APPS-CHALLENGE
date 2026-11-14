@@ -1,6 +1,7 @@
-# P4-B contract 1.3.0: rule evidence and registration status
+# P4-B contract 1.4.0: rule evidence and registration status
 
-First prepared 2026-11-14T19:32:28Z; updated 2026-11-14T19:56:09Z (UTC) on `task/P4-B-001`. Plan file
+First prepared 2026-11-14T19:32:28Z; updated 2026-11-14T19:56:09Z and 2026-11-14T21:38:42Z (UTC,
+contract 1.4.0, Round 10) on `task/P4-B-001`. Plan file
 `THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt`, SHA-256
 `84B012E26B808AB98BE6B66232ADBC22DC03AC3F1D4423304C38EBD21A521DDC` (matches the hash cited in
 P5 records). Handoff references are commits on `origin/handoff`.
@@ -17,6 +18,9 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
   entries, and a `challenge/` directory.
 - Result: none found. The only matches are plan text about preregistration and P2's data
   quality registry. Registries outside the repository were not checked; P4-B cannot see them.
+- Rechecked 2026-11-14T21:38:42Z after `git fetch` (`handoff` at `b18ed3e`): no osf.io, aspredicted or
+  external-registry record in any ref. `challenge/CHALLENGE_CAPTURE.md` on `task/P5-C-001` holds event
+  rules only, no scientific registration.
 
 ## 1. Week definition: UTC ISO weeks
 
@@ -147,25 +151,100 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
   excluded from all baselines; PA-001 not approved).
 - Test: `test_available_period_wholly_inside_window_is_rejected_but_placeholder_is_allowed`.
 
+## 9. Coverage states and reasons (P2 r9 required changes 1 and 3; contract 1.4.0)
+
+- Source: P2 r9 verdict on `da25ad7` (`origin/handoff` `b18ed3e`,
+  `handoff/verdicts/P4/P4-B-001/r9-P2.md`, sections 1, 3 and 5).
+- Contract: every month and week record carries required `coverage_state`
+  (`complete` / `partial` / `unavailable`) and `coverage_reasons` in P2's vocabulary
+  (`period_clipped`, `sensor_not_operating`, `partition_boundary`, `missing_days_or_tiles`,
+  `low_processed_coverage`, `no_file`), plus optional `processed_coverage`.
+- The reasons are checked against the period's own dates, the declared sensor record and the
+  sealed window: a reason is listed exactly when the data call for it.
+- Mapping from contract partial reasons (explicit, `PARTIAL_REASON_TO_P2`):
+  `outside_sensor_record` and `snpp_record_ended_2026_11_02` -> `period_clipped`;
+  `crosses_sealed_evaluation_boundary` -> `partition_boundary`; the new partial reasons
+  `missing_days_or_tiles` and `low_processed_coverage` map to themselves. Unavailable reason
+  `source_not_available` with no file day -> `no_file`; new unavailable reason
+  `sensor_not_operating` -> `sensor_not_operating`. A period wholly inside the sealed window
+  (placeholder) lists `partition_boundary`; P2 to confirm that use of the term.
+- Mid-record missing files: partial (`missing_days_or_tiles`) when at least one permitted day has a
+  file, otherwise unavailable (`no_file`). Partial periods are comparison-ineligible with null
+  labels and null thresholds. D and O cover only days with a file; missing days are never zero.
+  Label suppression is P2's proposal; P2 says the final display rule is P4/P1, so P1 must confirm.
+- Periods wholly outside an active sensor record are unavailable (`sensor_not_operating`, no file
+  days, null labels) instead of rejected. Reserved NOAA-20/21 still cannot carry records.
+- Coverage minimum C_MIN is unregistered (P2 proposes 0.99, alternative 1.0). Until registered,
+  any `processed_coverage` < 1.0 must list `low_processed_coverage` and is partial (fail closed).
+- Tests: `test_coverage_reasons.py` (raw validation, no recomputation shim).
+
+## 10. Required-year baselines (P2 r9 required change 2)
+
+- `SeasonalBaselineInfo` gains required `excluded_years` (year + reason) and `unavailable_reason`,
+  and status `unavailable`. Every year of the registered span is either eligible or excluded with a
+  reason (`sealed_evaluation_window`, `partial_record_year`, `required_year_invalid`), so a baseline
+  is never shortened silently. `required_year_invalid` makes the baseline `unavailable`; widening the
+  span to add another year is visible and does not make it available.
+- Year validity: P2 proposes >= 9 of 12 months kept and an O floor; this is P1's decision and is
+  unregistered. Until it is registered, an eligible prior year must have a file for every day.
+- Exclusions must be backed by the artifact (a declared sealed window overlapping the year, or a
+  declared partial year).
+
+## 11. Footprint certification (P2 r9 Q3)
+
+- `FootprintCertification.footprint_evidence` is required: `cell_level`, `day_level` or `none`.
+  `complete` and `partial` require `cell_level`; day-level file presence never certifies a footprint.
+- Comparison-eligible periods now require a `complete` certification for every artifact class
+  (1.3.0 only required it for production). Production artifacts cannot use a certification whose
+  reference contains "synthetic".
+- P2 r9: no region-period is certified complete today. `sample_calendar_unverified_footprint.json`
+  shows that state (no eligible period). `sample_calendar.json` keeps a certification labelled
+  `SYNTHETIC-TEST-ONLY: not a P2 certification` to exercise the certified path.
+
+## 12. Manifest binding (P3 calendar vs manifest method_id)
+
+- 1.3.0 manifests carried their own method `artifact_manifest` while listing a calendar file whose
+  method is `same_sensor_calendar`, so the five-field key of the manifest never matched the
+  calendar it described.
+- 1.4.0: `ProvenanceManifest.described_artifact_type` is required, and the manifest carries the
+  described artifact's five-field identity. `assert_manifest_describes(manifest, artifact, type)`
+  rejects a different family or any differing identity field.
+
+## 13. P1-A status vocabulary (PROPOSED mapping, unregistered)
+
+- `contracts/config/p1a_status_mapping.json` and `contracts/schemas/status_mapping.py`.
+  `registered: false`; production use raises `UnregisteredMappingError`.
+- `insufficient_evidence` has no target and always raises until P1 decides (escalations
+  `P1-A-001-r3` item 2, `P1-C-001-r5` item 1). `evaluated_for_conditions` maps only with an explicit
+  `applicability_passed`; both failed spellings map to `failed_applicability`. Unknown names raise.
+
+## Test shim
+
+Older tests mutate a period and check one rule. `contracts/tests/_coverage.py` recomputes the 1.4.0
+coverage fields with the fixture builder before validating, so those tests keep checking their own
+rule. All coverage rules, and all committed calendar fixtures, are validated raw in
+`test_coverage_reasons.py`.
+
 ## Open decisions and findings (not resolved by this revision)
 
-- P2 r8 scope question: P2's rule ("eligible for MODIS/VIIRS comparison only when both sensors are
-  complete") is implemented as the separate `paired_comparison_eligible` flag. Applying it to
-  `comparison_eligible` itself would make every pre-2012 Aqua period ineligible for cross-era
-  comparison. P1/P2 must say which they intend.
-- Periods with missing files inside the record (not at a boundary): comparison-ineligible, but not
-  marked partial and labels are not suppressed. P1/P2 decision needed.
-- Baseline years: only partial years at the record boundary are barred. Whether a year with missing
-  files inside the record (for example the Aqua 2020 outage, already sealed) can be a baseline year is
-  a P1 decision.
+- P1: confirm label suppression for mid-record missing-file periods (P2 proposal; implemented).
+- P1: year-validity rule for baseline years (P2 proposal >= 9 of 12 months and O floor;
+  unregistered; contract currently requires every day to have a file).
+- P1/P2: register C_MIN (0.99 or 1.0). Contract treats any shortfall as low until then.
+- P2: confirm `partition_boundary` for wholly sealed placeholder periods.
+- P1: paired-only scope of the both-sensors-complete rule (P2 r9 section 2 answered paired-only;
+  implemented as `paired_comparison_eligible`).
 - Week 53: P1 proposal r1 (`3727f8f`, Section 5) says week 53 is never ranked for critical weeks. The
   contract allows a critical label only once a registered rule and three eligible priors exist, which
   cannot happen in the current phase. P1 to confirm whether week 53 may ever carry a critical label.
 - P1 proposal r1 items still unfrozen: strata and incomplete-month rule, support fraction f and
-  D_min, coverage definition and any tolerance below 100% (it would need a contract field), ranked
-  weeks, `n_busiest_weeks`, tie rule, excluded years.
-- P5 gates held open (`0a49cbb`): footprint attestation; unregistered scientific settings; mapping of
-  P1-A status vocabulary (`sensitive`, `unresolved`, `evaluated_for_conditions`,
-  `insufficient_evidence`) to contract enums at the export adapter.
-- D <= O: P2's confirmation was relayed by P4; no written P2 record found. The contract rejects D > O.
+  D_min, ranked weeks, `n_busiest_weeks`, tie rule, excluded years.
+- UTC ISO week, sealed window, sealed reason and week-53 minimum: still unregistered (no P1 written
+  approval with date/time and reference; no external registry record found).
+- P1-A vocabulary mapping: proposed only (section 13).
+- P5 gates held open (`0a49cbb`): footprint attestation (P2 r9 now says unverified), unregistered
+  settings, P1-A mapping.
+- D <= O: P2 r9 section 6 is now a written P2 record (masks, nh policy, 123 unit tests, 0 violating
+  rows in 16,512 monthly rows, 2020-2021 excluded). The contract rejects D > O.
+- Holdout reuse (P5 PA-001) remains NOT approved; 2020-2021 stay excluded everywhere.
 - FIRMS `FirmsPlatform` still lists NOAA-20/21 (FIRMS points are a separate product; not changed).

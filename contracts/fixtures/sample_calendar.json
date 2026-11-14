@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.3.0",
+  "contract_version": "1.4.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
   "period_spec": "synthetic-2023",
@@ -34,7 +34,9 @@
           "included_day_count": null,
           "days_in_period": 30,
           "days_with_file": 30,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 30,
@@ -54,7 +56,9 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 31,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 0.0,
@@ -74,7 +78,9 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 31,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": null,
@@ -94,7 +100,11 @@
           "included_day_count": null,
           "days_in_period": 30,
           "days_with_file": 0,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "unavailable",
+          "coverage_reasons": [
+            "no_file"
+          ]
         },
         {
           "detected_fire_cell_days": null,
@@ -114,7 +124,9 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 31,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 1,
@@ -134,7 +146,59 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 13,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
+        },
+        {
+          "detected_fire_cell_days": 2,
+          "usable_land_cell_days": 150,
+          "fire_activity_index": 13.333333333333334,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "VIIRS_SNPP",
+          "year": 2023,
+          "month": 11,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": null,
+          "is_partial_period": true,
+          "comparison_eligible": false,
+          "partial_period_reason": "missing_days_or_tiles",
+          "included_day_count": null,
+          "days_in_period": 30,
+          "days_with_file": 25,
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "missing_days_or_tiles"
+          ]
+        },
+        {
+          "detected_fire_cell_days": null,
+          "usable_land_cell_days": null,
+          "fire_activity_index": null,
+          "availability": "unavailable",
+          "unavailable_reason": "sensor_not_operating",
+          "sensor": "VIIRS_SNPP",
+          "year": 2011,
+          "month": 12,
+          "baseline_median": null,
+          "baseline_p90": null,
+          "unusual_status": null,
+          "is_partial_period": false,
+          "comparison_eligible": false,
+          "partial_period_reason": null,
+          "included_day_count": null,
+          "days_in_period": 31,
+          "days_with_file": 0,
+          "paired_comparison_eligible": false,
+          "coverage_state": "unavailable",
+          "coverage_reasons": [
+            "sensor_not_operating"
+          ]
         }
       ]
     },
@@ -160,7 +224,11 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 28,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
         },
         {
           "detected_fire_cell_days": 5,
@@ -180,7 +248,9 @@
           "included_day_count": null,
           "days_in_period": 30,
           "days_with_file": 30,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 0,
@@ -200,7 +270,9 @@
           "included_day_count": null,
           "days_in_period": 31,
           "days_with_file": 31,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         }
       ]
     }
@@ -231,7 +303,9 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 0,
@@ -252,7 +326,9 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 0.0,
@@ -273,7 +349,9 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": null,
@@ -294,7 +372,9 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 0,
@@ -315,7 +395,11 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 4,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
         },
         {
           "detected_fire_cell_days": 1,
@@ -336,7 +420,11 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 3,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
         }
       ]
     },
@@ -365,7 +453,11 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 4,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
         },
         {
           "detected_fire_cell_days": 4,
@@ -386,7 +478,9 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
         },
         {
           "detected_fire_cell_days": 1,
@@ -407,7 +501,34 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 7,
-          "paired_comparison_eligible": true
+          "paired_comparison_eligible": true,
+          "coverage_state": "complete",
+          "coverage_reasons": []
+        },
+        {
+          "detected_fire_cell_days": 1,
+          "usable_land_cell_days": 80,
+          "fire_activity_index": 12.5,
+          "availability": "available",
+          "unavailable_reason": null,
+          "sensor": "MODIS_Aqua",
+          "year": 2023,
+          "week_number": 29,
+          "start_date": "2023-07-17",
+          "end_date": "2023-07-23",
+          "critical_status": null,
+          "unusual_status": null,
+          "is_partial_period": true,
+          "partial_period_reason": "missing_days_or_tiles",
+          "comparison_eligible": false,
+          "included_day_count": null,
+          "days_in_period": 7,
+          "days_with_file": 5,
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "missing_days_or_tiles"
+          ]
         },
         {
           "detected_fire_cell_days": 0,
@@ -428,14 +549,25 @@
           "included_day_count": null,
           "days_in_period": 7,
           "days_with_file": 3,
-          "paired_comparison_eligible": false
+          "paired_comparison_eligible": false,
+          "coverage_state": "partial",
+          "coverage_reasons": [
+            "period_clipped"
+          ]
         }
       ]
     }
   ],
   "sealed_window": null,
   "week_53_rule": null,
-  "footprint_certification": null,
+  "footprint_certification": {
+    "geometry_id": "geo-synthetic-primary",
+    "status": "complete",
+    "footprint_evidence": "cell_level",
+    "certification_ref": "SYNTHETIC-TEST-ONLY: not a P2 certification",
+    "certified_at": "2026-11-14T00:00:00Z",
+    "coverage_fraction": null
+  },
   "sensor_coverage": [
     {
       "sensor": "MODIS_Aqua",
@@ -542,6 +674,8 @@
         2018,
         2019
       ],
+      "excluded_years": [],
+      "unavailable_reason": null,
       "minimum_year_count": 3,
       "normal_season_start_month": 6,
       "normal_season_end_month": 9,
@@ -556,6 +690,8 @@
       "eligible_prior_years": [
         2016
       ],
+      "excluded_years": [],
+      "unavailable_reason": null,
       "minimum_year_count": 3,
       "normal_season_start_month": null,
       "normal_season_end_month": null,

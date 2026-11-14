@@ -20,7 +20,13 @@ from contracts.schemas import (
 )
 
 FIXTURES = Path(bf.FIXTURE_DIR)
-MODELS = {name: model for name, (model, _) in bf.all_fixtures().items()}
+from contracts.schemas.calendar import CalendarArtifact
+from contracts.tests._coverage import CalendarWithDerivedCoverage
+
+# Calendar checks recompute 1.4.0 coverage fields first (see tests/_coverage.py); raw validation
+# of committed fixtures and of the coverage rules is in test_coverage_reasons.py.
+MODELS = {name: (CalendarWithDerivedCoverage if model is CalendarArtifact else model)
+          for name, (model, _) in bf.all_fixtures().items()}
 # Test-only artifact for the reserved S-NPP cutoff path (P2 r8 item 3). It is never written to
 # contracts/fixtures, because current-phase consumer fixtures hold no data after 2025-12-31.
 CUTOFF = "reserved_cutoff_calendar"
@@ -999,6 +1005,7 @@ def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
         unavailable_reason="source_not_available", comparison_eligible=False,
         year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8),
         days_in_period=7, days_with_file=0, paired_comparison_eligible=False,
+        coverage_state="unavailable", coverage_reasons=["no_file"],
     )
     # Decisions and partial-sentinel are strictly forbidden when observation is unavailable
     for status_field, decision in [
@@ -1027,6 +1034,7 @@ def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:
         sensor="MODIS_Aqua", availability="unavailable", unavailable_reason="source_not_available",
         comparison_eligible=False, critical_status="insufficient_baseline", unusual_status="insufficient_baseline",
         days_in_period=7, days_with_file=0, paired_comparison_eligible=False,
+        coverage_state="unavailable", coverage_reasons=["no_file"],
     )
     # Overlapping dates in same series rejected
     a = WeekRecord(year=2023, week_number=1, start_date=date(2023, 1, 2), end_date=date(2023, 1, 8), **common)
@@ -1049,7 +1057,8 @@ def test_non_snpp_sensor_week_on_same_dates_is_not_partial() -> None:
     with pytest.raises(ValidationError):  # partial flags are invalid without the S-NPP cutoff
         WeeklyCalendarSeries.model_validate_json(json.dumps(series))
     wk.update(is_partial_period=False, partial_period_reason=None, comparison_eligible=True,
-              days_with_file=7, critical_status="not_critical", unusual_status="not_unusual")
+              days_with_file=7, critical_status="not_critical", unusual_status="not_unusual",
+              coverage_state="complete", coverage_reasons=[])
     WeeklyCalendarSeries.model_validate_json(json.dumps(series))
     # In an artifact, an Aqua week in 2026 lies outside the declared current-phase Aqua record.
     cal = load(CAL)

@@ -98,6 +98,8 @@ def month(sensor: str, year: int, m: int, d: float, o: float, **kw) -> dict:
         "days_in_period": _days(first, last),
         "days_with_file": _days(first, last),
         "paired_comparison_eligible": False,
+        "coverage_state": None,  # filled by fill_coverage from dates, files and record bounds
+        "coverage_reasons": [],
     }
     base.update(kw)
     if base["unavailable_reason"] == "source_not_available" and "days_with_file" not in kw:
@@ -122,12 +124,82 @@ def week(sensor: str, year: int, n: int, start: str, end: str, d: float, o: floa
         "days_in_period": 7,
         "days_with_file": 7,
         "paired_comparison_eligible": False,
+        "coverage_state": None,  # filled by fill_coverage from dates, files and record bounds
+        "coverage_reasons": [],
     }
     base.update(kw)
     if base["unavailable_reason"] == "source_not_available" and "days_with_file" not in kw:
         base["days_with_file"] = 0
     return base
 
+
+# P2 r9 reason vocabulary: contract partial reason -> P2 coverage reason.
+P2_REASON = {
+    "outside_sensor_record": "period_clipped",
+    "snpp_record_ended_2026_11_02": "period_clipped",
+    "crosses_sealed_evaluation_boundary": "partition_boundary",
+    "missing_days_or_tiles": "missing_days_or_tiles",
+    "low_processed_coverage": "low_processed_coverage",
+}
+
+
+def _record_bounds(rec: dict) -> tuple[date, date]:
+    if "month" in rec:
+        return _month_bounds(rec["year"], rec["month"])
+    return date.fromisoformat(rec["start_date"]), date.fromisoformat(rec["end_date"])
+
+
+def fill_record_coverage(rec: dict, inside: int | None = None, permitted: int | None = None,
+                         wholly_sealed: bool = False) -> dict:
+    """Set coverage_state / coverage_reasons on one record dict (P2 r9 vocabulary).
+
+    inside: days of the period inside the sensor record; permitted: of those, days outside the
+    sealed window. Both default to the whole period (no record or window information).
+    """
+    start, end = _record_bounds(rec)
+    total = _days(start, end)
+    inside = total if inside is None else inside
+    permitted = inside if permitted is None else permitted
+    files = rec["days_with_file"]
+    reasons: list[str] = []
+    if rec.get("partial_period_reason"):
+        reasons.append(P2_REASON[rec["partial_period_reason"]])
+    if wholly_sealed:
+        reasons.append("partition_boundary")
+    if inside == 0:
+        reasons.append("sensor_not_operating")
+    elif files == 0 and permitted > 0:
+        reasons.append("no_file")
+    elif 0 < files < permitted:
+        reasons.append("missing_days_or_tiles")
+    pc = rec.get("processed_coverage")
+    if pc is not None and pc < 1.0:
+        reasons.append("low_processed_coverage")
+    rec["coverage_reasons"] = list(dict.fromkeys(reasons))
+    rec["coverage_state"] = "unavailable" if files == 0 else "partial" if rec["is_partial_period"] else "complete"
+    return rec
+
+
+def fill_coverage(art: dict) -> dict:
+    """Fill coverage fields of every record of a calendar artifact dict from its own data."""
+    cov = {c["sensor"]: c for c in art["sensor_coverage"]}
+    win = art.get("sealed_window")
+    ws = date.fromisoformat(win["start"]) if win else None
+    we = date.fromisoformat(win["end"]) if win else None
+    for series in [*art["monthly_series"], *art["weekly_series"]]:
+        for rec in series["records"]:
+            c = cov.get(rec["sensor"])
+            if c is None or c["status"] != "active":
+                fill_record_coverage(rec)
+                continue
+            start, end = _record_bounds(rec)
+            lo = max(start, date.fromisoformat(c["record_start"]))
+            hi = min(end, date.fromisoformat(c["record_end"]))
+            days = [lo + timedelta(days=i) for i in range((hi - lo).days + 1)] if lo <= hi else []
+            permitted = [d for d in days if not (ws and ws <= d <= we)]
+            wholly = bool(ws) and ws <= start and end <= we and bool(days)
+            fill_record_coverage(rec, len(days), len(permitted), wholly)
+    return art
 
 def _config() -> dict:
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
@@ -178,13 +250,15 @@ def _baselines() -> list[dict]:
         {
             "sensor": "VIIRS_SNPP", "policy_id": POLICY, "status": "available",
             "reference_start_year": 2016, "reference_end_year": 2019,
-            "eligible_prior_years": [2016, 2017, 2018, 2019], "minimum_year_count": 3,
+            "eligible_prior_years": [2016, 2017, 2018, 2019], "excluded_years": [],
+            "unavailable_reason": None, "minimum_year_count": 3,
             "normal_season_start_month": 6, "normal_season_end_month": 9, "peak_median_month": 7,
         },
         {
             "sensor": "MODIS_Aqua", "policy_id": POLICY, "status": "insufficient_baseline",
             "reference_start_year": 2016, "reference_end_year": 2016,
-            "eligible_prior_years": [2016], "minimum_year_count": 3,
+            "eligible_prior_years": [2016], "excluded_years": [],
+            "unavailable_reason": None, "minimum_year_count": 3,
             "normal_season_start_month": None, "normal_season_end_month": None,
             "peak_median_month": None,
         },
@@ -236,7 +310,13 @@ def _calendar_core(coverage: list[dict], cutoff_status: str) -> dict:
         ],
         "sealed_window": None,
         "week_53_rule": None,
-        "footprint_certification": None,
+        # Synthetic fixture value: demonstrates the certified path. It is NOT a P2 certification;
+        # P2 r9 states no region-period is certified complete today (see the unverified fixture).
+        "footprint_certification": {
+            "geometry_id": GEO, "status": "complete", "footprint_evidence": "cell_level",
+            "certification_ref": "SYNTHETIC-TEST-ONLY: not a P2 certification",
+            "certified_at": "2026-11-14T00:00:00Z", "coverage_fraction": None,
+        },
         "sensor_coverage": coverage,
         "snpp_cutoff_status": cutoff_status,
         "annual_coverage": [annual(coverage, s, y) for s, y in years],
@@ -267,7 +347,51 @@ def calendar() -> dict:
         + [week("MODIS_Aqua", 2026, 1, "2025-12-29", "2026-01-04", 0, 35, days_with_file=3, **EDGE_WEEK)]
     )
     data["annual_coverage"] += [annual(coverage, "MODIS_Aqua", 2002), annual(coverage, "VIIRS_SNPP", 2012)]
-    return data
+    # P2 r9 Q3: missing files inside the record -> partial (missing_days_or_tiles), ineligible,
+    # null labels and thresholds; D/O cover only the days that have a file.
+    data["monthly_series"][0]["records"].append(month(
+        "VIIRS_SNPP", 2023, 11, 2, 150, days_with_file=25, is_partial_period=True,
+        partial_period_reason="missing_days_or_tiles", unusual_status=None, comparison_eligible=False))
+    data["weekly_series"][1]["records"].insert(-1, week(
+        "MODIS_Aqua", 2023, 29, "2023-07-17", "2023-07-23", 1, 80, days_with_file=5, is_partial_period=True,
+        partial_period_reason="missing_days_or_tiles", critical_status=None, unusual_status=None,
+        comparison_eligible=False))
+    # P2 r9 Q5: a period wholly before the VIIRS record start is unavailable, not rejected.
+    data["monthly_series"][0]["records"].append(month(
+        "VIIRS_SNPP", 2011, 12, 0, 0, **missing("sensor_not_operating"), days_with_file=0,
+        unusual_status=None, comparison_eligible=False))
+    return fill_coverage(data)
+
+
+def unverified_footprint_calendar() -> dict:
+    """Current-phase truth per P2 r9 Q3: footprint UNVERIFIED (day-level evidence only).
+
+    No period is comparison-eligible. The Aqua baseline shows a required year with missing file
+    days: the baseline is unavailable (required_year_invalid), never shortened.
+    """
+    data = calendar()
+    data["footprint_certification"] = {
+        "geometry_id": GEO, "status": "unverified", "footprint_evidence": "day_level",
+        "certification_ref": None, "certified_at": None, "coverage_fraction": None,
+    }
+    for series in [*data["monthly_series"], *data["weekly_series"]]:
+        for rec in series["records"]:
+            rec["comparison_eligible"] = False
+            rec["paired_comparison_eligible"] = False
+    coverage = data["sensor_coverage"]
+    gap_year = annual(coverage, "MODIS_Aqua", 2017)
+    gap_year["days_with_file"] = gap_year["days_in_period"] - 5  # fabricated: five days without a file
+    data["annual_coverage"] += [gap_year] + [annual(coverage, "MODIS_Aqua", y) for y in (2018, 2019)]
+    data["seasonal_baselines"][1] = {
+        "sensor": "MODIS_Aqua", "policy_id": POLICY, "status": "unavailable",
+        "reference_start_year": 2016, "reference_end_year": 2019,
+        "eligible_prior_years": [2016, 2018, 2019],
+        "excluded_years": [{"year": 2017, "reason": "required_year_invalid",
+                            "detail": "Five UTC days without a file; P1 year-validity rule unregistered."}],
+        "unavailable_reason": "required_year_invalid", "minimum_year_count": 3,
+        "normal_season_start_month": None, "normal_season_end_month": None, "peak_median_month": None,
+    }
+    return fill_coverage(data)
 
 
 def reserved_cutoff_calendar() -> dict:
@@ -286,7 +410,7 @@ def reserved_cutoff_calendar() -> dict:
         "VIIRS_SNPP", 2026, 45, "2026-11-02", "2026-11-08", 3, 100, days_with_file=1,
         critical_status=None, unusual_status=None, is_partial_period=True, comparison_eligible=False,
         partial_period_reason="snpp_record_ended_2026_11_02"))
-    return data
+    return fill_coverage(data)
 
 
 def sealed_boundary_calendar() -> dict:
@@ -330,7 +454,7 @@ def sealed_boundary_calendar() -> dict:
                  critical_status="not_critical", unusual_status="not_unusual"),
         ],
     }]
-    return data
+    return fill_coverage(data)
 
 
 def variant(vid: str, factor: float, delta: float, years: list[int]) -> dict:
@@ -529,8 +653,10 @@ def _phase_end(sensor: str) -> str:
 
 def manifest() -> dict:
     return {
-        **identity("artifact_manifest"),
+        # The manifest describes the calendar, so it carries the calendar's five-field identity.
+        **identity("same_sensor_calendar"),
         "manifest_version": "synthetic-manifest-1",
+        "described_artifact_type": "calendar",
         "generated_at": "2026-11-14T00:20:00Z",
         "snpp_cessation_date": "2026-11-02",
         "snpp_cutoff_status": "reserved_inactive",  # P2 r8 item 3: no S-NPP data reach the cutoff
@@ -549,10 +675,10 @@ def manifest() -> dict:
         "total_file_size_bytes": 2000, "compressed_bundle_size_bytes": 800,
         "partitions": [{
             "file_path": "synthetic/calendar.json", "geometry_id": GEO, "period_spec": PERIOD,
-            "method_id": "artifact_manifest", "policy_id": POLICY, "sensor": "MODIS_Aqua",
+            "method_id": "same_sensor_calendar", "policy_id": POLICY, "sensor": "MODIS_Aqua",
             "cache_key_sha256": CacheKey(
                 artifact_version="synthetic-v1", geometry_id=GEO, period_spec=PERIOD,
-                method_id="artifact_manifest", policy_id=POLICY,
+                method_id="same_sensor_calendar", policy_id=POLICY,
             ).digest(),
             "row_count": 2, "file_size_bytes": 2000,
             "sha256_checksum": hashlib.sha256(b"synthetic").hexdigest(),
@@ -613,6 +739,7 @@ def all_fixtures() -> dict[str, tuple[type, dict]]:
     out = {
         "sample_calendar.json": (CalendarArtifact, calendar()),
         "sample_calendar_sealed_boundary.json": (CalendarArtifact, sealed_boundary_calendar()),
+        "sample_calendar_unverified_footprint.json": (CalendarArtifact, unverified_footprint_calendar()),
         "sample_region_selector.json": (RegionSelectorArtifact, selector()),
         "sample_evaluation_summary.json": (EvaluationSummary, evaluation(True)),
         "sample_evaluation_unavailable.json": (EvaluationSummary, evaluation(False)),

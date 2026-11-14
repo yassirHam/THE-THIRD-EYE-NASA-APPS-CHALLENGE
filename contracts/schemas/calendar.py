@@ -16,6 +16,9 @@ UnavailableReason = Literal[
     "source_not_available",
     "incomplete_footprint",
     "qa_unusable",
+    # P2 r9 Q5: a period wholly outside an active sensor's record (for example VIIRS before its
+    # declared record start) is represented as unavailable, not rejected.
+    "sensor_not_operating",
 ]
 BaselineLabelStatus = Literal[
     "unusual",
@@ -25,20 +28,51 @@ BaselineLabelStatus = Literal[
     "insufficient_baseline",
     "not_applicable",
 ]
-BaselineAvailability = Literal["available", "insufficient_baseline"]
+BaselineAvailability = Literal["available", "insufficient_baseline", "unavailable"]
 WeekDefinition = Literal["utc_iso_week", "fixed_7_day_bins"]
 # PROPOSED sealed-boundary reason: representation under P1/P2 review, not yet registered.
 SEALED_BOUNDARY_REASON = "crosses_sealed_evaluation_boundary"
 SNPP_CESSATION_REASON = "snpp_record_ended_2026_11_02"
 # P2 r8 (handoff 6201f21): periods straddling a sensor's declared record start or end.
 SENSOR_RECORD_BOUNDARY_REASON = "outside_sensor_record"
+# P2 r9 required change 1: periods inside the record with missing days/tiles, or with
+# processed coverage below 100%, are partial too. Boundary reasons take precedence as the
+# primary reason; every applicable P2 reason is listed in coverage_reasons.
+MISSING_DAYS_REASON = "missing_days_or_tiles"
+LOW_COVERAGE_REASON = "low_processed_coverage"
 PartialReason = Literal[
     "snpp_record_ended_2026_11_02",
     "crosses_sealed_evaluation_boundary",
     "outside_sensor_record",
+    "missing_days_or_tiles",
+    "low_processed_coverage",
 ]
 # Boundaries whose dates are artifact data, checked at artifact level.
 ARTIFACT_BOUNDARY_REASONS = {"crosses_sealed_evaluation_boundary", "outside_sensor_record"}
+COVERAGE_GAP_REASONS = {MISSING_DAYS_REASON, LOW_COVERAGE_REASON}
+# Every partial reason that is not the S-NPP cessation (checked at artifact level).
+NON_SNPP_PARTIAL_REASONS = ARTIFACT_BOUNDARY_REASONS | COVERAGE_GAP_REASONS
+
+# P2 r9 per-sensor, per-period coverage vocabulary (handoff b18ed3e, r9-P2.md section 1/5).
+CoverageState = Literal["complete", "partial", "unavailable"]
+CoverageReason = Literal[
+    "period_clipped",
+    "sensor_not_operating",
+    "partition_boundary",
+    "missing_days_or_tiles",
+    "low_processed_coverage",
+    "no_file",
+]
+# Explicit mapping from contract partial reasons to P2 coverage reasons (P2 r9 required change 3).
+PARTIAL_REASON_TO_P2: dict[str, str] = {
+    "outside_sensor_record": "period_clipped",
+    "snpp_record_ended_2026_11_02": "period_clipped",
+    "crosses_sealed_evaluation_boundary": "partition_boundary",
+    "missing_days_or_tiles": "missing_days_or_tiles",
+    "low_processed_coverage": "low_processed_coverage",
+}
+# P2 reasons that mean "no day of this period has a file".
+NO_DATA_REASONS = {"no_file", "sensor_not_operating"}
 # Sensors that form a MODIS/VIIRS pair in the current phase.
 PAIRED_SENSOR = {"MODIS_Aqua": "VIIRS_SNPP", "VIIRS_SNPP": "MODIS_Aqua"}
 SNPP_CESSATION_AT = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
@@ -210,16 +244,20 @@ class Week53Rule(StrictContractModel):
 
 
 class FootprintCertification(StrictContractModel):
-    """Footprint coverage for this artifact's geometry (PROPOSED shape, pending P2 Q3).
+    """Footprint coverage for this artifact's geometry (P2 r9 Q3 rule, handoff b18ed3e).
 
-    - complete: P2 documented that the whole registered footprint is covered.
-    - partial: P2 documented coverage of only a fraction of the footprint.
+    - complete: P2 documented, from cell-level evidence, that the whole footprint is covered.
+    - partial: P2 documented, from cell-level evidence, a coverage fraction below 1.
     - unverified: no P2 certification exists.
-    Completeness is never inferred from availability == "available".
+    footprint_evidence records what P2's evidence is: cell_level (per-cell processed vs
+    expected cell-days), day_level (a file was present per day, as in the current Earth Engine
+    monthly aggregates) or none. Day-level evidence and availability == "available" never
+    certify a complete footprint.
     """
 
     geometry_id: str = Field(min_length=1)
     status: Literal["complete", "partial", "unverified"]
+    footprint_evidence: Literal["cell_level", "day_level", "none"]
     certification_ref: str | None = None
     certified_at: datetime | None = None
     coverage_fraction: float | None = Field(default=None, gt=0.0, lt=1.0)
@@ -231,6 +269,9 @@ class FootprintCertification(StrictContractModel):
         if self.status in ("complete", "partial"):
             if not documented:
                 raise ValueError(f"a {self.status} footprint requires P2's documented reference and UTC timestamp")
+            if self.footprint_evidence != "cell_level":
+                raise ValueError(f"a {self.status} footprint requires cell-level evidence; day-level file "
+                                 "presence or available data never certify footprint coverage")
         elif self.certification_ref is not None or self.certified_at is not None:
             raise ValueError("an unverified footprint cannot carry a certification reference or timestamp")
         if self.status == "partial" and self.coverage_fraction is None:
@@ -300,6 +341,54 @@ def _check_file_days(record: "MonthRecord | WeekRecord", period_days: int, label
         raise ValueError(f"{label}: paired comparison requires the period itself to be comparison-eligible")
     if record.included_day_count is not None and record.days_with_file > record.included_day_count:
         raise ValueError(f"{label}: a sealed-boundary partial cannot use files beyond its permitted days")
+    _check_coverage(record, label)
+
+
+def _check_coverage(record: "MonthRecord | WeekRecord", label: str) -> None:
+    """Record-level consistency of the P2 coverage state and reasons (P2 r9).
+
+    The reasons that depend on the sensor record and the sealed window are checked again at
+    artifact level (CalendarArtifact._validate_coverage_reasons).
+    """
+    reasons = set(record.coverage_reasons)
+    if len(reasons) != len(record.coverage_reasons):
+        raise ValueError(f"{label}: coverage reasons must be unique")
+    if record.days_with_file == 0:
+        expected_state = "unavailable"
+    elif record.is_partial_period:
+        expected_state = "partial"
+    else:
+        expected_state = "complete"
+    if record.coverage_state != expected_state:
+        raise ValueError(f"{label}: coverage_state must be {expected_state} for these file days and partial flags")
+    if record.coverage_state == "complete" and reasons:
+        raise ValueError(f"{label}: a complete period carries no coverage reasons")
+    if record.coverage_state != "complete" and not reasons:
+        raise ValueError(f"{label}: a {record.coverage_state} period needs at least one P2 coverage reason")
+    if record.days_with_file == 0:
+        if record.unavailable_reason not in ("source_not_available", "sensor_not_operating"):
+            raise ValueError(f"{label}: a period with no file days is unavailable as source_not_available "
+                             "(no_file) or sensor_not_operating, never a zero or a QA state")
+    if record.partial_period_reason is not None:
+        mapped = PARTIAL_REASON_TO_P2[record.partial_period_reason]
+        if mapped not in reasons:
+            raise ValueError(f"{label}: partial reason {record.partial_period_reason} must list P2 reason {mapped}")
+    if (reasons & COVERAGE_GAP_REASONS) and record.days_with_file > 0 and not record.is_partial_period:
+        raise ValueError(f"{label}: missing days/tiles or low processed coverage make the period partial")
+    low = record.processed_coverage is not None and record.processed_coverage < 1.0
+    if low != (LOW_COVERAGE_REASON in reasons):
+        # C_MIN is unregistered (P2 proposes 0.99): until it is, any shortfall below 1.0 is low.
+        raise ValueError(f"{label}: low_processed_coverage is listed exactly when processed coverage < 1.0")
+    if ("sensor_not_operating" in reasons) != (record.unavailable_reason == "sensor_not_operating"):
+        raise ValueError(f"{label}: sensor_not_operating coverage and unavailable reason must agree")
+    if "no_file" in reasons and record.unavailable_reason != "source_not_available":
+        raise ValueError(f"{label}: no_file coverage requires unavailable reason source_not_available")
+    if record.comparison_eligible and record.coverage_state != "complete":
+        raise ValueError(f"{label}: only a complete-coverage period can be comparison-eligible")
+    if record.unavailable_reason == "sensor_not_operating":
+        labels = [getattr(record, "unusual_status", None), getattr(record, "critical_status", None)]
+        if any(v is not None for v in labels) or record.is_partial_period:
+            raise ValueError(f"{label}: a period outside the sensor record carries null labels and is not partial")
 
 
 class MonthRecord(ObservationRecord):
@@ -320,6 +409,11 @@ class MonthRecord(ObservationRecord):
     days_with_file: int = Field(ge=0)
     # P2 r8: eligible for MODIS/VIIRS paired comparison only when both sensors are complete.
     paired_comparison_eligible: bool
+    # P2 r9: per-sensor coverage state and every applicable P2 reason (required, explicit).
+    coverage_state: CoverageState
+    coverage_reasons: list[CoverageReason]
+    # Processed footprint cell-days / (footprint cells x days with file), when P2 supplies it.
+    processed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def validate_month_labels(self) -> "MonthRecord":
@@ -339,8 +433,9 @@ class MonthRecord(ObservationRecord):
         status = "complete"
         if self.sensor == "VIIRS_SNPP":
             status = snpp_period_status(*month_bounds(self.year, self.month))
-        if status == "after_record":
-            raise ValueError("S-NPP records cannot start after the 2026-11-02 15:40 UTC cessation")
+        if status == "after_record" and self.unavailable_reason != "sensor_not_operating":
+            raise ValueError("S-NPP records after the 2026-11-02 15:40 UTC cessation can only be unavailable "
+                             "(sensor_not_operating)")
         if status == "partial":
             if not self.is_partial_period or self.comparison_eligible:
                 raise ValueError("a month straddling the S-NPP cutoff must be partial and comparison-ineligible")
@@ -354,19 +449,19 @@ class MonthRecord(ObservationRecord):
                 raise ValueError(
                     "a partial month requires an explicit null unusual label and null baseline thresholds"
                 )
-        elif self.partial_period_reason in ARTIFACT_BOUNDARY_REASONS:
+        elif self.partial_period_reason in NON_SNPP_PARTIAL_REASONS:
             if not self.is_partial_period or self.comparison_eligible:
-                raise ValueError("a boundary-partial month must be partial and comparison-ineligible")
+                raise ValueError("a boundary or coverage-gap partial month must be partial and comparison-ineligible")
             if (
                 self.unusual_status is not None
                 or self.baseline_median is not None
                 or self.baseline_p90 is not None
             ):
                 raise ValueError(
-                    "a boundary-partial month requires an explicit null unusual label and null baseline thresholds"
+                    "a boundary or coverage-gap partial month requires an explicit null unusual label and null baseline thresholds"
                 )
         elif self.is_partial_period or self.partial_period_reason is not None:
-            raise ValueError("partial-period flags are only valid for periods straddling a registered boundary")
+            raise ValueError("partial-period flags are only valid for boundary periods or periods with coverage gaps")
         elif status == "complete":
             if self.unusual_status == INCOMPLETE_LABEL:
                 raise ValueError("a complete month cannot use not_applicable sentinel")
@@ -396,6 +491,11 @@ class WeekRecord(ObservationRecord):
     days_with_file: int = Field(ge=0)
     # P2 r8: eligible for MODIS/VIIRS paired comparison only when both sensors are complete.
     paired_comparison_eligible: bool
+    # P2 r9: per-sensor coverage state and every applicable P2 reason (required, explicit).
+    coverage_state: CoverageState
+    coverage_reasons: list[CoverageReason]
+    # Processed footprint cell-days / (footprint cells x days with file), when P2 supplies it.
+    processed_coverage: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def validate_week(self) -> "WeekRecord":
@@ -409,8 +509,9 @@ class WeekRecord(ObservationRecord):
         status = "complete"
         if self.sensor == "VIIRS_SNPP":
             status = snpp_period_status(self.start_date, self.end_date)
-        if status == "after_record":
-            raise ValueError("S-NPP weekly records cannot start after the 2026-11-02 15:40 UTC cessation")
+        if status == "after_record" and self.unavailable_reason != "sensor_not_operating":
+            raise ValueError("S-NPP weekly records after the 2026-11-02 15:40 UTC cessation can only be "
+                             "unavailable (sensor_not_operating)")
         if status == "partial":
             if not self.is_partial_period or self.comparison_eligible:
                 raise ValueError("a week straddling the S-NPP cutoff must be partial and comparison-ineligible")
@@ -418,13 +519,13 @@ class WeekRecord(ObservationRecord):
                 raise ValueError("a partial S-NPP week requires its cessation reason")
             if self.critical_status is not None or self.unusual_status is not None:
                 raise ValueError("a partial week requires explicit null critical and unusual labels")
-        elif self.partial_period_reason in ARTIFACT_BOUNDARY_REASONS:
+        elif self.partial_period_reason in NON_SNPP_PARTIAL_REASONS:
             if not self.is_partial_period or self.comparison_eligible:
-                raise ValueError("a boundary-partial week must be partial and comparison-ineligible")
+                raise ValueError("a boundary or coverage-gap partial week must be partial and comparison-ineligible")
             if self.critical_status is not None or self.unusual_status is not None:
-                raise ValueError("a boundary-partial week requires explicit null critical and unusual labels")
+                raise ValueError("a boundary or coverage-gap partial week requires explicit null critical and unusual labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
-            raise ValueError("partial-period flags are only valid for periods straddling a registered boundary")
+            raise ValueError("partial-period flags are only valid for boundary periods or periods with coverage gaps")
         elif status == "complete":
             if self.critical_status == INCOMPLETE_LABEL or self.unusual_status == INCOMPLETE_LABEL:
                 raise ValueError("a complete week cannot use not_applicable sentinel")
@@ -439,13 +540,33 @@ class WeekRecord(ObservationRecord):
         return self
 
 
+class BaselineYearExclusion(StrictContractModel):
+    """A year inside the registered baseline span that is not used, with the reason.
+
+    Every year from reference_start_year to reference_end_year is either an eligible prior
+    year or listed here, so a baseline can never be shortened silently.
+    - sealed_evaluation_window: the year overlaps the declared sealed window (P5 d0b8c90).
+    - partial_record_year: the year straddles the sensor's record start or end.
+    - required_year_invalid: a required year lacks data or support (P2 r9 required change 2);
+      the baseline is then unavailable, never shortened, and no other year replaces it.
+    """
+
+    year: int = Field(ge=2000, le=2100)
+    reason: Literal["sealed_evaluation_window", "partial_record_year", "required_year_invalid"]
+    detail: str | None = None
+
+
 class SeasonalBaselineInfo(StrictContractModel):
     sensor: SensorType
     policy_id: str = Field(min_length=1)
-    status: BaselineAvailability
+    status: Literal["available", "insufficient_baseline", "unavailable"]
     reference_start_year: int = Field(ge=2000, le=2100)
     reference_end_year: int = Field(ge=2000, le=2100)
     eligible_prior_years: list[int]
+    # Required key; may be empty. Years of the span that are not eligible, each with a reason.
+    excluded_years: list[BaselineYearExclusion]
+    # Required key: set exactly when status is "unavailable".
+    unavailable_reason: Literal["required_year_invalid"] | None
     minimum_year_count: int = Field(ge=1)
     normal_season_start_month: int | None = Field(default=None, ge=1, le=12)
     normal_season_end_month: int | None = Field(default=None, ge=1, le=12)
@@ -457,6 +578,20 @@ class SeasonalBaselineInfo(StrictContractModel):
             raise ValueError("baseline end year must not precede start year")
         if len(set(self.eligible_prior_years)) != len(self.eligible_prior_years):
             raise ValueError("eligible baseline years must be unique")
+        excluded = [e.year for e in self.excluded_years]
+        if len(set(excluded)) != len(excluded):
+            raise ValueError("a baseline year can be excluded only once")
+        span = set(range(self.reference_start_year, self.reference_end_year + 1))
+        if set(self.eligible_prior_years) & set(excluded):
+            raise ValueError("a baseline year cannot be both eligible and excluded")
+        if set(self.eligible_prior_years) | set(excluded) != span:
+            raise ValueError("every year of the registered baseline span must be eligible or excluded with a "
+                             "reason; a baseline is never shortened silently")
+        required_invalid = any(e.reason == "required_year_invalid" for e in self.excluded_years)
+        if required_invalid != (self.status == "unavailable"):
+            raise ValueError("a baseline is unavailable exactly when a required year is invalid")
+        if (self.status == "unavailable") != (self.unavailable_reason is not None):
+            raise ValueError("an unavailable baseline needs its reason, and only it has one")
         season_values = (
             self.normal_season_start_month,
             self.normal_season_end_month,
@@ -466,7 +601,7 @@ class SeasonalBaselineInfo(StrictContractModel):
             if len(self.eligible_prior_years) < self.minimum_year_count or any(v is None for v in season_values):
                 raise ValueError("available baseline requires minimum years and complete season fields")
         elif any(v is not None for v in season_values):
-            raise ValueError("insufficient baseline cannot publish a normal season")
+            raise ValueError("an insufficient or unavailable baseline cannot publish a normal season")
         return self
 
 
@@ -662,6 +797,25 @@ class CalendarArtifact(ArtifactIdentity):
                     raise ValueError(f"baseline year {year} has no declared {baseline.sensor} annual coverage")
                 if entry.is_partial_period:
                     raise ValueError(f"baseline year {year} is a partial {baseline.sensor} year and cannot be a prior year")
+                if entry.days_with_file != entry.days_in_period:
+                    # Until P1 registers a year-validity rule (P2 proposes >= 9 of 12 months kept and
+                    # an O floor), a year with any missing file day cannot be used. It must be listed
+                    # as required_year_invalid, which makes the baseline unavailable.
+                    raise ValueError(f"baseline year {year} has missing {baseline.sensor} file days; list it as "
+                                     "required_year_invalid instead of using or dropping it")
+            for exclusion in baseline.excluded_years:
+                entry = declared.get((baseline.sensor, exclusion.year))
+                if exclusion.reason == "partial_record_year" and (entry is None or not entry.is_partial_period):
+                    raise ValueError(f"baseline year {exclusion.year}: partial_record_year needs a declared "
+                                     f"partial {baseline.sensor} year")
+                if exclusion.reason == "sealed_evaluation_window":
+                    if window is None or sealed_window_period_status(
+                        date(exclusion.year, 1, 1), date(exclusion.year, 12, 31), window.start, window.end
+                    ) == "outside":
+                        raise ValueError(f"baseline year {exclusion.year}: sealed_evaluation_window exclusion "
+                                         "needs a declared sealed window overlapping that year")
+
+        self._validate_coverage_reasons(coverage, window)
 
         # Sealed years never feed later baselines.
         if window is not None:
@@ -713,13 +867,57 @@ class CalendarArtifact(ArtifactIdentity):
             r.comparison_eligible for s in self.weekly_series for r in s.records
         )
         if any_eligible:
-            if cert is not None and cert.status != "complete":
-                raise ValueError(f"a {cert.status} footprint cannot support comparison-eligible whole-area periods")
-            if self.data_classification == "production" and (cert is None or cert.status != "complete"):
-                raise ValueError("production comparison-eligible periods require a P2-certified complete footprint")
+            # Fail closed for every artifact class: only a P2-certified complete footprint, backed
+            # by cell-level evidence, supports comparison-eligible whole-area periods (P2 r9 Q3).
+            if cert is None or cert.status != "complete":
+                status = "missing" if cert is None else cert.status
+                raise ValueError(f"comparison-eligible whole-area periods need a P2-certified complete "
+                                 f"footprint; certification is {status}")
+            if self.data_classification == "production" and "synthetic" in (cert.certification_ref or "").lower():
+                raise ValueError("production artifacts cannot rely on a synthetic footprint certification")
         return self
 
     # ---------------------------------------------------------------- helpers
+
+    def _validate_coverage_reasons(self, coverage: dict[str, SensorCoverage], window: SealedWindow | None) -> None:
+        """Every P2 coverage reason is present exactly when the period's dates and files call for it."""
+        for label, rec in self._labelled_records():
+            cov = coverage[rec.sensor]
+            if isinstance(rec, MonthRecord):
+                start, end = month_bounds(rec.year, rec.month)
+            else:
+                start, end = rec.start_date, rec.end_date
+            inside_record = days_within(start, end, cov.record_start, cov.record_end)  # type: ignore[arg-type]
+            permitted = inside_record
+            wholly_sealed = False
+            if window is not None and inside_record:
+                rs = max(start, cov.record_start)  # type: ignore[type-var]
+                re_ = min(end, cov.record_end)  # type: ignore[type-var]
+                permitted = days_outside_window(rs, re_, window.start, window.end)
+                wholly_sealed = sealed_window_period_status(start, end, window.start, window.end) == "inside"
+            expected: set[str] = set()
+            if rec.partial_period_reason is not None:
+                expected.add(PARTIAL_REASON_TO_P2[rec.partial_period_reason])
+            if wholly_sealed:
+                expected.add("partition_boundary")
+            if inside_record == 0:
+                expected.add("sensor_not_operating")
+            elif rec.days_with_file == 0 and permitted > 0:
+                expected.add("no_file")
+            elif 0 < rec.days_with_file < permitted:
+                expected.add(MISSING_DAYS_REASON)
+            if rec.processed_coverage is not None and rec.processed_coverage < 1.0:
+                expected.add(LOW_COVERAGE_REASON)
+            if set(rec.coverage_reasons) != expected:
+                raise ValueError(f"{label}: coverage reasons must be {sorted(expected)}, got "
+                                 f"{sorted(rec.coverage_reasons)}")
+            boundary = rec.partial_period_reason in ARTIFACT_BOUNDARY_REASONS | {SNPP_CESSATION_REASON}
+            if not boundary and rec.days_with_file > 0:
+                gap = (MISSING_DAYS_REASON if MISSING_DAYS_REASON in expected
+                       else LOW_COVERAGE_REASON if LOW_COVERAGE_REASON in expected else None)
+                if rec.partial_period_reason != gap:
+                    raise ValueError(f"{label}: a period with coverage gaps inside the record must be partial "
+                                     f"({gap}); without gaps it is not partial")
 
     def _labelled_records(self):
         for m_series in self.monthly_series:
@@ -784,7 +982,13 @@ class CalendarArtifact(ArtifactIdentity):
                 start, end = rec.start_date, rec.end_date
             inside = days_within(start, end, cov.record_start, cov.record_end)  # type: ignore[arg-type]
             if inside == 0:
-                raise ValueError(f"{label}: lies outside the declared {rec.sensor} record")
+                # P2 r9 Q5: a period wholly outside an active record is unavailable, not rejected.
+                if rec.unavailable_reason != "sensor_not_operating" or rec.days_with_file != 0:
+                    raise ValueError(f"{label}: lies outside the declared {rec.sensor} record and can only be "
+                                     "unavailable (sensor_not_operating) with no file days")
+                continue
+            if rec.unavailable_reason == "sensor_not_operating":
+                raise ValueError(f"{label}: sensor_not_operating on a period inside the {rec.sensor} record")
             if rec.days_with_file > inside:
                 raise ValueError(f"{label}: days_with_file exceeds days inside the declared {rec.sensor} record")
             reason = rec.partial_period_reason

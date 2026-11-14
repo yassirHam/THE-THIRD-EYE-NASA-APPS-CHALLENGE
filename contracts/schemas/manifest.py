@@ -1,4 +1,4 @@
-﻿"""Static artifact provenance and partition manifest contracts."""
+"""Static artifact provenance and partition manifest contracts."""
 
 from __future__ import annotations
 
@@ -7,7 +7,19 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from .common import ArtifactIdentity, SensorType, StrictContractModel
+from .common import CACHE_KEY_FIELDS, ArtifactIdentity, CacheKeyMismatch, SensorType, StrictContractModel
+
+# The artifact family a manifest describes. The manifest's five-field identity IS the described
+# artifact's identity (P3 concern on calendar vs manifest method_id): a manifest for a calendar
+# carries the calendar's method_id, never a separate "artifact_manifest" method.
+DescribedArtifactType = Literal[
+    "calendar",
+    "comparison",
+    "claim_audit",
+    "evaluation",
+    "region_selector",
+    "firms_hotspots",
+]
 
 
 class GeoJsonPolygon(StrictContractModel):
@@ -38,6 +50,7 @@ class PartitionFileRecord(StrictContractModel):
 
 class ProvenanceManifest(ArtifactIdentity):
     manifest_version: str = Field(min_length=1)
+    described_artifact_type: DescribedArtifactType
     generated_at: datetime
     snpp_cessation_date: Literal["2026-11-02"] = "2026-11-02"
     # P2 r8 item 3: inactive unless a listed S-NPP source reaches the cessation date.
@@ -77,3 +90,24 @@ class ProvenanceManifest(ArtifactIdentity):
             if partition.cache_key_sha256 != self.cache_key().digest():
                 raise ValueError("partition cache key must be the digest of the five-field identity")
         return self
+
+
+class ManifestBindingError(CacheKeyMismatch):
+    """Raised when a manifest is offered for an artifact it does not describe."""
+
+
+def assert_manifest_describes(
+    manifest: ProvenanceManifest, artifact: ArtifactIdentity, artifact_type: str
+) -> None:
+    """Bind a manifest to one artifact: same family and all five identity fields equal.
+
+    A manifest whose partitions list a calendar file but whose method_id differs from the
+    calendar's method_id does not describe that calendar and must not be used for it.
+    """
+    if manifest.described_artifact_type != artifact_type:
+        raise ManifestBindingError(
+            f"manifest describes {manifest.described_artifact_type}, not {artifact_type}"
+        )
+    differing = [n for n in CACHE_KEY_FIELDS if getattr(manifest, n) != getattr(artifact, n)]
+    if differing:
+        raise ManifestBindingError(f"manifest identity differs from the artifact on: {', '.join(differing)}")
