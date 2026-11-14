@@ -355,6 +355,10 @@ STRUCTURAL_KEYS = {
     "eligible_prior_years",
 }
 
+# Structural duration numbers representing official competition limits (30-second video limit,
+# 20-second first-screen rule, 60-90 second Quick Mission) are not sample finding leaks.
+EVENT_DURATION_CONSTANTS = {"20", "30", "90"}
+
 
 def _fixture_values(obj, sink: set[str], key: str = "") -> None:
     if key in STRUCTURAL_KEYS:
@@ -370,14 +374,16 @@ def _fixture_values(obj, sink: set[str], key: str = "") -> None:
     elif isinstance(obj, float) and not obj.is_integer():
         sink.add(repr(abs(obj)))
     elif isinstance(obj, (int, float)) and abs(obj) >= 20 and not 1990 <= abs(obj) <= 2100:
-        sink.add(str(int(abs(obj))))
+        val_str = str(int(abs(obj)))
+        if val_str not in EVENT_DURATION_CONSTANTS:
+            sink.add(val_str)
     elif isinstance(obj, str):
         for h in SHA256_HEX.findall(obj):
             sink.add(h)
         for num in re.findall(r"(?<![\w.])\d+\.\d+(?![\w.])", obj):
             sink.add(num)
         for num in re.findall(r"(?<![\w.:-])\d{2,}(?![\w.:-])", obj):
-            if int(num) >= 20 and not 1990 <= int(num) <= 2100:
+            if int(num) >= 20 and not 1990 <= int(num) <= 2100 and str(int(num)) not in EVENT_DURATION_CONSTANTS:
                 sink.add(str(int(num)))
         if key in {"statement", "plain_language_summary", "headline_metric_description"} and len(obj) > 30:
             sink.add(obj)
