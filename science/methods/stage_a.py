@@ -106,6 +106,14 @@ from typing import Iterable, Literal, Optional
 # Public constants
 # ---------------------------------------------------------------------------
 METHOD_ID = "stage_a_finite_factors"
+# Stability is agreement across the registered training-year variants only (plan:
+# registered-factor stability is not proof about actual fires).  It is not an
+# uncertainty interval for real fire activity and does not establish inference.
+STABILITY_SCOPE_NOTE = (
+    "Stable means the registered training-year variants agree in direction for this "
+    "target; it is not an uncertainty interval for real fire activity and does not "
+    "establish a statistical inference."
+)
 TRAINING_YEARS_DEFAULT: tuple[int, ...] = (2016, 2017, 2018)
 DEVELOPMENT_YEAR: int = 2019
 SCALE: float = 1000.0  # R = 1000 * D / O
@@ -964,7 +972,8 @@ def assess_sensitivity(
 
         # Build base summary with available variants info
         base_summary = (
-            f"All {len(available)} registered variants available. "
+            f"{len(available)} of {len(variant_results)} fitted variants available; "
+            f"required variants missing or unavailable: {missing_or_unavail}. "
             f"Factor range [{min(available.values()) if available else 0:.6f}, "
             f"{max(available.values()) if available else 0:.6f}]. "
             f"Delta range [{min(deltas.values()) if deltas else 0:.6f}, "
@@ -1027,7 +1036,7 @@ def assess_sensitivity(
     delta_max  = max(deltas.values())
 
     base_summary = (
-        f"All {len(available)} registered variants available. "
+        f"{len(available)} of {len(variant_results)} fitted variants available. "
         f"Factor range [{factor_min:.6f}, {factor_max:.6f}]. "
         f"Delta range [{delta_min:.6f}, {delta_max:.6f}] "
         f"(B={baseline_B:.6f}, V={viirs_V:.6f})."
@@ -1062,6 +1071,7 @@ def assess_sensitivity(
             f"Note: variants {non_required_unavail} are UNAVAILABLE; "
             "assessment is based on available variants only."
         )
+    reasons.append(STABILITY_SCOPE_NOTE)
     return SensitivityStatus.STABLE, reasons
 
 

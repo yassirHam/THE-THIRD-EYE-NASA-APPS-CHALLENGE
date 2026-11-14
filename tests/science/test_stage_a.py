@@ -2252,3 +2252,24 @@ class TestPeriodCoverage:
         out = fit_own_support_variants(aqua, viirs, config=OWN_CFG)
         full = next(r for r in out.values() if len(r.training_years) == 3)
         assert full.status == FactorStatus.AVAILABLE and full.period_coverage == "not_verified"
+
+
+class TestStabilityScope:
+    """Training-year agreement is reported as such, never as real-world uncertainty."""
+
+    def test_stable_result_carries_the_scope_note(self):
+        from science.methods.stage_a import STABILITY_SCOPE_NOTE
+        out = fit_own_support_variants(*_three_years(), config=OWN_CFG)
+        status, reasons = assess_sensitivity(out, baseline_B=30.0, viirs_V=20.0,
+                                             required_variant_ids=tuple(out))
+        assert status == SensitivityStatus.STABLE
+        assert STABILITY_SCOPE_NOTE in reasons
+        assert "not an uncertainty interval" in STABILITY_SCOPE_NOTE
+
+    def test_missing_required_variant_summary_does_not_claim_all_available(self):
+        out = fit_own_support_variants(*_three_years("partial"), config=OWN_CFG)
+        status, reasons = assess_sensitivity(out, baseline_B=30.0, viirs_V=20.0,
+                                             required_variant_ids=tuple(out))
+        assert status == SensitivityStatus.UNRESOLVED
+        assert not any(r.startswith("All ") for r in reasons)
+        assert any("required variants missing or unavailable" in r for r in reasons)
