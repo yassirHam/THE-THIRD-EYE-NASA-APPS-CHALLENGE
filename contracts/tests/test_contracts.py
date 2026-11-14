@@ -883,18 +883,24 @@ def test_unavailable_week_rejects_unusual_or_critical_decisions() -> None:
         unavailable_reason="source_not_available", comparison_eligible=False,
         year=2020, week_number=1, start_date=date(2020, 1, 1), end_date=date(2020, 1, 7),
     )
-    # Decisions are strictly forbidden when observation is unavailable
+    # Decisions and partial-sentinel are strictly forbidden when observation is unavailable
     for status_field, decision in [
         ("unusual_status", "unusual"),
         ("unusual_status", "not_unusual"),
         ("critical_status", "critical"),
         ("critical_status", "not_critical"),
+        ("unusual_status", "not_applicable"),
+        ("critical_status", "not_applicable"),
     ]:
         with pytest.raises(ValueError):
             WeekRecord(**{**base, status_field: decision})
+    # Both not_applicable on unavailable complete week rejected
+    with pytest.raises(ValueError, match="not_applicable"):
+        WeekRecord(**{**base, "unusual_status": "not_applicable", "critical_status": "not_applicable"})
     # Non-decisions ("insufficient_baseline" or None) are accepted
     WeekRecord(**{**base, "unusual_status": "insufficient_baseline", "critical_status": "insufficient_baseline"})
     WeekRecord(**{**base, "unusual_status": None, "critical_status": None})
+    WeekRecord(**{**base, "unusual_status": "insufficient_baseline", "critical_status": None})
 
 
 def test_weekly_series_rejects_overlapping_dates_and_cross_year_bins() -> None:

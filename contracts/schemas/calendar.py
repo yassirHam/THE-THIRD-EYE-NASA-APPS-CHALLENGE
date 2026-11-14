@@ -141,8 +141,12 @@ class MonthRecord(ObservationRecord):
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
         elif status == "complete":
-            if self.unusual_status in (None, INCOMPLETE_LABEL):
-                raise ValueError("a complete month requires an unusual-status decision")
+            if self.unusual_status == INCOMPLETE_LABEL:
+                raise ValueError("a complete month cannot use not_applicable sentinel")
+            if self.availability == "available" and self.unusual_status is None:
+                raise ValueError("an available complete month requires an unusual-status decision")
+            if self.availability == "unavailable" and self.unusual_status in {"unusual", "not_unusual"}:
+                raise ValueError("an unusual-month decision requires an available observation")
         return self
 
 
@@ -160,13 +164,8 @@ class WeekRecord(ObservationRecord):
 
     @model_validator(mode="after")
     def validate_week(self) -> "WeekRecord":
-        if self.availability == "unavailable":
-            if self.comparison_eligible:
-                raise ValueError("unavailable weeks cannot be comparison-eligible")
-            if self.unusual_status in {"unusual", "not_unusual"}:
-                raise ValueError("an unusual-week decision requires an available observation")
-            if self.critical_status in {"critical", "not_critical"}:
-                raise ValueError("a critical-week decision requires an available observation")
+        if self.availability == "unavailable" and self.comparison_eligible:
+            raise ValueError("unavailable weeks cannot be comparison-eligible")
         if self.end_date < self.start_date:
             raise ValueError("week end date must not precede start date")
         if (self.end_date - self.start_date).days != 6:
@@ -188,12 +187,17 @@ class WeekRecord(ObservationRecord):
                 raise ValueError("a partial week cannot carry critical, unusual, or normal labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
-        elif status == "complete" and self.availability == "available":
-            if (
-                self.critical_status in (None, INCOMPLETE_LABEL)
-                or self.unusual_status in (None, INCOMPLETE_LABEL)
-            ):
-                raise ValueError("an available complete week requires critical and unusual status decisions")
+        elif status == "complete":
+            if self.critical_status == INCOMPLETE_LABEL or self.unusual_status == INCOMPLETE_LABEL:
+                raise ValueError("a complete week cannot use not_applicable sentinel")
+            if self.availability == "available":
+                if self.critical_status is None or self.unusual_status is None:
+                    raise ValueError("an available complete week requires critical and unusual status decisions")
+            elif self.availability == "unavailable":
+                if self.unusual_status in {"unusual", "not_unusual"}:
+                    raise ValueError("an unusual-week decision requires an available observation")
+                if self.critical_status in {"critical", "not_critical"}:
+                    raise ValueError("a critical-week decision requires an available observation")
         return self
 
 
