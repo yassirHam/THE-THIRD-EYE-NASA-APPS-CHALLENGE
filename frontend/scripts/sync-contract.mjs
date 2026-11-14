@@ -14,7 +14,7 @@ const fixtures = [
 ]
 const pairs = [
   [new URL('generated/types.ts', root), new URL('../src/contracts/types.ts', import.meta.url)],
-  ...fixtures.map((n) => [new URL(`fixtures/${n}`, root), new URL(`../test-fixtures/contract-1.4.0/${n}`, import.meta.url)]),
+  ...fixtures.map((n) => [new URL(`fixtures/${n}`, root), new URL(`../test-fixtures/contract-1.5.0/${n}`, import.meta.url)]),
 ]
 if (!existsSync(new URL('generated/types.ts', root))) {
   console.log('SKIPPED: ../contracts is not in this checkout (P4-B not integrated yet)')

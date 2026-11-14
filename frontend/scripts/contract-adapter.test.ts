@@ -1,4 +1,4 @@
-// Contract 1.4.0 adapter tests on [SYNTHETIC DEV FIXTURE] data.
+// Contract 1.5.0 adapter tests on [SYNTHETIC DEV FIXTURE] data.
 // Run: node --experimental-strip-types --test scripts/contract-adapter.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -15,7 +15,7 @@ import {
   inactivePlatforms,
 } from '../src/lab/adapter.ts'
 
-const dir = new URL('../test-fixtures/contract-1.4.0/', import.meta.url)
+const dir = new URL('../test-fixtures/contract-1.5.0/', import.meta.url)
 const load = (name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8'))
 const cal = () => load('sample_calendar.json')
 const unverified = () => load('sample_calendar_unverified_footprint.json')
@@ -134,7 +134,7 @@ test('cache serves only an exact five-field match', () => {
 })
 
 test('wrong or missing contract version is refused', () => {
-  assert.throws(() => calendarEntries({ ...cal(), contract_version: '1.3.0' }), IdentityMismatch)
+  assert.throws(() => calendarEntries({ ...cal(), contract_version: '1.4.0' }), IdentityMismatch)
   const { contract_version: _v, ...versionless } = cal()
   assert.throws(() => calendarEntries(versionless), IdentityMismatch)
   const old = { ...load('sample_comparison_normal.json'), contract_version: '1.1.0' }

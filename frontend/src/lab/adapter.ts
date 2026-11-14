@@ -1,4 +1,4 @@
-/** Adapter from contract 1.4.0 artifacts (src/contracts/types.ts) to the Lab presentation
+/** Adapter from contract 1.5.0 artifacts (src/contracts/types.ts) to the Lab presentation
  * model. Presentation only: no value is recomputed, rounded to zero or inherited. */
 import type {
   CalendarArtifact,
@@ -9,7 +9,7 @@ import type {
 } from '../contracts/types.ts'
 import type { AreaView, CacheKey, CalendarEntry, ComparisonView, Sensor } from './model.ts'
 
-export const CONTRACT_VERSION = '1.4.0'
+export const CONTRACT_VERSION = '1.5.0'
 
 type ContractSensor = MonthRecord['sensor']
 type CoverageReason = MonthRecord['coverage_reasons'][number]

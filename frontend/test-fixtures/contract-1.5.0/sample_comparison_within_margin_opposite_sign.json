@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.4.0",
+  "contract_version": "1.5.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
   "period_spec": "synthetic-2023",
@@ -8,18 +8,19 @@
   "data_classification": "synthetic_dev_fixture",
   "fixture_label": "[SYNTHETIC DEV FIXTURE]",
   "sensitivity_status": "stable_across_displayed_settings",
-  "applicability_status": "failed_applicability",
+  "applicability_status": "applicable",
   "inference_status": "not_established",
   "practical_change": {
-    "category": "meaningful_increase",
-    "magnitude": 2.4,
+    "category": "within_practical_margin",
+    "magnitude": 0.3,
     "effect_units": "R points",
     "practical_margin_tau": 0.5,
     "observed_signs": [
-      "increase"
+      "increase",
+      "decrease"
     ]
   },
-  "headline_direction": "unavailable",
+  "headline_direction": "within_practical_margin",
   "required_variant_ids": [
     "full_training",
     "ex_2016",
@@ -35,7 +36,7 @@
         2017,
         2018
       ],
-      "effect_delta": 2.0,
+      "effect_delta": 0.3,
       "direction": "increase"
     },
     {
@@ -46,8 +47,8 @@
         2017,
         2018
       ],
-      "effect_delta": 2.4,
-      "direction": "increase"
+      "effect_delta": -0.2,
+      "direction": "decrease"
     },
     {
       "variant_id": "ex_2017",
@@ -57,7 +58,7 @@
         2016,
         2018
       ],
-      "effect_delta": 1.8,
+      "effect_delta": 0.1,
       "direction": "increase"
     }
   ],
@@ -69,19 +70,19 @@
     },
     {
       "check_id": "late_period",
-      "status": "failed",
-      "detail": "Late-period check failed."
+      "status": "passed",
+      "detail": "Late-period check passed."
     }
   ],
   "missing_evidence_reasons": [],
-  "conclusion_eligible": false,
+  "conclusion_eligible": true,
   "reviewed_summary": {
     "template_id": "stage_a_default",
     "template_version": "1",
     "generated_by": "reviewed_deterministic_template",
-    "output_category": "calibration_check_failed",
-    "status_label": "Calibration check failed",
-    "finding_sentence": "[SYNTHETIC DEV FIXTURE] Corrections agree but the applicability check failed.",
-    "limit_sentence": "No directional conclusion is shown."
+    "output_category": "consistent_across_tested_corrections",
+    "status_label": "Consistent across tested corrections",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] All tested effects fall within the practical margin.",
+    "limit_sentence": "Within margin is not equivalence."
   }
 }
