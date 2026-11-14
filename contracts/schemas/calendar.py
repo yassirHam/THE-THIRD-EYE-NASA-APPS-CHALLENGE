@@ -1,4 +1,4 @@
-﻿"""Monthly and weekly same-sensor calendar contracts."""
+"""Monthly and weekly same-sensor calendar contracts."""
 
 from __future__ import annotations
 
@@ -102,7 +102,7 @@ class MonthRecord(ObservationRecord):
     month: int = Field(ge=1, le=12)
     baseline_median: float | None = Field(default=None, ge=0.0)
     baseline_p90: float | None = Field(default=None, ge=0.0)
-    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"]
+    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None = None
     is_partial_period: bool = False
     comparison_eligible: bool
     partial_period_reason: PartialReason | None = None
@@ -133,13 +133,16 @@ class MonthRecord(ObservationRecord):
             if self.partial_period_reason != "snpp_record_ended_2026_11_02":
                 raise ValueError("a partial S-NPP month requires its cessation reason")
             if (
-                self.unusual_status != INCOMPLETE_LABEL
+                self.unusual_status not in (None, INCOMPLETE_LABEL)
                 or self.baseline_median is not None
                 or self.baseline_p90 is not None
             ):
                 raise ValueError("a partial month cannot carry baseline thresholds or normal/unusual labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
+        elif status == "complete":
+            if self.unusual_status in (None, INCOMPLETE_LABEL):
+                raise ValueError("a complete month requires an unusual-status decision")
         return self
 
 
@@ -149,8 +152,8 @@ class WeekRecord(ObservationRecord):
     week_number: int = Field(ge=1, le=53)
     start_date: date
     end_date: date
-    critical_status: Literal["critical", "not_critical", "insufficient_baseline", "not_applicable"]
-    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"]
+    critical_status: Literal["critical", "not_critical", "insufficient_baseline", "not_applicable"] | None = None
+    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None = None
     is_partial_period: bool = False
     partial_period_reason: PartialReason | None = None
     comparison_eligible: bool
@@ -165,8 +168,6 @@ class WeekRecord(ObservationRecord):
             raise ValueError("weekly records must cover exactly seven inclusive UTC dates")
         status = "complete"
         if self.sensor == "VIIRS_SNPP":
-            if self.end_date > SNPP_LAST_RECORD_DATE:
-                raise ValueError("S-NPP weekly records cannot extend past the confirmed record end")
             status = snpp_period_status(self.start_date, self.end_date)
         if status == "after_record":
             raise ValueError("S-NPP weekly records cannot start after the 2026-11-02 15:40 UTC cessation")
@@ -175,10 +176,19 @@ class WeekRecord(ObservationRecord):
                 raise ValueError("a week straddling the S-NPP cutoff must be partial and comparison-ineligible")
             if self.partial_period_reason != "snpp_record_ended_2026_11_02":
                 raise ValueError("a partial S-NPP week requires its cessation reason")
-            if self.critical_status != INCOMPLETE_LABEL or self.unusual_status != INCOMPLETE_LABEL:
+            if (
+                self.critical_status not in (None, INCOMPLETE_LABEL)
+                or self.unusual_status not in (None, INCOMPLETE_LABEL)
+            ):
                 raise ValueError("a partial week cannot carry critical, unusual, or normal labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
+        elif status == "complete":
+            if (
+                self.critical_status in (None, INCOMPLETE_LABEL)
+                or self.unusual_status in (None, INCOMPLETE_LABEL)
+            ):
+                raise ValueError("a complete week requires critical and unusual status decisions")
         return self
 
 
@@ -241,6 +251,30 @@ class WeeklyCalendarSeries(StrictContractModel):
         keys = [(record.year, record.week_number) for record in self.records]
         if len(keys) != len(set(keys)):
             raise ValueError("weekly series cannot contain duplicate periods")
+        if self.week_definition == "utc_iso_week":
+            for record in self.records:
+                if record.start_date.weekday() != 0:
+                    raise ValueError(
+                        f"UTC ISO week start date must be a Monday (weekday 0), got {record.start_date.isoformat()} (weekday {record.start_date.weekday()})"
+                    )
+                if record.end_date.weekday() != 6:
+                    raise ValueError(
+                        f"UTC ISO week end date must be a Sunday (weekday 6), got {record.end_date.isoformat()} (weekday {record.end_date.weekday()})"
+                    )
+                iso_year, iso_week, _ = record.start_date.isocalendar()
+                if record.year != iso_year or record.week_number != iso_week:
+                    raise ValueError(
+                        f"Record {record.year}-W{record.week_number} does not match "
+                        f"ISO calendar ({iso_year}-W{iso_week}) for start date {record.start_date.isoformat()}"
+                    )
+        elif self.week_definition == "fixed_7_day_bins":
+            for record in self.records:
+                expected_start = date(record.year, 1, 1) + timedelta(days=(record.week_number - 1) * 7)
+                if record.start_date != expected_start:
+                    raise ValueError(
+                        f"Fixed 7-day bin {record.year}-W{record.week_number} expected start date {expected_start.isoformat()}, "
+                        f"got {record.start_date.isoformat()}"
+                    )
         return self
 
 

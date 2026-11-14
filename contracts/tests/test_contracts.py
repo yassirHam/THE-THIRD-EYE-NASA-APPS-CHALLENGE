@@ -698,7 +698,7 @@ def test_manifest_partition_cache_key_must_match_identity() -> None:
 
 CAL = "sample_calendar.json"
 NOV = 5  # index of the partial November 2026 month in the fixture
-PARTIAL_WEEK = 4  # index of the 2026-10-27..2026-11-02 S-NPP week in the fixture
+PARTIAL_WEEK = 4  # index of the 2026-11-02..2026-11-08 S-NPP week 45 in the fixture
 
 
 def nov_month(cal: dict) -> dict:
@@ -709,13 +709,14 @@ def nov_month(cal: dict) -> dict:
 
 def partial_week(cal: dict) -> dict:
     rec = cal["weekly_series"][0]["records"][PARTIAL_WEEK]
-    assert rec["end_date"] == "2026-11-02"
+    assert rec["start_date"] == "2026-11-02" and rec["end_date"] == "2026-11-08"
+    assert (rec["year"], rec["week_number"]) == (2026, 45)
     return rec
 
 
 def test_partial_november_fixture_has_no_baseline_or_label() -> None:
     rec = nov_month(load(CAL))
-    assert rec["unusual_status"] == "not_applicable"
+    assert rec["unusual_status"] is None
     assert rec["baseline_median"] is None and rec["baseline_p90"] is None
     assert rec["is_partial_period"] and not rec["comparison_eligible"]
 
@@ -760,18 +761,18 @@ def test_complete_snpp_month_before_cutoff_still_labelled_normally() -> None:
 def test_partial_week_fixture_is_ineligible_and_unlabelled() -> None:
     wk = partial_week(load(CAL))
     assert wk["is_partial_period"] and not wk["comparison_eligible"]
-    assert wk["critical_status"] == "not_applicable" and wk["unusual_status"] == "not_applicable"
+    assert wk["critical_status"] is None and wk["unusual_status"] is None
 
 
-def test_snpp_week_ending_on_cutoff_day_cannot_be_eligible_with_available_rate() -> None:
+def test_snpp_week_straddling_cutoff_cannot_be_eligible_with_available_rate() -> None:
     cal = load(CAL)
     wk = partial_week(cal)
-    # P1 finding: available rate + comparison_eligible=True must be rejected.
+    # Available rate + comparison_eligible=True must be rejected for partial week.
     wk["availability"], wk["comparison_eligible"] = "available", True
     fails(MODELS[CAL], cal)
 
 
-def test_snpp_week_ending_on_cutoff_day_rejects_unflagged_or_unreasoned() -> None:
+def test_snpp_week_straddling_cutoff_rejects_unflagged_or_unreasoned() -> None:
     for field, value in (("is_partial_period", False), ("partial_period_reason", None)):
         cal = load(CAL)
         partial_week(cal)[field] = value
@@ -789,7 +790,7 @@ def test_snpp_week_ending_on_cutoff_day_rejects_unflagged_or_unreasoned() -> Non
         ("unusual_status", "insufficient_baseline"),
     ],
 )
-def test_snpp_week_ending_on_cutoff_day_rejects_labels(field: str, label: str) -> None:
+def test_snpp_week_straddling_cutoff_rejects_labels(field: str, label: str) -> None:
     cal = load(CAL)
     partial_week(cal)[field] = label
     fails(MODELS[CAL], cal)
@@ -799,6 +800,7 @@ def test_snpp_week_ending_day_before_cutoff_is_complete_and_eligible() -> None:
     cal = load(CAL)
     wk = partial_week(cal)
     wk.update(
+        year=2026, week_number=44,
         start_date="2026-10-26", end_date="2026-11-01", is_partial_period=False,
         partial_period_reason=None, comparison_eligible=True,
         critical_status="not_critical", unusual_status="not_unusual",
@@ -809,9 +811,67 @@ def test_snpp_week_ending_day_before_cutoff_is_complete_and_eligible() -> None:
 def test_snpp_week_past_cutoff_still_rejected() -> None:
     cal = load(CAL)
     wk = partial_week(cal)
-    wk.update(start_date="2026-10-28", end_date="2026-11-03")
+    # Week starting after cessation (Nov 9..15) is after_record
+    wk.update(year=2026, week_number=46, start_date="2026-11-09", end_date="2026-11-15")
     fails(MODELS[CAL], cal)
-    wk.update(start_date="2026-11-03", end_date="2026-11-09")
+
+
+def test_weekly_series_rejects_non_monday_start_for_iso_week() -> None:
+    cal = load(CAL)
+    # Tuesday to Monday period cannot be accepted as utc_iso_week
+    cal["weekly_series"][0]["records"][0].update(
+        start_date="2020-06-30", end_date="2020-07-06"
+    )
+    fails(MODELS[CAL], cal)
+
+
+def test_weekly_series_rejects_mismatched_iso_week_number() -> None:
+    cal = load(CAL)
+    # 2020-06-29 is ISO week 27, cannot claim week 28
+    cal["weekly_series"][0]["records"][0]["week_number"] = 28
+    fails(MODELS[CAL], cal)
+
+
+def test_weekly_series_fixed_7_day_bins_validation() -> None:
+    cal = load(CAL)
+    cal["weekly_series"][0]["week_definition"] = "fixed_7_day_bins"
+    # Bin 1 for 2020 starts 2020-01-01
+    cal["weekly_series"][0]["records"] = [
+        {
+            **cal["weekly_series"][0]["records"][0],
+            "year": 2020,
+            "week_number": 1,
+            "start_date": "2020-01-01",
+            "end_date": "2020-01-07",
+        }
+    ]
+    MODELS[CAL].model_validate_json(json.dumps(cal))
+    # Bin 1 with wrong start date fails
+    cal["weekly_series"][0]["records"][0]["start_date"] = "2020-01-02"
+    fails(MODELS[CAL], cal)
+
+
+def test_partial_period_accepts_not_applicable_sentinel() -> None:
+    cal = load(CAL)
+    # Both None (null) and "not_applicable" are valid representations for partial periods
+    nov_month(cal)["unusual_status"] = "not_applicable"
+    partial_week(cal)["critical_status"] = "not_applicable"
+    partial_week(cal)["unusual_status"] = "not_applicable"
+    MODELS[CAL].model_validate_json(json.dumps(cal))
+
+
+def test_complete_period_rejects_null_or_not_applicable() -> None:
+    cal = load(CAL)
+    rec = cal["monthly_series"][0]["records"][0]
+    rec["unusual_status"] = None
+    fails(MODELS[CAL], cal)
+    rec["unusual_status"] = "not_applicable"
+    fails(MODELS[CAL], cal)
+
+    wk = cal["weekly_series"][0]["records"][0]
+    wk["critical_status"] = None
+    fails(MODELS[CAL], cal)
+    wk["critical_status"] = "not_applicable"
     fails(MODELS[CAL], cal)
 
 

@@ -116,7 +116,7 @@ def calendar() -> dict:
             "VIIRS_SNPP", 2026, 11, 2, 100,
             is_partial_period=True, comparison_eligible=False,
             partial_period_reason="snpp_record_ended_2026_11_02",
-            unusual_status="not_applicable",
+            unusual_status=None,
         ),
     ]
     aqua = [month("MODIS_Aqua", 2020, 6, 5, 250), month("MODIS_Aqua", 2020, 7, 0, 250)]
@@ -143,8 +143,8 @@ def calendar() -> dict:
                     week("VIIRS_SNPP", 2020, 29, "2020-07-13", "2020-07-19", 0, 0),
                     week("VIIRS_SNPP", 2020, 30, "2020-07-20", "2020-07-26", 0, 0,
                          **missing("qa_unusable")),
-                    week("VIIRS_SNPP", 2026, 44, "2026-10-27", "2026-11-02", 3, 100,
-                         critical_status="not_applicable", unusual_status="not_applicable",
+                    week("VIIRS_SNPP", 2026, 45, "2026-11-02", "2026-11-08", 3, 100,
+                         critical_status=None, unusual_status=None,
                          is_partial_period=True, comparison_eligible=False,
                          partial_period_reason="snpp_record_ended_2026_11_02"),
                 ],
