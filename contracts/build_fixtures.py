@@ -164,8 +164,7 @@ def fill_record_coverage(rec: dict, inside: int | None = None, permitted: int | 
     reasons: list[str] = []
     if rec.get("partial_period_reason"):
         reasons.append(P2_REASON[rec["partial_period_reason"]])
-    if wholly_sealed:
-        reasons.append("partition_boundary")
+
     if inside == 0:
         reasons.append("sensor_not_operating")
     elif files == 0 and permitted > 0:
@@ -414,28 +413,35 @@ def reserved_cutoff_calendar() -> dict:
 
 
 def sealed_boundary_calendar() -> dict:
-    """Synthetic artifact with a PROPOSED (unregistered) sealed window read from config.
+    """Synthetic artifact with the sealed window and week-53 rule read from config.
 
-    Fabricated 2020-2021 dates appear here only to test sealed-boundary handling (P1).
+    Registration state is copied from config: registered only where a written owner decision is
+    recorded there (P1 decision 2026-11-14T23:19:58Z). Fabricated 2020-2021 dates appear here only
+    to test sealed-boundary handling; no sealed observation is used.
     """
     cfg = _config()
     reason = cfg["sealed_partial_reason"]["value"]
     data = calendar()
+    sw, w53 = cfg["sealed_window"], cfg["week_53_minimum"]
     data["sealed_window"] = {
-        "start": cfg["sealed_window"]["start"], "end": cfg["sealed_window"]["end"],
-        "registration_status": "proposed_unregistered", "registration_ref": None, "decision_date": None,
+        "start": sw["start"], "end": sw["end"],
+        "registration_status": "registered" if sw["registered"] else "proposed_unregistered",
+        "registration_ref": sw["reference"] if sw["registered"] else None,
+        "decision_date": sw["decision_date"] if sw["registered"] else None,
     }
     data["week_53_rule"] = {
-        "registration_status": "proposed_unregistered", "minimum_year_count": None,
-        "registration_ref": None, "decision_at": None,
+        "registration_status": "registered" if w53["registered"] else "proposed_unregistered",
+        "minimum_year_count": w53["value"] if w53["registered"] else None,
+        "registration_ref": w53["reference"] if w53["registered"] else None,
+        "decision_at": w53.get("decision_at") if w53["registered"] else None,
     }
     sealed = {"is_partial_period": True, "partial_period_reason": reason, "comparison_eligible": False,
               "critical_status": None, "unusual_status": None,
               "included_day_count": 2, "days_with_file": 2}  # only the 2 permitted days are used
     data["weekly_series"] = [{
         "sensor": "MODIS_Aqua", "policy_id": POLICY, "week_definition": "utc_iso_week",
-        # Synthetic: 2015-W53 has only two earlier ISO week-53 years (2004, 2009); the rule is
-        # unregistered, so the baseline is insufficient and the week carries no unusual label.
+        # Synthetic: 2015-W53 has only two earlier ISO week-53 years (2004, 2009), below the
+        # registered minimum of 3, so the baseline is insufficient and both labels are withheld (null).
         "week_53_baselines": [{
             "target_year": 2015, "status": "insufficient_baseline",
             "prior_observations": [
@@ -445,7 +451,7 @@ def sealed_boundary_calendar() -> dict:
         }],
         "records": [
             week("MODIS_Aqua", 2015, 53, "2015-12-28", "2016-01-03", 5, 100,
-                 critical_status="insufficient_baseline", unusual_status="insufficient_baseline"),
+                 critical_status=None, unusual_status=None),
             week("MODIS_Aqua", 2019, 52, "2019-12-23", "2019-12-29", 5, 100,
                  critical_status="not_critical", unusual_status="not_unusual"),
             week("MODIS_Aqua", 2020, 1, "2019-12-30", "2020-01-05", 5, 100, **sealed),

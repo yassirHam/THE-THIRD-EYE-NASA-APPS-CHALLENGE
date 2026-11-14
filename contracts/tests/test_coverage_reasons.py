@@ -398,7 +398,7 @@ def test_artifact_without_or_with_an_older_version_is_rejected(name: str) -> Non
     from contracts.build_fixtures import all_fixtures
     model = all_fixtures()[name][0]
     raw = load(name)
-    for bad in ("1.4.0", "1.3.0", "1.1.0"):
+    for bad in ("1.5.0", "1.4.0", "1.3.0", "1.1.0"):
         with pytest.raises(ValidationError):
             model.model_validate_json(json.dumps({**raw, "contract_version": bad}))
     del raw["contract_version"]
@@ -483,3 +483,56 @@ def test_manifest_and_artifact_must_share_data_classification() -> None:
     prod = cal.model_construct(**{**cal.__dict__, "data_classification": "production", "fixture_label": None})
     with pytest.raises(ManifestBindingError, match="classification"):
         assert_manifest_describes(man, prod, "calendar")
+
+
+# --------------------- 1.6.0: P1 decision 2026-11-14T23:19:58Z and P2 r11 (raw, no shim)
+
+SEALED_CAL = "sample_calendar_sealed_boundary.json"
+
+
+def _w53(data: dict) -> dict:
+    return week(data, "MODIS_Aqua", 2015, 53)
+
+
+def test_sealed_fixture_uses_p1_registered_window_and_week_53_rule() -> None:
+    data = load(SEALED_CAL)
+    assert data["sealed_window"]["registration_status"] == "registered"
+    assert data["week_53_rule"]["registration_status"] == "registered"
+    assert data["week_53_rule"]["minimum_year_count"] == 3
+    assert "bb1bf4c" in data["week_53_rule"]["registration_ref"]
+    assert ok(data)
+
+
+@pytest.mark.parametrize("field,value", [("unusual_status", "insufficient_baseline"),
+                                         ("unusual_status", "not_unusual"),
+                                         ("critical_status", "insufficient_baseline"),
+                                         ("critical_status", "not_critical")])
+def test_week_53_without_baseline_withholds_both_labels(field: str, value: str) -> None:
+    data = load(SEALED_CAL)
+    assert _w53(data)["unusual_status"] is None and _w53(data)["critical_status"] is None
+    _w53(data)[field] = value
+    assert not ok(data)
+
+
+def test_wholly_sealed_period_is_excluded_not_represented() -> None:
+    data = load(SEALED_CAL)
+    placeholder = copy.deepcopy(week(data, "MODIS_Aqua", 2022, 1))
+    placeholder.update(year=2020, week_number=23, start_date="2020-06-01", end_date="2020-06-07",
+                       detected_fire_cell_days=None, usable_land_cell_days=None, fire_activity_index=None,
+                       availability="unavailable", unavailable_reason="source_not_available", days_with_file=0,
+                       critical_status=None, unusual_status=None, comparison_eligible=False,
+                       paired_comparison_eligible=False)
+    for reasons in (["no_file"], ["partition_boundary"], []):
+        placeholder.update(coverage_state="unavailable", coverage_reasons=reasons)
+        trial = copy.deepcopy(data)
+        trial["weekly_series"][0]["records"].append(placeholder)
+        assert not ok(trial), reasons
+
+
+def test_straddling_weeks_stay_partial_ineligible_with_null_labels() -> None:
+    data = load(SEALED_CAL)
+    for n, y in ((1, 2020), (52, 2021)):
+        r = week(data, "MODIS_Aqua", y, n)
+        assert r["is_partial_period"] and not r["comparison_eligible"]
+        assert r["unusual_status"] is None and r["critical_status"] is None
+        assert r["coverage_reasons"] == ["partition_boundary"] and r["days_with_file"] <= 2

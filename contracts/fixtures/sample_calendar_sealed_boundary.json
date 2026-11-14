@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.5.0",
+  "contract_version": "1.6.0",
   "artifact_version": "synthetic-v1",
   "geometry_id": "geo-synthetic-primary",
   "period_spec": "synthetic-2023",
@@ -312,8 +312,8 @@
           "week_number": 53,
           "start_date": "2015-12-28",
           "end_date": "2016-01-03",
-          "critical_status": "insufficient_baseline",
-          "unusual_status": "insufficient_baseline",
+          "critical_status": null,
+          "unusual_status": null,
           "is_partial_period": false,
           "partial_period_reason": null,
           "comparison_eligible": true,
@@ -426,15 +426,15 @@
   "sealed_window": {
     "start": "2020-01-01",
     "end": "2021-12-31",
-    "registration_status": "proposed_unregistered",
-    "registration_ref": null,
-    "decision_date": null
+    "registration_status": "registered",
+    "registration_ref": "origin/handoff bb1bf4c: handoff/escalations/P1/P1-decision-week-definition-and-week53.md",
+    "decision_date": "2026-11-14"
   },
   "week_53_rule": {
-    "registration_status": "proposed_unregistered",
-    "minimum_year_count": null,
-    "registration_ref": null,
-    "decision_at": null
+    "registration_status": "registered",
+    "minimum_year_count": 3,
+    "registration_ref": "origin/handoff bb1bf4c: handoff/escalations/P1/P1-decision-week-definition-and-week53.md",
+    "decision_at": "2026-11-14T23:19:58Z"
   },
   "footprint_certification": {
     "geometry_id": "geo-synthetic-primary",
