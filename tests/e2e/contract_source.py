@@ -22,10 +22,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_CONTRACT_VERSION = "1.4.0"
-# origin/task/P4-B-001 a39dd3e "feat(contracts): 1.4.0 P2 r9 coverage states/reasons, ...":
+# origin/task/P4-B-001 8edec46 "fix(contracts): require contract_version; ..." (on a39dd3e):
 # contract 1.4.0 REVIEW CHECKPOINT (P4-B Round 10). Not yet approved by P1/P2 or verified by P5;
 # repin to the approved SHA before any exact-SHA verdict.
-PINNED_CONTRACT_COMMIT = "a39dd3e7c0c90ba62a60af8b7586cae6aea68357"
+PINNED_CONTRACT_COMMIT = "8edec4676b26237c81b11140587ad0989d28ba22"
 
 
 @dataclass(frozen=True)
