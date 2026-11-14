@@ -31,6 +31,20 @@
       "increase"
     ]
   },
+  "applicability_checks": [
+    {
+      "check_id": "support",
+      "status": "passed",
+      "detail": "Support minimum met."
+    },
+    {
+      "check_id": "late_period",
+      "status": "passed",
+      "detail": "Late-period check passed."
+    }
+  ],
+  "missing_evidence_reasons": [],
+  "conclusion_eligible": true,
   "reviewed_summary": {
     "template_id": "stage_a_default",
     "template_version": "1",

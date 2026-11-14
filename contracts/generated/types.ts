@@ -29,6 +29,14 @@ export interface BoundingBox {
   north: number;
 }
 
+export interface CacheKey {
+  artifact_version: string;
+  geometry_id: string;
+  period_spec: string;
+  method_id: string;
+  policy_id: string;
+}
+
 export interface CalendarArtifact {
   contract_version?: "1.0.0";
   artifact_version: string;
@@ -76,6 +84,9 @@ export interface ClaimAuditRecord {
   applicability_status: "applicable" | "failed_applicability" | "missing_required_support" | "out_of_domain";
   inference_status?: "not_established";
   practical_change: PracticalChange;
+  applicability_checks: ApplicabilityCheck[];
+  missing_evidence_reasons?: string[];
+  conclusion_eligible: boolean;
   reviewed_summary: ReviewedTemplateSummary;
   counterexample_interpretations?: Array<Record<string, unknown>>;
   reproducibility_sha256: string;
@@ -189,8 +200,8 @@ export interface LandingHeadlineMetric {
 }
 
 export interface MonthRecord {
-  detected_fire_cell_days: number;
-  usable_land_cell_days: number;
+  detected_fire_cell_days?: number | null;
+  usable_land_cell_days?: number | null;
   fire_activity_index?: number | null;
   availability: "available" | "unavailable";
   unavailable_reason?: "zero_usable_support" | "source_not_available" | "incomplete_footprint" | "qa_unusable" | null;
@@ -220,12 +231,13 @@ export interface PartitionFileRecord {
   sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
   row_count: number;
   file_size_bytes: number;
+  cache_key_sha256: string;
   sha256_checksum: string;
   coverage_status: "complete" | "partial" | "unavailable";
 }
 
 export interface PracticalChange {
-  category: "meaningful_increase" | "meaningful_decrease" | "within_practical_margin" | "unspecified" | "unavailable";
+  category: "meaningful_increase" | "meaningful_decrease" | "within_practical_margin" | "inconsistent_across_variants" | "unspecified" | "unavailable";
   magnitude?: number | null;
   effect_units?: string | null;
   practical_margin_tau?: number | null;
@@ -314,8 +326,8 @@ export interface SourceCollection {
 }
 
 export interface WeekRecord {
-  detected_fire_cell_days: number;
-  usable_land_cell_days: number;
+  detected_fire_cell_days?: number | null;
+  usable_land_cell_days?: number | null;
   fire_activity_index?: number | null;
   availability: "available" | "unavailable";
   unavailable_reason?: "zero_usable_support" | "source_not_available" | "incomplete_footprint" | "qa_unusable" | null;

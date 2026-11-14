@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from .schemas.common import CacheKey
 from .schemas import (
     CalendarArtifact,
     ClaimAuditRecord,
@@ -58,6 +59,17 @@ def obs(d: float, o: float) -> dict:
     }
 
 
+def missing(reason: str) -> dict:
+    """Genuinely missing data: D, O and R stay null; never zero."""
+    return {
+        "detected_fire_cell_days": None,
+        "usable_land_cell_days": None,
+        "fire_activity_index": None,
+        "availability": "unavailable",
+        "unavailable_reason": reason,
+    }
+
+
 def month(sensor: str, year: int, m: int, d: float, o: float, **kw) -> dict:
     base = {
         **obs(d, o),
@@ -96,6 +108,8 @@ def calendar() -> dict:
         month("VIIRS_SNPP", 2020, 6, 0, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="not_unusual"),
         month("VIIRS_SNPP", 2020, 7, 30, 200, baseline_median=1.0, baseline_p90=4.0, unusual_status="unusual"),
         month("VIIRS_SNPP", 2020, 8, 0, 0),
+        month("VIIRS_SNPP", 2020, 9, 0, 0, **missing("source_not_available")),
+        month("VIIRS_SNPP", 2020, 10, 0, 0, **missing("incomplete_footprint")),
         month(
             "VIIRS_SNPP", 2026, 11, 2, 100,
             is_partial_period=True, comparison_eligible=False,
@@ -124,6 +138,8 @@ def calendar() -> dict:
                     week("VIIRS_SNPP", 2020, 28, "2020-07-06", "2020-07-12", 0, 100,
                          critical_status="not_critical", unusual_status="not_unusual"),
                     week("VIIRS_SNPP", 2020, 29, "2020-07-13", "2020-07-19", 0, 0),
+                    week("VIIRS_SNPP", 2020, 30, "2020-07-20", "2020-07-26", 0, 0,
+                         **missing("qa_unusable")),
                 ],
             }
         ],
@@ -357,6 +373,10 @@ def manifest() -> dict:
         "partitions": [{
             "file_path": "synthetic/calendar.json", "geometry_id": GEO, "period_spec": PERIOD,
             "method_id": "artifact_manifest", "policy_id": POLICY, "sensor": "MODIS_Aqua",
+            "cache_key_sha256": CacheKey(
+                artifact_version="synthetic-v1", geometry_id=GEO, period_spec=PERIOD,
+                method_id="artifact_manifest", policy_id=POLICY,
+            ).digest(),
             "row_count": 2, "file_size_bytes": 2000,
             "sha256_checksum": hashlib.sha256(b"synthetic").hexdigest(),
             "coverage_status": "complete",
@@ -364,11 +384,11 @@ def manifest() -> dict:
     }
 
 
-def claim_audit() -> dict:
-    comp = comparison()
+def claim_audit(comp: dict | None = None, suffix: str = "") -> dict:
+    comp = comp or comparison()
     return {
         **identity("claim_audit"),
-        "record_id": "car-synthetic-1",
+        "record_id": f"car-synthetic-1{suffix}",
         "statement": "Synthetic claim: activity rose in the target period.",
         "analyst_entity": None, "target_region": "Synthetic Test Region",
         "date_range_tested": "2020-2021",
@@ -378,6 +398,9 @@ def claim_audit() -> dict:
         "applicability_status": comp["applicability_status"],
         "inference_status": "not_established",
         "practical_change": comp["practical_change"],
+        "applicability_checks": comp["applicability_checks"],
+        "missing_evidence_reasons": comp["missing_evidence_reasons"],
+        "conclusion_eligible": comp["conclusion_eligible"],
         "reviewed_summary": comp["reviewed_summary"],
         "counterexample_interpretations": [],
         "reproducibility_sha256": hashlib.sha256(b"synthetic-claim").hexdigest(),
@@ -421,6 +444,9 @@ def all_fixtures() -> dict[str, tuple[type, dict]]:
     }
     for name, data in comparisons().items():
         out[name] = (ComparisonResult, data)
+        if name != "sample_comparison_normal.json":
+            audit_name = name.replace("sample_comparison_", "sample_claim_audit_")
+            out[audit_name] = (ClaimAuditRecord, claim_audit(data, "-" + audit_name[:-5]))
     return out
 
 

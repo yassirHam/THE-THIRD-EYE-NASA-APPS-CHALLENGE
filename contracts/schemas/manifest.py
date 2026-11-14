@@ -1,4 +1,4 @@
-"""Static artifact provenance and partition manifest contracts."""
+﻿"""Static artifact provenance and partition manifest contracts."""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ class PartitionFileRecord(StrictContractModel):
     sensor: SensorType
     row_count: int = Field(ge=0)
     file_size_bytes: int = Field(ge=0)
+    cache_key_sha256: str = Field(pattern=r"^tte-cache-v1:[0-9a-f]{64}$")
     sha256_checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
     coverage_status: Literal["complete", "partial", "unavailable"]
 
@@ -65,4 +66,6 @@ class ProvenanceManifest(ArtifactIdentity):
             expected = (self.geometry_id, self.period_spec, self.method_id, self.policy_id)
             if key != expected:
                 raise ValueError("partition identity must match manifest compound identity")
+            if partition.cache_key_sha256 != self.cache_key().digest():
+                raise ValueError("partition cache key must be the digest of the five-field identity")
         return self

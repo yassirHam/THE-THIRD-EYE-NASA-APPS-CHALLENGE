@@ -14,6 +14,7 @@ from pydantic import TypeAdapter
 
 from .schemas import (
     CONTRACT_VERSION,
+    CacheKey,
     CalendarArtifact,
     ClaimAuditRecord,
     ComparisonResult,
@@ -25,6 +26,7 @@ from .schemas import (
 
 OUTPUT = Path(__file__).parent / "generated" / "types.ts"
 ROOTS = [
+    CacheKey,
     CalendarArtifact,
     ComparisonResult,
     ClaimAuditRecord,

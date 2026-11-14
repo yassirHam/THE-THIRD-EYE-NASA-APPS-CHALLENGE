@@ -30,14 +30,20 @@ WeekDefinition = Literal["utc_iso_week", "fixed_7_day_bins"]
 
 
 class ObservationRecord(StrictContractModel):
-    """D/O accounting with an explicit distinction between zero and unavailable."""
+    """D/O accounting that keeps four states apart.
 
-    detected_fire_cell_days: float = Field(ge=0.0)
-    usable_land_cell_days: float = Field(ge=0.0)
+    - available: O > 0, R = 1000*D/O (a valid 0.0 stays available).
+    - zero_usable_support: observed O == 0 (and D == 0); R is null.
+    - source_not_available / incomplete_footprint / qa_unusable: D, O and R are
+      all null. Missing data is never converted to zero.
+    """
+
+    detected_fire_cell_days: float | None = Field(default=None, ge=0.0)
+    usable_land_cell_days: float | None = Field(default=None, ge=0.0)
     fire_activity_index: float | None = Field(
         default=None,
         ge=0.0,
-        description="R = 1000 * D / O; null only when O is zero.",
+        description="R = 1000 * D / O; null unless O is positive.",
     )
     availability: ObservationAvailability
     unavailable_reason: UnavailableReason | None = None
@@ -46,26 +52,28 @@ class ObservationRecord(StrictContractModel):
     def validate_observation_accounting(self) -> "ObservationRecord":
         d = self.detected_fire_cell_days
         o = self.usable_land_cell_days
-        if d > o:
-            raise ValueError("D cannot exceed usable support O")
-        if o == 0.0:
-            if d != 0.0:
-                raise ValueError("D must be zero when O is zero")
-            if self.fire_activity_index is not None:
-                raise ValueError("R must be null when O is zero")
-            if self.availability != "unavailable" or self.unavailable_reason != "zero_usable_support":
-                raise ValueError("O=0 requires unavailable/zero_usable_support")
+        if self.availability == "available":
+            if self.unavailable_reason is not None:
+                raise ValueError("available observations cannot carry an unavailable reason")
+            if d is None or o is None or o <= 0.0 or self.fire_activity_index is None:
+                raise ValueError("available requires D, positive O, and R (a valid 0.0 is allowed)")
+            if d > o:
+                raise ValueError("D cannot exceed usable support O")
+            expected = 1000.0 * d / o
+            if not math.isclose(self.fire_activity_index, expected, rel_tol=1e-12, abs_tol=1e-12):
+                raise ValueError("R must equal 1000 * D / O at full artifact precision")
             return self
 
-        expected = 1000.0 * d / o
-        if self.fire_activity_index is None:
-            raise ValueError("R is required when O is positive, including a valid 0.0")
-        if not math.isclose(self.fire_activity_index, expected, rel_tol=1e-12, abs_tol=1e-12):
-            raise ValueError("R must equal 1000 * D / O at full artifact precision")
-        if self.availability != "available" or self.unavailable_reason is not None:
-            raise ValueError("positive usable support requires available with no unavailable reason")
+        if self.unavailable_reason is None:
+            raise ValueError("unavailable observations require a reason")
+        if self.fire_activity_index is not None:
+            raise ValueError("R must be null when the observation is unavailable")
+        if self.unavailable_reason == "zero_usable_support":
+            if o != 0.0 or d != 0.0:
+                raise ValueError("zero_usable_support means observed O == 0 and D == 0")
+        elif d is not None or o is not None:
+            raise ValueError("missing source/footprint/QA data must keep D and O null, not zero")
         return self
-
 
 class MonthRecord(ObservationRecord):
     sensor: SensorType
@@ -80,6 +88,8 @@ class MonthRecord(ObservationRecord):
 
     @model_validator(mode="after")
     def validate_month_labels(self) -> "MonthRecord":
+        if self.availability == "unavailable" and self.comparison_eligible:
+            raise ValueError("unavailable months cannot be comparison-eligible")
         baseline_missing = self.baseline_median is None or self.baseline_p90 is None
         if self.unusual_status in {"unusual", "not_unusual"}:
             if baseline_missing or self.fire_activity_index is None:
@@ -112,6 +122,8 @@ class WeekRecord(ObservationRecord):
 
     @model_validator(mode="after")
     def validate_week(self) -> "WeekRecord":
+        if self.availability == "unavailable" and self.comparison_eligible:
+            raise ValueError("unavailable weeks cannot be comparison-eligible")
         if self.end_date < self.start_date:
             raise ValueError("week end date must not precede start date")
         if (self.end_date - self.start_date).days != 6:

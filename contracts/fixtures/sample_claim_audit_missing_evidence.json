@@ -1,0 +1,57 @@
+{
+  "contract_version": "1.0.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2020-2021",
+  "method_id": "claim_audit",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "record_id": "car-synthetic-1-sample_claim_audit_missing_evidence",
+  "statement": "Synthetic claim: activity rose in the target period.",
+  "analyst_entity": null,
+  "target_region": "Synthetic Test Region",
+  "date_range_tested": "2020-2021",
+  "dataset_versions": [
+    "MODIS/061/MYD14A1",
+    "NASA/VIIRS/002/VNP14A1"
+  ],
+  "formulas_applied": [
+    "R = 1000 * D / O (sums before division)"
+  ],
+  "sensitivity_status": "unavailable",
+  "applicability_status": "missing_required_support",
+  "inference_status": "not_established",
+  "practical_change": {
+    "category": "unavailable"
+  },
+  "applicability_checks": [
+    {
+      "check_id": "support",
+      "status": "missing",
+      "detail": "Support not extracted."
+    }
+  ],
+  "missing_evidence_reasons": [
+    "Required leave-one-year-out variants ex_2016 and ex_2017 are missing."
+  ],
+  "conclusion_eligible": false,
+  "reviewed_summary": {
+    "template_id": "stage_a_default",
+    "template_version": "1",
+    "generated_by": "reviewed_deterministic_template",
+    "output_category": "not_enough_usable_evidence",
+    "status_label": "Not enough usable evidence",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] No eligible conclusion.",
+    "limit_sentence": "Required evidence is missing."
+  },
+  "counterexample_interpretations": [],
+  "reproducibility_sha256": "7d940a1c4d3e9a89868ef5ef9eac96ade9e99c7583b603bea6dd9bf729561638",
+  "verification_steps": [
+    "Check O > 0.",
+    "Check all registered variants."
+  ],
+  "evidence_artifact_versions": [
+    "synthetic-v1"
+  ]
+}

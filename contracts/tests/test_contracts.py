@@ -11,7 +11,13 @@ from pydantic import ValidationError
 
 from contracts import build_fixtures as bf
 from contracts import generate_ts
-from contracts.schemas import ComparisonResult
+from contracts.schemas import (
+    CacheKey,
+    CacheKeyMismatch,
+    ClaimAuditRecord,
+    ComparisonResult,
+    assert_cache_key_match,
+)
 
 FIXTURES = Path(bf.FIXTURE_DIR)
 MODELS = {name: model for name, (model, _) in bf.all_fixtures().items()}
@@ -157,12 +163,12 @@ def test_threshold_tie_is_not_unusual() -> None:
 
 def test_snpp_partial_november_and_no_extension() -> None:
     cal = load("sample_calendar.json")
-    nov = cal["monthly_series"][0]["records"][3]
+    nov = cal["monthly_series"][0]["records"][5]
     assert nov["is_partial_period"] and not nov["comparison_eligible"]
     nov["comparison_eligible"] = True
     fails(MODELS["sample_calendar.json"], cal)
     cal = load("sample_calendar.json")
-    cal["monthly_series"][0]["records"][3]["month"] = 12
+    cal["monthly_series"][0]["records"][5]["month"] = 12
     fails(MODELS["sample_calendar.json"], cal)
 
 
@@ -241,4 +247,239 @@ def test_manifest_cessation_date_and_checksum() -> None:
     man = load("sample_manifest.json")
     assert man["snpp_cessation_date"] == "2026-11-02"
     man["partitions"][0]["sha256_checksum"] = "xyz"
+    fails(MODELS["sample_manifest.json"], man)
+
+
+# ---- Fix 1: headline / sensitivity derived from registered effects -------------------
+
+
+def set_effects(data: dict, deltas: list[float]) -> dict:
+    for v, d in zip(data["registered_variants"], deltas):
+        v["effect_delta"] = d
+        v["direction"] = "increase" if d > 0 else "decrease" if d < 0 else "no_change"
+    return data
+
+
+def test_headline_cannot_contradict_effects() -> None:
+    data = load("sample_comparison_normal.json")
+    data["headline_direction"] = "decrease"
+    fails(ComparisonResult, data)
+    data["headline_direction"] = "no_change"
+    fails(ComparisonResult, data)
+
+
+def test_headline_for_within_margin_must_be_no_change() -> None:
+    data = load("sample_comparison_within_margin_opposite_sign.json")
+    data["headline_direction"] = "increase"
+    fails(ComparisonResult, data)
+
+
+def test_stable_label_rejected_when_effects_cross_margin() -> None:
+    data = load("sample_comparison_normal.json")  # tau 0.5, all increase
+    set_effects(data, [2.0, 0.1, 1.8])  # one variant falls within the margin
+    fails(ComparisonResult, data)
+
+
+def test_stable_label_rejected_when_signs_conflict_without_margin() -> None:
+    data = load("sample_comparison_sensitive.json")
+    data["sensitivity_status"] = "stable_across_displayed_settings"
+    data["reviewed_summary"]["output_category"] = "consistent_across_tested_corrections"
+    data["reviewed_summary"]["status_label"] = "Consistent across tested corrections"
+    data["headline_direction"] = "increase"
+    fails(ComparisonResult, data)
+
+
+def test_sensitive_label_rejected_when_effects_agree() -> None:
+    data = load("sample_comparison_normal.json")
+    data["sensitivity_status"] = "sensitive_to_assumptions"
+    data["headline_direction"] = "ambiguous"
+    data["reviewed_summary"]["output_category"] = "depends_on_the_correction"
+    data["reviewed_summary"]["status_label"] = "Depends on the correction"
+    fails(ComparisonResult, data)
+
+
+def test_sensitive_requires_ambiguous_headline() -> None:
+    data = load("sample_comparison_sensitive.json")
+    data["headline_direction"] = "increase"
+    fails(ComparisonResult, data)
+
+
+def test_sensitive_with_margin_uses_inconsistent_category() -> None:
+    data = load("sample_comparison_sensitive.json")
+    set_effects(data, [2.0, 0.2, 0.1])  # tau 0.5: increase vs within
+    data["practical_change"] = {
+        "category": "inconsistent_across_variants", "magnitude": 2.0, "effect_units": "R points",
+        "practical_margin_tau": 0.5, "observed_signs": ["increase"],
+    }
+    ComparisonResult.model_validate_json(json.dumps(data))
+    data["practical_change"]["category"] = "meaningful_increase"
+    fails(ComparisonResult, data)
+
+
+def test_magnitude_and_signs_must_match_effects() -> None:
+    data = load("sample_comparison_normal.json")
+    data["practical_change"]["magnitude"] = 0.1
+    fails(ComparisonResult, data)
+    data = load("sample_comparison_normal.json")
+    data["practical_change"]["observed_signs"] = ["decrease"]
+    fails(ComparisonResult, data)
+
+
+def test_boundary_effect_equal_to_tau_is_within_margin() -> None:
+    data = load("sample_comparison_within_margin_opposite_sign.json")
+    set_effects(data, [0.5, -0.5, 0.0])
+    data["practical_change"]["magnitude"] = 0.5
+    data["practical_change"]["observed_signs"] = ["increase", "decrease", "no_change"]
+    ComparisonResult.model_validate_json(json.dumps(data))
+
+
+def test_missing_variant_cannot_publish_category_or_direction() -> None:
+    data = load("sample_comparison_missing_evidence.json")
+    data["headline_direction"] = "increase"
+    fails(ComparisonResult, data)
+
+
+# ---- Fix 2: claim audit preserves failed / missing / out-of-domain -----------------
+
+AUDIT = {
+    "failed_applicability": "sample_claim_audit_stable_failed_applicability.json",
+    "missing_required_support": "sample_claim_audit_missing_evidence.json",
+    "out_of_domain": "sample_claim_audit_out_of_domain.json",
+}
+CATEGORY = {
+    "failed_applicability": ("calibration_check_failed", "Calibration check failed"),
+    "missing_required_support": ("not_enough_usable_evidence", "Not enough usable evidence"),
+    "out_of_domain": ("outside_evaluated_calibration", "Outside evaluated calibration"),
+}
+
+
+@pytest.mark.parametrize("status", sorted(AUDIT))
+def test_claim_audit_summary_cannot_swap_applicability_state(status: str) -> None:
+    assert load(AUDIT[status])["applicability_status"] == status
+    for other, (cat, label) in CATEGORY.items():
+        if other == status:
+            continue
+        data = load(AUDIT[status])
+        data["reviewed_summary"]["output_category"] = cat
+        data["reviewed_summary"]["status_label"] = label
+        fails(ClaimAuditRecord, data)
+
+
+@pytest.mark.parametrize("status", sorted(AUDIT))
+def test_claim_audit_cannot_hide_adverse_state_as_consistent(status: str) -> None:
+    data = load(AUDIT[status])
+    data["reviewed_summary"]["output_category"] = "consistent_across_tested_corrections"
+    data["reviewed_summary"]["status_label"] = "Consistent across tested corrections"
+    fails(ClaimAuditRecord, data)
+    data = load(AUDIT[status])
+    data["conclusion_eligible"] = True
+    fails(ClaimAuditRecord, data)
+
+
+def test_claim_audit_applicability_needs_matching_check() -> None:
+    data = load(AUDIT["failed_applicability"])
+    for c in data["applicability_checks"]:
+        c["status"] = "passed"
+    fails(ClaimAuditRecord, data)
+
+
+# ---- Fix 3: genuinely missing data stays missing, with the right reason --------------
+
+
+@pytest.mark.parametrize("idx,reason", [(3, "source_not_available"), (4, "incomplete_footprint")])
+def test_missing_source_or_footprint_keeps_null_d_o(idx: int, reason: str) -> None:
+    cal = load("sample_calendar.json")
+    rec = cal["monthly_series"][0]["records"][idx]
+    assert rec["unavailable_reason"] == reason
+    assert rec["detected_fire_cell_days"] is None and rec["usable_land_cell_days"] is None
+    assert rec["fire_activity_index"] is None and rec["comparison_eligible"] is False
+    # Zero-filling missing data is rejected.
+    rec["detected_fire_cell_days"] = 0.0
+    rec["usable_land_cell_days"] = 0.0
+    fails(MODELS["sample_calendar.json"], cal)
+
+
+def test_missing_data_cannot_be_labelled_zero_support() -> None:
+    cal = load("sample_calendar.json")
+    cal["monthly_series"][0]["records"][3]["unavailable_reason"] = "zero_usable_support"
+    fails(MODELS["sample_calendar.json"], cal)
+
+
+def test_observed_zero_support_cannot_be_labelled_missing_source() -> None:
+    cal = load("sample_calendar.json")
+    rec = cal["monthly_series"][0]["records"][2]
+    assert rec["unavailable_reason"] == "zero_usable_support"
+    rec["unavailable_reason"] = "source_not_available"
+    fails(MODELS["sample_calendar.json"], cal)
+
+
+def test_unavailable_requires_reason_and_weekly_missing_is_null() -> None:
+    cal = load("sample_calendar.json")
+    wk = cal["weekly_series"][0]["records"][3]
+    assert wk["unavailable_reason"] == "qa_unusable" and wk["usable_land_cell_days"] is None
+    wk["unavailable_reason"] = None
+    fails(MODELS["sample_calendar.json"], cal)
+
+
+def test_available_requires_real_values_and_unavailable_not_eligible() -> None:
+    cal = load("sample_calendar.json")
+    cal["monthly_series"][0]["records"][0]["usable_land_cell_days"] = None
+    fails(MODELS["sample_calendar.json"], cal)
+    cal = load("sample_calendar.json")
+    cal["monthly_series"][0]["records"][3]["comparison_eligible"] = True
+    fails(MODELS["sample_calendar.json"], cal)
+
+
+# ---- Fix 4: five-field cache key ------------------------------------------------------
+
+BASE_KEY = dict(
+    artifact_version="v1", geometry_id="g", period_spec="p", method_id="m", policy_id="pol"
+)
+
+
+def test_cache_key_is_exactly_five_fields_and_stable() -> None:
+    assert list(CacheKey.model_fields) == [
+        "artifact_version", "geometry_id", "period_spec", "method_id", "policy_id"
+    ]
+    assert CacheKey(**BASE_KEY).digest() == CacheKey(**BASE_KEY).digest()
+    assert CacheKey(**BASE_KEY).digest().startswith("tte-cache-v1:")
+
+
+@pytest.mark.parametrize("field", sorted(BASE_KEY))
+def test_changing_any_one_field_changes_the_key(field: str) -> None:
+    other = dict(BASE_KEY, **{field: BASE_KEY[field] + "-x"})
+    assert CacheKey(**other).digest() != CacheKey(**BASE_KEY).digest()
+
+
+def test_cache_key_is_delimiter_safe() -> None:
+    a = CacheKey(**dict(BASE_KEY, geometry_id="a|b", period_spec="c"))
+    b = CacheKey(**dict(BASE_KEY, geometry_id="a", period_spec="b|c"))
+    assert a.digest() != b.digest()
+
+
+@pytest.mark.parametrize("field", sorted(BASE_KEY))
+def test_consumer_check_rejects_cross_key_reuse(field: str) -> None:
+    art = ComparisonResult.model_validate_json((FIXTURES / "sample_comparison_normal.json").read_text("utf-8"))
+    good = art.cache_key()
+    assert_cache_key_match(good, art)
+    bad = good.model_copy(update={field: getattr(good, field) + "-other"})
+    with pytest.raises(CacheKeyMismatch, match=field):
+        assert_cache_key_match(bad, art)
+
+
+def test_subarea_cannot_borrow_parent_cache_key() -> None:
+    parent = ComparisonResult.model_validate_json((FIXTURES / "sample_comparison_normal.json").read_text("utf-8"))
+    sub = parent.model_copy(update={"geometry_id": "geo-synthetic-sub-a"})
+    with pytest.raises(CacheKeyMismatch, match="geometry_id"):
+        assert_cache_key_match(parent.cache_key(), sub)
+
+
+def test_manifest_partition_cache_key_must_match_identity() -> None:
+    man = load("sample_manifest.json")
+    expected = CacheKey(
+        artifact_version=man["artifact_version"], geometry_id=man["geometry_id"],
+        period_spec=man["period_spec"], method_id=man["method_id"], policy_id=man["policy_id"],
+    ).digest()
+    assert man["partitions"][0]["cache_key_sha256"] == expected
+    man["artifact_version"] = "synthetic-v2"
     fails(MODELS["sample_manifest.json"], man)

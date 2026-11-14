@@ -1,4 +1,4 @@
-"""Stage A calibration comparison and independent status dimensions."""
+﻿"""Stage A calibration comparison and independent status dimensions."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ PracticalChangeCategory = Literal[
     "meaningful_increase",
     "meaningful_decrease",
     "within_practical_margin",
+    "inconsistent_across_variants",
     "unspecified",
     "unavailable",
 ]
@@ -46,6 +47,66 @@ StatusLabel = Literal[
     "Calibration check failed",
 ]
 
+
+SUMMARY_LABELS: dict[str, str] = {
+    "consistent_across_tested_corrections": "Consistent across tested corrections",
+    "depends_on_the_correction": "Depends on the correction",
+    "not_enough_usable_evidence": "Not enough usable evidence",
+    "outside_evaluated_calibration": "Outside evaluated calibration",
+    "calibration_check_failed": "Calibration check failed",
+}
+_CHECK_FOR_APPLICABILITY = {
+    "applicable": "passed",
+    "failed_applicability": "failed",
+    "missing_required_support": "missing",
+    "out_of_domain": "out_of_domain",
+}
+
+
+def expected_output_category(applicability: str, sensitivity: str) -> str:
+    """Failed, missing, and out-of-domain stay distinct; none is hidden under sensitivity."""
+    fixed = {
+        "failed_applicability": "calibration_check_failed",
+        "missing_required_support": "not_enough_usable_evidence",
+        "out_of_domain": "outside_evaluated_calibration",
+    }.get(applicability)
+    if fixed is not None:
+        return fixed
+    return {
+        "unavailable": "not_enough_usable_evidence",
+        "sensitive_to_assumptions": "depends_on_the_correction",
+        "stable_across_displayed_settings": "consistent_across_tested_corrections",
+    }[sensitivity]
+
+
+def is_conclusion_eligible(applicability: str, sensitivity: str) -> bool:
+    return applicability == "applicable" and sensitivity != "unavailable"
+
+
+def check_applicability_consistency(status: str, checks: "list[ApplicabilityCheck]") -> None:
+    states = {check.status for check in checks}
+    if _CHECK_FOR_APPLICABILITY[status] not in states:
+        raise ValueError("overall applicability must be supported by a matching check state")
+    if status == "applicable" and states != {"passed"}:
+        raise ValueError("applicable requires every applicability check to pass")
+
+
+def effect_category(delta: float, tau: float | None) -> str:
+    """Frozen Stage A rule: Delta > tau increase, Delta < -tau decrease, else within margin.
+
+    With no registered margin, only the sign is compared (zero is no_change).
+    """
+    if tau is None:
+        return "increase" if delta > 0 else "decrease" if delta < 0 else "no_change"
+    return "increase" if delta > tau else "decrease" if delta < -tau else "within"
+
+
+_DIRECTION_FOR = {"increase": "increase", "decrease": "decrease", "within": "no_change", "no_change": "no_change"}
+_PRACTICAL_FOR = {
+    "increase": "meaningful_increase",
+    "decrease": "meaningful_decrease",
+    "within": "within_practical_margin",
+}
 
 class CalibrationFactorVariant(StrictContractModel):
     variant_id: str = Field(min_length=1)
@@ -105,14 +166,7 @@ class ReviewedTemplateSummary(StrictContractModel):
 
     @model_validator(mode="after")
     def validate_label_pair(self) -> "ReviewedTemplateSummary":
-        expected = {
-            "consistent_across_tested_corrections": "Consistent across tested corrections",
-            "depends_on_the_correction": "Depends on the correction",
-            "not_enough_usable_evidence": "Not enough usable evidence",
-            "outside_evaluated_calibration": "Outside evaluated calibration",
-            "calibration_check_failed": "Calibration check failed",
-        }[self.output_category]
-        if self.status_label != expected:
+        if self.status_label != SUMMARY_LABELS[self.output_category]:
             raise ValueError("plain status label must match the deterministic output category")
         return self
 
@@ -139,52 +193,55 @@ class ComparisonResult(ArtifactIdentity):
         if len(supplied_ids) != len(set(supplied_ids)):
             raise ValueError("registered variant IDs must be unique")
         supplied = set(supplied_ids)
+        complete = required.issubset(supplied)
 
-        if self.sensitivity_status == "unavailable":
-            if not self.missing_evidence_reasons or required.issubset(supplied):
-                raise ValueError("unavailable sensitivity requires a missing required variant and reason")
-        elif not required.issubset(supplied):
-            raise ValueError("available sensitivity requires every registered variant")
-
-        check_states = {check.status for check in self.applicability_checks}
-        expected_check = {
-            "applicable": "passed",
-            "failed_applicability": "failed",
-            "missing_required_support": "missing",
-            "out_of_domain": "out_of_domain",
-        }[self.applicability_status]
-        if expected_check not in check_states:
-            raise ValueError("overall applicability must be supported by a matching check state")
-        if self.applicability_status == "applicable" and check_states != {"passed"}:
-            raise ValueError("applicable requires every applicability check to pass")
-
-        expected_output = {
-            "failed_applicability": "calibration_check_failed",
-            "missing_required_support": "not_enough_usable_evidence",
-            "out_of_domain": "outside_evaluated_calibration",
-        }.get(self.applicability_status)
-        if expected_output is None:
-            expected_output = (
-                "not_enough_usable_evidence"
-                if self.sensitivity_status == "unavailable"
-                else "depends_on_the_correction"
-                if self.sensitivity_status == "sensitive_to_assumptions"
-                else "consistent_across_tested_corrections"
-            )
-        if self.reviewed_summary.output_category != expected_output:
+        check_applicability_consistency(self.applicability_status, self.applicability_checks)
+        if self.reviewed_summary.output_category != expected_output_category(
+            self.applicability_status, self.sensitivity_status
+        ):
             raise ValueError("reviewed summary must preserve sensitivity and applicability status")
-
-        eligible = self.applicability_status == "applicable" and self.sensitivity_status != "unavailable"
+        eligible = is_conclusion_eligible(self.applicability_status, self.sensitivity_status)
         if self.conclusion_eligible != eligible:
             raise ValueError("conclusion eligibility must preserve missing/failed/out-of-domain distinctions")
-        if not eligible and self.headline_direction not in {"ambiguous", "unavailable"}:
-            raise ValueError("ineligible comparisons cannot publish a directional headline")
 
-        if self.practical_change.category == "within_practical_margin":
-            tau = self.practical_change.practical_margin_tau
-            if tau is None or any(abs(v.effect_delta) > tau for v in self.registered_variants):
-                raise ValueError("within-margin requires every supplied variant to fall within tau")
-            expected_magnitude = max((abs(v.effect_delta) for v in self.registered_variants), default=0.0)
-            if not math.isclose(self.practical_change.magnitude or 0.0, expected_magnitude, rel_tol=1e-12, abs_tol=1e-12):
-                raise ValueError("within-margin magnitude must be the maximum absolute supplied effect")
+        pc = self.practical_change
+        if not complete:
+            if self.sensitivity_status != "unavailable" or not self.missing_evidence_reasons:
+                raise ValueError("a missing required variant forces unavailable sensitivity with a reason")
+            if pc.category != "unavailable" or self.headline_direction != "unavailable":
+                raise ValueError("missing required variants cannot publish a practical category or direction")
+            return self
+        if self.sensitivity_status == "unavailable":
+            raise ValueError("unavailable sensitivity requires a missing required variant")
+
+        # Frozen sensitivity rule: recompute from full-precision effects.
+        variants = [v for v in self.registered_variants if v.variant_id in required]
+        tau = pc.practical_margin_tau
+        cats = {effect_category(v.effect_delta, tau) for v in variants}
+        stable = len(cats) == 1
+        if stable != (self.sensitivity_status == "stable_across_displayed_settings"):
+            raise ValueError("sensitivity label contradicts the registered effects under the frozen rule")
+
+        if set(pc.observed_signs) != {v.direction for v in variants}:
+            raise ValueError("observed signs must equal the registered variants' directions")
+        magnitude = max(abs(v.effect_delta) for v in variants)
+        if pc.magnitude is None or not math.isclose(pc.magnitude, magnitude, rel_tol=1e-12, abs_tol=1e-12):
+            raise ValueError("magnitude must be the maximum absolute registered effect")
+        if tau is None:
+            expected_category = "unspecified"
+        elif stable:
+            expected_category = _PRACTICAL_FOR[next(iter(cats))]
+        else:
+            expected_category = "inconsistent_across_variants"
+        if pc.category != expected_category:
+            raise ValueError("practical category contradicts the registered effects and margin")
+
+        if not eligible:
+            if self.headline_direction not in {"ambiguous", "unavailable"}:
+                raise ValueError("ineligible comparisons cannot publish a directional headline")
+        elif stable:
+            if self.headline_direction != _DIRECTION_FOR[next(iter(cats))]:
+                raise ValueError("directional headline contradicts the registered effects")
+        elif self.headline_direction != "ambiguous":
+            raise ValueError("conflicting registered effects require an ambiguous headline")
         return self
