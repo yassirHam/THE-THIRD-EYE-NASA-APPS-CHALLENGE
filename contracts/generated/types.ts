@@ -210,7 +210,7 @@ export interface MonthRecord {
   month: number;
   baseline_median?: number | null;
   baseline_p90?: number | null;
-  unusual_status?: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
+  unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
   comparison_eligible: boolean;
   partial_period_reason?: "snpp_record_ended_2026_11_02" | null;
@@ -336,8 +336,8 @@ export interface WeekRecord {
   week_number: number;
   start_date: string;
   end_date: string;
-  critical_status?: "critical" | "not_critical" | "insufficient_baseline" | "not_applicable" | null;
-  unusual_status?: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
+  critical_status: "critical" | "not_critical" | "insufficient_baseline" | "not_applicable" | null;
+  unusual_status: "unusual" | "not_unusual" | "insufficient_baseline" | "not_applicable" | null;
   is_partial_period?: boolean;
   partial_period_reason?: "snpp_record_ended_2026_11_02" | null;
   comparison_eligible: boolean;

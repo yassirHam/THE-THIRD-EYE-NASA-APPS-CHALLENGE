@@ -30,7 +30,8 @@ WeekDefinition = Literal["utc_iso_week", "fixed_7_day_bins"]
 PartialReason = Literal["snpp_record_ended_2026_11_02"]
 SNPP_CESSATION_AT = datetime(2026, 11, 2, 15, 40, tzinfo=timezone.utc)
 SNPP_LAST_RECORD_DATE = date(2026, 11, 2)
-# Incomplete periods never receive normal-baseline, unusual, or critical labels.
+# Incomplete periods carry explicit null labels. The "not_applicable" sentinel is
+# rejected on every period; it remains in the label enums only for type stability.
 INCOMPLETE_LABEL = "not_applicable"
 
 
@@ -102,7 +103,8 @@ class MonthRecord(ObservationRecord):
     month: int = Field(ge=1, le=12)
     baseline_median: float | None = Field(default=None, ge=0.0)
     baseline_p90: float | None = Field(default=None, ge=0.0)
-    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None = None
+    # Required key, nullable value: a partial month must carry an explicit JSON null.
+    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None
     is_partial_period: bool = False
     comparison_eligible: bool
     partial_period_reason: PartialReason | None = None
@@ -133,11 +135,13 @@ class MonthRecord(ObservationRecord):
             if self.partial_period_reason != "snpp_record_ended_2026_11_02":
                 raise ValueError("a partial S-NPP month requires its cessation reason")
             if (
-                self.unusual_status not in (None, INCOMPLETE_LABEL)
+                self.unusual_status is not None
                 or self.baseline_median is not None
                 or self.baseline_p90 is not None
             ):
-                raise ValueError("a partial month cannot carry baseline thresholds or normal/unusual labels")
+                raise ValueError(
+                    "a partial month requires an explicit null unusual label and null baseline thresholds"
+                )
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
         elif status == "complete":
@@ -156,8 +160,9 @@ class WeekRecord(ObservationRecord):
     week_number: int = Field(ge=1, le=53)
     start_date: date
     end_date: date
-    critical_status: Literal["critical", "not_critical", "insufficient_baseline", "not_applicable"] | None = None
-    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None = None
+    # Required keys, nullable values: a partial week must carry explicit JSON nulls.
+    critical_status: Literal["critical", "not_critical", "insufficient_baseline", "not_applicable"] | None
+    unusual_status: Literal["unusual", "not_unusual", "insufficient_baseline", "not_applicable"] | None
     is_partial_period: bool = False
     partial_period_reason: PartialReason | None = None
     comparison_eligible: bool
@@ -180,11 +185,8 @@ class WeekRecord(ObservationRecord):
                 raise ValueError("a week straddling the S-NPP cutoff must be partial and comparison-ineligible")
             if self.partial_period_reason != "snpp_record_ended_2026_11_02":
                 raise ValueError("a partial S-NPP week requires its cessation reason")
-            if (
-                self.critical_status not in (None, INCOMPLETE_LABEL)
-                or self.unusual_status not in (None, INCOMPLETE_LABEL)
-            ):
-                raise ValueError("a partial week cannot carry critical, unusual, or normal labels")
+            if self.critical_status is not None or self.unusual_status is not None:
+                raise ValueError("a partial week requires explicit null critical and unusual labels")
         elif self.is_partial_period or self.partial_period_reason is not None:
             raise ValueError("partial-period flags are only valid for periods straddling the S-NPP cutoff")
         elif status == "complete":

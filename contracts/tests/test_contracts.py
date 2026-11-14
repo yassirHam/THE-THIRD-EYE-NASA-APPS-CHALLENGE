@@ -851,12 +851,109 @@ def test_weekly_series_fixed_7_day_bins_validation() -> None:
     fails(MODELS[CAL], cal)
 
 
-def test_partial_period_accepts_not_applicable_sentinel() -> None:
+def test_partial_period_fixtures_carry_explicit_json_nulls() -> None:
     cal = load(CAL)
-    # Both None (null) and "not_applicable" are valid representations for partial periods
-    nov_month(cal)["unusual_status"] = "not_applicable"
-    partial_week(cal)["critical_status"] = "not_applicable"
-    partial_week(cal)["unusual_status"] = "not_applicable"
+    month = nov_month(cal)
+    week = partial_week(cal)
+    for rec, keys in ((month, ["unusual_status"]), (week, ["critical_status", "unusual_status"])):
+        for key in keys:
+            assert key in rec and rec[key] is None, key
+        assert rec["is_partial_period"] is True and rec["comparison_eligible"] is False
+    assert month["baseline_median"] is None and month["baseline_p90"] is None
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["unusual", "not_unusual", "insufficient_baseline", "not_applicable"],
+)
+def test_partial_month_requires_null_not_any_label_or_sentinel(label: str) -> None:
+    cal = load(CAL)
+    nov_month(cal)["unusual_status"] = label
+    fails(MODELS[CAL], cal)
+
+
+@pytest.mark.parametrize(
+    "field,label",
+    [
+        ("critical_status", "critical"),
+        ("critical_status", "not_critical"),
+        ("critical_status", "insufficient_baseline"),
+        ("critical_status", "not_applicable"),
+        ("unusual_status", "unusual"),
+        ("unusual_status", "not_unusual"),
+        ("unusual_status", "insufficient_baseline"),
+        ("unusual_status", "not_applicable"),
+    ],
+)
+def test_partial_week_requires_null_not_any_label_or_sentinel(field: str, label: str) -> None:
+    cal = load(CAL)
+    partial_week(cal)[field] = label
+    fails(MODELS[CAL], cal)
+
+
+def test_partial_month_requires_label_key_to_be_present() -> None:
+    cal = load(CAL)
+    del nov_month(cal)["unusual_status"]  # omitted is not the same as an explicit null
+    fails(MODELS[CAL], cal)
+
+
+@pytest.mark.parametrize("key", ["critical_status", "unusual_status"])
+def test_partial_week_requires_label_keys_to_be_present(key: str) -> None:
+    cal = load(CAL)
+    del partial_week(cal)[key]
+    fails(MODELS[CAL], cal)
+
+
+def test_label_keys_are_required_on_complete_periods_too() -> None:
+    cal = load(CAL)
+    del cal["monthly_series"][0]["records"][0]["unusual_status"]
+    fails(MODELS[CAL], cal)
+    cal = load(CAL)
+    del cal["weekly_series"][0]["records"][0]["critical_status"]
+    fails(MODELS[CAL], cal)
+
+
+def test_partial_periods_with_explicit_null_labels_stay_comparison_ineligible() -> None:
+    for locate, rec_name in ((nov_month, "month"), (partial_week, "week")):
+        cal = load(CAL)
+        locate(cal)["comparison_eligible"] = True  # labels are valid nulls; eligibility must still fail
+        fails(MODELS[CAL], cal)
+        cal = load(CAL)
+        locate(cal)["is_partial_period"] = False
+        fails(MODELS[CAL], cal)
+
+
+def test_partial_period_with_null_labels_validates() -> None:
+    MODELS[CAL].model_validate_json((FIXTURES / CAL).read_text(encoding="utf-8"))
+
+
+def test_partial_month_rejects_baseline_thresholds_even_with_null_label() -> None:
+    for field in ("baseline_median", "baseline_p90"):
+        cal = load(CAL)
+        nov_month(cal)[field] = 1.0
+        fails(MODELS[CAL], cal)
+
+
+def test_available_aggregate_never_implies_whole_footprint_completeness() -> None:
+    """Whole-footprint completeness is conditional on P2's documented certification.
+
+    The contract must not derive it from `availability == "available"`: no calendar
+    field claims completeness, and an incomplete footprint can only be carried as an
+    unavailable record with null D/O. A completeness/certification field needs a
+    separate, P2-approved contract revision.
+    """
+    from contracts.schemas.calendar import CalendarArtifact, MonthRecord, ObservationRecord, WeekRecord
+
+    for model in (ObservationRecord, MonthRecord, WeekRecord, CalendarArtifact):
+        for name in model.model_fields:
+            assert not any(word in name for word in ("complete", "certif", "whole_footprint")), (model, name)
+    cal = load(CAL)
+    rec = cal["monthly_series"][0]["records"][0]
+    rec["unavailable_reason"] = "incomplete_footprint"  # available + incomplete footprint
+    fails(MODELS[CAL], cal)
+    rec.update(availability="unavailable", comparison_eligible=False, unusual_status=None,
+               detected_fire_cell_days=None, usable_land_cell_days=None, fire_activity_index=None,
+               baseline_median=None, baseline_p90=None)
     MODELS[CAL].model_validate_json(json.dumps(cal))
 
 
