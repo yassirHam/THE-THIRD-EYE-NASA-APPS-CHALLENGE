@@ -526,6 +526,26 @@ def test_mixed_failed_and_out_of_domain_checks_strictly_rejected() -> None:
     fails(ClaimAuditRecord, audit2)
 
 
+def test_missing_support_status_cannot_mask_failed_or_out_of_domain_check() -> None:
+    # F-05 regression: missing_required_support status cannot mask failed or out_of_domain check
+    comp_fail = load("sample_comparison_missing_evidence.json")
+    comp_fail["applicability_checks"].append({"check_id": "late_period", "status": "failed", "detail": "Late period failed"})
+    fails(ComparisonResult, comp_fail)
+
+    audit_fail = load("sample_claim_audit_missing_evidence.json")
+    audit_fail["applicability_checks"].append({"check_id": "late_period", "status": "failed", "detail": "Late period failed"})
+    fails(ClaimAuditRecord, audit_fail)
+
+    comp_ood = load("sample_comparison_missing_evidence.json")
+    comp_ood["applicability_checks"].append({"check_id": "domain", "status": "out_of_domain", "detail": "Domain boundary exceeded"})
+    fails(ComparisonResult, comp_ood)
+
+    audit_ood = load("sample_claim_audit_missing_evidence.json")
+    audit_ood["applicability_checks"].append({"check_id": "domain", "status": "out_of_domain", "detail": "Domain boundary exceeded"})
+    fails(ClaimAuditRecord, audit_ood)
+
+
+
 
 
 

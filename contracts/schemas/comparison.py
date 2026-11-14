@@ -107,6 +107,14 @@ def check_applicability_consistency(status: str, checks: "list[ApplicabilityChec
         raise ValueError(
             "conflicting adverse check states: checks cannot mix failed applicability with out_of_domain"
         )
+    if "failed" in states and status != "failed_applicability":
+        raise ValueError(
+            "failed applicability check cannot be masked by another overall status"
+        )
+    if "out_of_domain" in states and status != "out_of_domain":
+        raise ValueError(
+            "out-of-domain check cannot be masked by another overall status"
+        )
     if _CHECK_FOR_APPLICABILITY[status] not in states:
         raise ValueError("overall applicability must be supported by a matching check state")
     if status == "applicable" and states != {"passed"}:
