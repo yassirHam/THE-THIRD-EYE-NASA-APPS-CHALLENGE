@@ -386,3 +386,61 @@ def test_registered_mapping_needs_decision_time_and_reference() -> None:
     table["registered"] = True
     with pytest.raises(UnregisteredMappingError):
         map_p1a_statuses(**GOOD, mapping=table)
+
+
+# ------------------------------------------ versioning and cross-identity reuse (1.4.0)
+
+ALL_FIXTURES = sorted(p.name for p in FIXTURES.glob("*.json"))
+
+
+@pytest.mark.parametrize("name", ALL_FIXTURES)
+def test_artifact_without_or_with_an_older_version_is_rejected(name: str) -> None:
+    from contracts.build_fixtures import all_fixtures
+    model = all_fixtures()[name][0]
+    raw = load(name)
+    for bad in ("1.3.0", "1.1.0"):
+        with pytest.raises(ValidationError):
+            model.model_validate_json(json.dumps({**raw, "contract_version": bad}))
+    del raw["contract_version"]
+    with pytest.raises(ValidationError):
+        model.model_validate_json(json.dumps(raw))
+
+
+@pytest.mark.parametrize("field,value", [("geometry_id", "geo-synthetic-sub-a"),
+                                         ("period_spec", "synthetic-2024"),
+                                         ("policy_id", "common_support_eligible"),
+                                         ("method_id", "stage_a_finite_factors")])
+def test_manifest_partition_cannot_describe_another_identity(field: str, value: str) -> None:
+    raw = load("sample_manifest.json")
+    raw["partitions"][0][field] = value
+    with pytest.raises(ValidationError, match="partition identity"):
+        ProvenanceManifest.model_validate_json(json.dumps(raw))
+
+
+@pytest.mark.parametrize("field,value", [("geometry_id", "geo-synthetic-sub-a"),
+                                         ("period_spec", "synthetic-2024"),
+                                         ("policy_id", "common_support_eligible"),
+                                         ("artifact_version", "synthetic-v2")])
+def test_manifest_cannot_be_bound_to_a_calendar_with_another_identity(field: str, value: str) -> None:
+    man = ProvenanceManifest.model_validate_json((FIXTURES / "sample_manifest.json").read_text(encoding="utf-8"))
+    cal_raw = load("sample_calendar.json")
+    cal_raw[field] = value
+    if field == "geometry_id":
+        cal_raw["footprint_certification"]["geometry_id"] = value
+    if field == "policy_id":
+        for s in cal_raw["monthly_series"] + cal_raw["weekly_series"]:
+            s["policy_id"] = value
+        for b in cal_raw["seasonal_baselines"]:
+            b["policy_id"] = value
+    cal = CalendarArtifact.model_validate_json(json.dumps(cal_raw))
+    with pytest.raises(ManifestBindingError, match=field):
+        assert_manifest_describes(man, cal, "calendar")
+
+
+def test_partition_cache_key_must_be_the_manifest_identity_digest() -> None:
+    raw = load("sample_manifest.json")
+    raw["partitions"][0]["cache_key_sha256"] = bf.CacheKey(
+        artifact_version="synthetic-v1", geometry_id="geo-synthetic-sub-a", period_spec=bf.PERIOD,
+        method_id="same_sensor_calendar", policy_id=bf.POLICY).digest()
+    with pytest.raises(ValidationError, match="digest"):
+        ProvenanceManifest.model_validate_json(json.dumps(raw))

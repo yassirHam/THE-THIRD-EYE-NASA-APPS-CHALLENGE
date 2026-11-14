@@ -218,6 +218,14 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
   `P1-A-001-r3` item 2, `P1-C-001-r5` item 1). `evaluated_for_conditions` maps only with an explicit
   `applicability_passed`; both failed spellings map to `failed_applicability`. Unknown names raise.
 
+## 14. Versioning and identity reuse (Round 10b)
+
+- `contract_version` is now required with no default, so an artifact that omits it is not read as
+  1.4.0; 1.1.0 and 1.3.0 artifacts are rejected (tests on every committed fixture).
+- Manifest partitions must carry the manifest's five-field identity and its digest; a manifest is
+  bound to one artifact with `assert_manifest_describes` (tests for cross-region, cross-period,
+  cross-policy and cross-version reuse).
+
 ## Test shim
 
 Older tests mutate a period and check one rule. `contracts/tests/_coverage.py` recomputes the 1.4.0

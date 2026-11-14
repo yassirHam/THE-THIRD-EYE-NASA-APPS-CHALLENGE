@@ -53,7 +53,7 @@ export interface CacheKey {
 }
 
 export interface CalendarArtifact {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -86,7 +86,7 @@ export interface CalibrationFactorVariant {
 }
 
 export interface ClaimAuditRecord {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -116,7 +116,7 @@ export interface ClaimAuditRecord {
 }
 
 export interface ComparisonResult {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -138,7 +138,7 @@ export interface ComparisonResult {
 }
 
 export interface EvaluationSummary {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -156,7 +156,7 @@ export interface EvaluationSummary {
 }
 
 export interface FirmsHotspotArtifact {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -282,7 +282,7 @@ export interface PracticalChange {
 }
 
 export interface ProvenanceManifest {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -307,7 +307,7 @@ export interface ProvenanceManifest {
 }
 
 export interface RegionSelectorArtifact {
-  contract_version?: "1.4.0";
+  contract_version: "1.4.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;

@@ -29,7 +29,8 @@ class StrictContractModel(BaseModel):
 class ArtifactIdentity(StrictContractModel):
     """Identity fields that prevent cross-area, cross-period, or cross-policy reuse."""
 
-    contract_version: Literal["1.4.0"] = CONTRACT_VERSION
+    # Required, no default: an artifact that omits its version is not silently read as 1.4.0.
+    contract_version: Literal["1.4.0"]
     artifact_version: str = Field(min_length=1)
     geometry_id: str = Field(min_length=1)
     period_spec: str = Field(min_length=1)
