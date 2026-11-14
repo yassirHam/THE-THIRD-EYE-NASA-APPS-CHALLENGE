@@ -261,6 +261,13 @@ class ObsRecord:
                 "If the period was unobserved, set D = 0 and O = 0, "
                 "or omit the record entirely; it will be treated as unavailable."
             )
+        # D <= O by construction (P2 decision record 2026-11-14-05: D counts
+        # FireMask 7-9 on land; O counts FireMask 5 or 7-9 on land).
+        if self.D > self.O:
+            raise ValueError(
+                f"D ({self.D}) > O ({self.O}): detected fire cell-days are a "
+                "subset of usable land cell-days, so D cannot exceed O."
+            )
 
     @property
     def is_available(self) -> bool:

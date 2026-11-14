@@ -2159,3 +2159,32 @@ class TestRejectInvalidRates:
         status, _ = assess_sensitivity(factor, baseline_B=None, viirs_V=80.0,
                                        required_variant_ids=("full_training_2016_2017_2018", "ex_2016"))
         assert status == SensitivityStatus.UNRESOLVED
+
+
+# ---------------------------------------------------------------------------
+# 19. D <= O by construction (P2 decision record 2026-11-14-05) - regression
+# ---------------------------------------------------------------------------
+class TestDNotAboveO:
+    """D counts FireMask 7-9 on land; O counts FireMask 5 or 7-9 on land."""
+
+    @pytest.mark.parametrize("policy", ["own_support", "common_support"])
+    @pytest.mark.parametrize("sensor", ["aqua", "viirs"])
+    def test_D_above_O_rejected(self, sensor, policy):
+        with pytest.raises(ValueError, match="cannot exceed O"):
+            ObsRecord(sensor=sensor, year=2016, stratum="annual", policy=policy, D=101, O=100)
+
+    def test_D_equal_O_accepted_rate_1000(self):
+        r = _own("aqua", 2016, D=100, O=100)
+        assert r.is_available
+        assert _pooled_rate([r]) == pytest.approx(1000.0)
+
+    def test_O_zero_message_takes_precedence(self):
+        with pytest.raises(ValueError, match="O = 0"):
+            _own("aqua", 2016, D=5, O=0)
+
+    def test_factor_at_D_equal_O_boundary(self):
+        # Aqua 1000 * 100/100 = 1000; VIIRS 1000 * 50/50 = 1000 -> a_H = 1.0
+        v = fit_own_support_variants([_own("aqua", 2016, 100, 100)],
+                                     [_own("viirs", 2016, 50, 50)],
+                                     training_years=(2016,), config=OWN_CFG)
+        assert v["full_training_2016"].factor_value == pytest.approx(1.0)
