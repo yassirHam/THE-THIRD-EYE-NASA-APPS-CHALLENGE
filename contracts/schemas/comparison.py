@@ -103,6 +103,10 @@ def is_conclusion_eligible(applicability: str, sensitivity: str, complete: bool 
 
 def check_applicability_consistency(status: str, checks: "list[ApplicabilityCheck]") -> None:
     states = {check.status for check in checks}
+    if "failed" in states and "out_of_domain" in states:
+        raise ValueError(
+            "conflicting adverse check states: checks cannot mix failed applicability with out_of_domain"
+        )
     if _CHECK_FOR_APPLICABILITY[status] not in states:
         raise ValueError("overall applicability must be supported by a matching check state")
     if status == "applicable" and states != {"passed"}:

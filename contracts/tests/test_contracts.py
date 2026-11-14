@@ -507,6 +507,26 @@ def test_claim_audit_out_of_domain_with_missing_evidence_preserves_both() -> Non
     ClaimAuditRecord.model_validate_json(json.dumps(data))
 
 
+def test_mixed_failed_and_out_of_domain_checks_strictly_rejected() -> None:
+    # F-03 regression: cannot mix failed and out_of_domain checks
+    comp = load("sample_comparison_out_of_domain.json")
+    comp["applicability_checks"].append({"check_id": "late_period", "status": "failed", "detail": "Late period failed"})
+    fails(ComparisonResult, comp)
+
+    audit = load("sample_claim_audit_out_of_domain.json")
+    audit["applicability_checks"].append({"check_id": "late_period", "status": "failed", "detail": "Late period failed"})
+    fails(ClaimAuditRecord, audit)
+
+    comp2 = load("sample_comparison_stable_failed_applicability.json")
+    comp2["applicability_checks"].append({"check_id": "domain", "status": "out_of_domain", "detail": "Domain boundary exceeded"})
+    fails(ComparisonResult, comp2)
+
+    audit2 = load("sample_claim_audit_stable_failed_applicability.json")
+    audit2["applicability_checks"].append({"check_id": "domain", "status": "out_of_domain", "detail": "Domain boundary exceeded"})
+    fails(ClaimAuditRecord, audit2)
+
+
+
 
 
 # ---- Fix 2: claim audit preserves failed / missing / out-of-domain -----------------
