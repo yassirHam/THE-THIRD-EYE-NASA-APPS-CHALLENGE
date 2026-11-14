@@ -1,6 +1,6 @@
 /**
  * THE THIRD EYE auto-generated TypeScript contract types.
- * Contract version 1.4.0. DO NOT EDIT.
+ * Contract version 1.5.0. DO NOT EDIT.
  * Source: contracts/schemas/*.py via `python -m contracts.generate_ts`.
  */
 
@@ -53,7 +53,7 @@ export interface CacheKey {
 }
 
 export interface CalendarArtifact {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -86,7 +86,7 @@ export interface CalibrationFactorVariant {
 }
 
 export interface ClaimAuditRecord {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -116,7 +116,7 @@ export interface ClaimAuditRecord {
 }
 
 export interface ComparisonResult {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -138,7 +138,7 @@ export interface ComparisonResult {
 }
 
 export interface EvaluationSummary {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -156,7 +156,7 @@ export interface EvaluationSummary {
 }
 
 export interface FirmsHotspotArtifact {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -265,12 +265,12 @@ export interface PartitionFileRecord {
   period_spec: string;
   method_id: string;
   policy_id: string;
-  sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21";
+  sensor: "MODIS_Aqua" | "VIIRS_SNPP" | "VIIRS_NOAA20" | "VIIRS_NOAA21" | null;
   row_count: number;
   file_size_bytes: number;
   cache_key_sha256: string;
   sha256_checksum: string;
-  coverage_status: "complete" | "partial" | "unavailable";
+  coverage_status: "complete" | "partial" | "unavailable" | "unverified";
 }
 
 export interface PracticalChange {
@@ -282,7 +282,7 @@ export interface PracticalChange {
 }
 
 export interface ProvenanceManifest {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;
@@ -307,7 +307,7 @@ export interface ProvenanceManifest {
 }
 
 export interface RegionSelectorArtifact {
-  contract_version: "1.4.0";
+  contract_version: "1.5.0";
   artifact_version: string;
   geometry_id: string;
   period_spec: string;

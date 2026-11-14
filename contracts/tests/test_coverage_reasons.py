@@ -398,7 +398,7 @@ def test_artifact_without_or_with_an_older_version_is_rejected(name: str) -> Non
     from contracts.build_fixtures import all_fixtures
     model = all_fixtures()[name][0]
     raw = load(name)
-    for bad in ("1.3.0", "1.1.0"):
+    for bad in ("1.4.0", "1.3.0", "1.1.0"):
         with pytest.raises(ValidationError):
             model.model_validate_json(json.dumps({**raw, "contract_version": bad}))
     del raw["contract_version"]
@@ -444,3 +444,42 @@ def test_partition_cache_key_must_be_the_manifest_identity_digest() -> None:
         method_id="same_sensor_calendar", policy_id=bf.POLICY).digest()
     with pytest.raises(ValidationError, match="digest"):
         ProvenanceManifest.model_validate_json(json.dumps(raw))
+
+
+# ------------------------------------- 1.5.0: replayable manifest partitions (P4-A / P5-B)
+
+
+def test_calendar_partition_may_name_no_single_sensor() -> None:
+    raw = load("sample_manifest.json")
+    assert raw["partitions"][0]["sensor"] is None
+    ProvenanceManifest.model_validate_json(json.dumps(raw))
+    del raw["partitions"][0]["sensor"]
+    with pytest.raises(ValidationError):  # required key: null must be explicit
+        ProvenanceManifest.model_validate_json(json.dumps(raw))
+
+
+def _cal(name: str) -> CalendarArtifact:
+    return CalendarArtifact.model_validate_json((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("claimed,ok_for_certified,ok_for_unverified", [
+    ("complete", True, False), ("partial", False, False), ("unverified", False, True), ("unavailable", False, False)])
+def test_manifest_coverage_cannot_exceed_the_calendar_certification(claimed, ok_for_certified, ok_for_unverified) -> None:
+    raw = load("sample_manifest.json")
+    raw["partitions"][0]["coverage_status"] = claimed
+    man = ProvenanceManifest.model_validate_json(json.dumps(raw))
+    for cal, ok_ in ((_cal("sample_calendar.json"), ok_for_certified),
+                     (_cal("sample_calendar_unverified_footprint.json"), ok_for_unverified)):
+        if ok_:
+            assert_manifest_describes(man, cal, "calendar")
+        else:
+            with pytest.raises(ManifestBindingError, match="certification"):
+                assert_manifest_describes(man, cal, "calendar")
+
+
+def test_manifest_and_artifact_must_share_data_classification() -> None:
+    man = ProvenanceManifest.model_validate_json((FIXTURES / "sample_manifest.json").read_text(encoding="utf-8"))
+    cal = _cal("sample_calendar.json")
+    prod = cal.model_construct(**{**cal.__dict__, "data_classification": "production", "fixture_label": None})
+    with pytest.raises(ManifestBindingError, match="classification"):
+        assert_manifest_describes(man, prod, "calendar")
