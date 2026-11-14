@@ -529,7 +529,9 @@ class WeekRecord(ObservationRecord):
         elif status == "complete":
             if self.critical_status == INCOMPLETE_LABEL or self.unusual_status == INCOMPLETE_LABEL:
                 raise ValueError("a complete week cannot use not_applicable sentinel")
-            if self.availability == "available":
+            if self.availability == "available" and self.week_number != 53:
+                # Week 53 labels are governed at artifact level (P1 decision: unranked for critical
+                # weeks; unusual label withheld without an available week-53 baseline).
                 if self.critical_status is None or self.unusual_status is None:
                     raise ValueError("an available complete week requires critical and unusual status decisions")
             elif self.availability == "unavailable":
@@ -748,17 +750,15 @@ class CalendarArtifact(ArtifactIdentity):
                 raise ValueError("production artifacts require a declared, registered sealed window")
         periods: list[tuple[str, date, date, str | None, int | None]] = []
         if window is not None:
-            # A period wholly inside the sealed window may exist only as an unavailable,
-            # undecided placeholder: no sealed observation, label or eligibility.
+            # P2 r11 (handoff 8f67011) section 3: a period lying entirely inside the sealed window is
+            # never read or emitted. It is excluded from the artifact: no record at all, so it is
+            # never shown as missing data, as unavailable/no_file or with partition_boundary.
             for label, rec in self._labelled_records():
                 start, end = (month_bounds(rec.year, rec.month) if isinstance(rec, MonthRecord)
                               else (rec.start_date, rec.end_date))
-                if sealed_window_period_status(start, end, window.start, window.end) != "inside":
-                    continue
-                decided = {getattr(rec, "unusual_status", None), getattr(rec, "critical_status", None)}
-                if (rec.availability == "available" or rec.comparison_eligible or rec.days_with_file
-                        or decided & {"unusual", "not_unusual", "critical", "not_critical"}):
-                    raise ValueError(f"{label}: lies wholly inside the sealed window and cannot carry observations")
+                if sealed_window_period_status(start, end, window.start, window.end) == "inside":
+                    raise ValueError(f"{label}: lies wholly inside the sealed window; such periods are "
+                                     "excluded from artifacts, not represented")
         for m_series in self.monthly_series:
             for m in m_series.records:
                 first, last = month_bounds(m.year, m.month)
@@ -852,12 +852,17 @@ class CalendarArtifact(ArtifactIdentity):
                     continue
                 baseline = by_target.get(w.year)
                 usable = baseline is not None and baseline.status == "available"
-                if not usable:
-                    if w.critical_status in decisions or w.unusual_status in decisions:
-                        raise ValueError(f"{w.year}-W53: no unusual or critical label without an available week-53 baseline")
-                    if w.availability == "available" and not w.is_partial_period:
-                        if w.unusual_status != "insufficient_baseline":
-                            raise ValueError(f"{w.year}-W53: insufficient week-53 baseline must be labelled insufficient_baseline")
+                # P1 decision 2026-11-14T23:19:58Z (handoff bb1bf4c): week-53 critical ranking is
+                # OPEN, so week 53 is unranked and never carries a critical-week label.
+                if w.critical_status is not None:
+                    raise ValueError(f"{w.year}-W53: week 53 is unranked for critical weeks; critical_status must be null")
+                # Same decision, rule B3: without an available week-53 baseline the unusual label
+                # is withheld (null), never inferred from weeks 52 or 1.
+                if not usable and w.unusual_status is not None:
+                    raise ValueError(f"{w.year}-W53: insufficient week-53 baseline; the unusual label is withheld (null)")
+                if usable and w.unusual_status not in decisions and w.availability == "available" \
+                        and not w.is_partial_period:
+                    raise ValueError(f"{w.year}-W53: an available week-53 baseline requires an unusual decision")
 
         # Whole-footprint completeness is conditional on documented certification.
         cert = self.footprint_certification
@@ -889,17 +894,13 @@ class CalendarArtifact(ArtifactIdentity):
                 start, end = rec.start_date, rec.end_date
             inside_record = days_within(start, end, cov.record_start, cov.record_end)  # type: ignore[arg-type]
             permitted = inside_record
-            wholly_sealed = False
             if window is not None and inside_record:
                 rs = max(start, cov.record_start)  # type: ignore[type-var]
                 re_ = min(end, cov.record_end)  # type: ignore[type-var]
                 permitted = days_outside_window(rs, re_, window.start, window.end)
-                wholly_sealed = sealed_window_period_status(start, end, window.start, window.end) == "inside"
             expected: set[str] = set()
             if rec.partial_period_reason is not None:
                 expected.add(PARTIAL_REASON_TO_P2[rec.partial_period_reason])
-            if wholly_sealed:
-                expected.add("partition_boundary")
             if inside_record == 0:
                 expected.add("sensor_not_operating")
             elif rec.days_with_file == 0 and permitted > 0:

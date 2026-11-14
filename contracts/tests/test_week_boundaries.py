@@ -217,10 +217,11 @@ def test_sealed_status_is_a_pure_function_of_dates() -> None:
     assert sealed_window_period_status(date(2019, 12, 31), date(2019, 12, 31), *w) == "outside"
 
 
-def test_sealed_fixture_is_valid_and_uses_proposed_unregistered_window() -> None:
+def test_sealed_fixture_is_valid_and_uses_the_registered_window() -> None:
     data = sealed_artifact()
     assert artifact_ok(data)
-    assert data["sealed_window"]["registration_status"] == "proposed_unregistered"
+    assert data["sealed_window"]["registration_status"] == "registered"
+    assert data["sealed_window"]["registration_ref"] == CONFIG["sealed_window"]["reference"]
     assert data["fixture_label"] == "[SYNTHETIC DEV FIXTURE]"
 
 
@@ -296,16 +297,15 @@ def test_crossing_months_are_sealed_partial_too() -> None:
     assert artifact_ok(data)
 
 
-def test_available_period_wholly_inside_window_is_rejected_but_placeholder_is_allowed() -> None:
+def test_period_wholly_inside_window_is_excluded_even_as_a_placeholder() -> None:
+    # P2 r11 section 3: never read or emitted; not missing data, not no_file, not partition_boundary.
     data = sealed_artifact()
     inside = week("MODIS_Aqua", date(2020, 6, 1), date(2020, 6, 7), 2020, 23)  # fabricated values
     sealed_weeks(data).append(inside)
     assert not artifact_ok(data)
     inside.update(detected_fire_cell_days=None, usable_land_cell_days=None, fire_activity_index=None,
                   availability="unavailable", unavailable_reason="source_not_available", comparison_eligible=False,
-                  days_with_file=0, critical_status="insufficient_baseline", unusual_status="insufficient_baseline")
-    assert artifact_ok(data)
-    inside["unusual_status"] = "not_unusual"
+                  days_with_file=0, critical_status=None, unusual_status=None)
     assert not artifact_ok(data)
 
 
@@ -375,57 +375,71 @@ def mechanism_artifact() -> dict:
         if cov["sensor"] == "MODIS_Aqua":
             cov.update(record_end="2027-01-03", scope_ref="synthetic-test-only: week-53 mechanism")
     s = data["weekly_series"][0]
+    # The fixture's week-53 rule is registered (P1 minimum 3), so three eligible priors make it available.
     s["week_53_baselines"].append({
-        "target_year": 2026, "status": "insufficient_baseline",
+        "target_year": 2026, "status": "available",
         "prior_observations": [{"iso_year": y, "period_complete": True, "support_ok": True}
                                for y in (2004, 2009, 2015)],
     })
     rec = week("MODIS_Aqua", date(2026, 12, 28), date(2027, 1, 3), 2026, 53)
-    rec.update(critical_status="insufficient_baseline", unusual_status="insufficient_baseline")
+    rec.update(critical_status=None, unusual_status="not_unusual")  # unranked for critical weeks (P1)
     s["records"].append(rec)
     return data
 
 
-def registered(data: dict, status: str = "available", unusual: str = "not_unusual",
-               critical: str = "not_critical", year: int = 2026) -> dict:
+def registered(data: dict, status: str = "available", unusual: str | None = "not_unusual",
+               critical: str | None = None, year: int = 2026) -> dict:
+    # P1 decision 2026-11-14T23:19:58Z: week 53 is unranked (critical_status null).
     data["week_53_rule"] = dict(SYNTHETIC_RULE)
     w53_baseline(data, year)["status"] = status
     w53_record(data, year).update(unusual_status=unusual, critical_status=critical)
     return data
 
 
-def test_agreed_minimum_is_three_in_config_and_not_registered() -> None:
+def test_week_53_minimum_is_three_and_registered_by_p1() -> None:
     entry = CONFIG["week_53_minimum"]
-    assert entry["value"] == 3 and entry["registered"] is False
-    assert entry["decision_date"] is None and entry["reference"] is None
+    assert entry["value"] == 3 and entry["registered"] is True
+    assert entry["decision_at"] == "2026-11-14T23:19:58Z" and "bb1bf4c" in entry["reference"]
 
 
 def test_iso_53_week_years_used_by_the_synthetic_cases() -> None:
     assert [y for y in range(2000, 2031) if has_iso_week_53(y)] == [2004, 2009, 2015, 2020, 2026]
 
 
-def test_fixture_week_53_is_insufficient_while_rule_unregistered() -> None:
+def test_fixture_week_53_is_insufficient_with_two_priors() -> None:
     data = sealed_artifact()
+    assert data["week_53_rule"]["registration_status"] == "registered"
     assert w53_baseline(data, 2015)["status"] == "insufficient_baseline"
-    assert w53_record(data, 2015)["unusual_status"] == "insufficient_baseline"
+    assert w53_record(data, 2015)["unusual_status"] is None and w53_record(data, 2015)["critical_status"] is None
     assert artifact_ok(data)
-    w53_baseline(data, 2015)["status"] = "available"  # no registered rule
+    w53_baseline(data, 2015)["status"] = "available"  # only two eligible priors
     assert not artifact_ok(data)
+    data = sealed_artifact()
+    data["week_53_rule"] = {"registration_status": "proposed_unregistered", "minimum_year_count": None,
+                            "registration_ref": None, "decision_at": None}
+    w53_baseline(data, 2015)["prior_observations"].append({"iso_year": 2009, "period_complete": True,
+                                                           "support_ok": True})
+    assert not artifact_ok(data)  # duplicate prior year is still rejected
 
 
 def test_current_phase_week_53_stays_insufficient_even_with_a_registered_rule() -> None:
     # 2015-W53 has only two earlier week-53 years (2004, 2009); 2020 is sealed; 2026 is beyond 2025-12-31.
     data = registered(sealed_artifact(), year=2015)
     assert not artifact_ok(data)
-    registered(data, status="insufficient_baseline", unusual="insufficient_baseline",
-               critical="insufficient_baseline", year=2015)
+    registered(data, status="insufficient_baseline", unusual=None, critical=None, year=2015)
     assert artifact_ok(data)
 
 
 def test_three_complete_supported_priors_allow_a_decision() -> None:
     assert artifact_ok(mechanism_artifact())
     assert artifact_ok(registered(mechanism_artifact()))
-    assert artifact_ok(registered(mechanism_artifact(), unusual="unusual", critical="critical"))
+    assert artifact_ok(registered(mechanism_artifact(), unusual="unusual"))
+
+
+@pytest.mark.parametrize("critical", ["critical", "not_critical", "insufficient_baseline"])
+def test_week_53_is_never_ranked_for_critical_weeks(critical: str) -> None:
+    # P1 decision 2026-11-14T23:19:58Z: week-53 critical ranking stays OPEN (unranked).
+    assert not artifact_ok(registered(mechanism_artifact(), unusual="unusual", critical=critical))
 
 
 @pytest.mark.parametrize("field", ["period_complete", "support_ok"])
@@ -433,22 +447,21 @@ def test_two_eligible_priors_force_insufficient_baseline(field: str) -> None:
     data = registered(mechanism_artifact())
     w53_baseline(data, 2026)["prior_observations"][0][field] = False  # now only 2 eligible
     assert not artifact_ok(data)  # cannot stay available
-    registered(data, status="insufficient_baseline", unusual="insufficient_baseline",
-               critical="insufficient_baseline")
+    registered(data, status="insufficient_baseline", unusual=None, critical=None)
     assert artifact_ok(data)
 
 
 @pytest.mark.parametrize("unusual", ["unusual", "not_unusual"])
 def test_insufficient_week_53_cannot_carry_an_unusual_label(unusual: str) -> None:
-    data = registered(mechanism_artifact(), status="insufficient_baseline", unusual=unusual,
-                      critical="insufficient_baseline")
+    data = registered(mechanism_artifact(), status="insufficient_baseline", unusual=unusual, critical=None)
     w53_baseline(data, 2026)["prior_observations"].pop()
     assert not artifact_ok(data)
 
 
-def test_insufficient_week_53_must_say_insufficient_baseline_not_null() -> None:
+def test_insufficient_week_53_withholds_the_label_as_null() -> None:
+    # P1 decision rule B3: no unusual-week label is issued (withheld / null).
     data = sealed_artifact()
-    w53_record(data, 2015)["unusual_status"] = None
+    w53_record(data, 2015)["unusual_status"] = "insufficient_baseline"
     assert not artifact_ok(data)
 
 
@@ -520,7 +533,8 @@ def footprint(data: dict, status: str, **extra) -> dict:
 
 def registered_window_for_plain_fixture() -> dict:
     # Synthetic window placed where the plain fixture has no records, so no period straddles it.
-    return {"start": "2011-01-01", "end": "2011-12-31", "registration_status": "registered",
+    # Ends 2011-11-30 so the pre-record 2011-12 VIIRS month is not wholly inside it.
+    return {"start": "2011-01-01", "end": "2011-11-30", "registration_status": "registered",
             "registration_ref": "synthetic-ref", "decision_date": "2026-11-15"}
 
 
@@ -641,13 +655,19 @@ def test_unregistered_values_are_not_schema_defaults() -> None:
 
 
 def test_config_entries_cannot_claim_frozen_without_date_and_reference() -> None:
-    expected = {"week_definition", "sealed_window", "sealed_partial_reason", "week_53_minimum",
-                "footprint_certification"}
-    assert expected <= set(CONFIG)
-    for name in expected:
-        entry = CONFIG[name]
-        assert entry["registered"] is False, f"{name} must stay unregistered until P1/P2 approve"
-        assert entry["decision_date"] is None and entry["reference"] is None, name
+    for name, entry in CONFIG.items():
+        if not isinstance(entry, dict) or "registered" not in entry:
+            continue
+        if entry["registered"]:
+            assert entry.get("decision_date") and entry.get("reference"), name
+        else:
+            assert entry.get("decision_date") is None and entry.get("reference") is None, name
+    # Registered only where P1's written decision exists (handoff bb1bf4c).
+    registered_now = {n for n, e in CONFIG.items() if isinstance(e, dict) and e.get("registered") is True}
+    assert registered_now == {"week_definition", "sealed_window", "sealed_partial_reason", "week_53_minimum"}
+    for still_open in ("footprint_certification", "coverage_minimum_c_min", "mid_record_missing_files",
+                       "baseline_year_validity", "week_53_critical_ranking"):
+        assert CONFIG[still_open]["registered"] is False, still_open
 
 
 # ------------------------------------------- P5 holdout decision (handoff d0b8c90), synthetic only
