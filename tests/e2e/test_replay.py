@@ -1,4 +1,4 @@
-﻿"""Tests for the clean-environment bundle replay verifier.
+"""Tests for the clean-environment bundle replay verifier.
 
 Each test builds its own isolated synthetic bundle under pytest's tmp_path, so
 `pytest tests/e2e/test_replay.py -v` passes on a fresh clone with no network,
@@ -19,13 +19,14 @@ IDENTITY = {
     "artifact_version": "synthetic-replay-v1",
     "geometry_id": "geo-synthetic-primary",
     "period_spec": "synthetic-2020-2021",
-    "method_id": "artifact_manifest",
+    # Contract 1.4.0: a manifest carries the identity of the artifact it describes.
+    "method_id": "same_sensor_calendar",
     "policy_id": "own_support_eligible",
 }
 
 
 def expected_cache_key(identity: dict) -> str:
-    """Independent restatement of the contract 1.1.0 definition."""
+    """Independent restatement of the contract cache-key definition (unchanged since 1.1.0)."""
     fields = ["artifact_version", "geometry_id", "period_spec", "method_id", "policy_id"]
     canonical = "[" + ",".join(json.dumps(identity[f]) for f in fields) + "]"
     return "tte-cache-v1:" + hashlib.sha256(canonical.encode("ascii")).hexdigest()
@@ -52,8 +53,10 @@ def build_bundle(root: Path, files: dict[str, bytes]) -> tuple[Path, Path]:
             "coverage_status": "complete",
         })
     manifest = {
-        "contract_version": "1.1.0",
+        "contract_version": "1.4.0",
         **IDENTITY,
+        "described_artifact_type": "calendar",
+        "snpp_cutoff_status": "reserved_inactive",
         "data_classification": "synthetic_dev_fixture",
         "fixture_label": "[SYNTHETIC DEV FIXTURE]",
         "manifest_version": "synthetic-replay-manifest-1",
@@ -327,7 +330,7 @@ def test_resume_detects_corrupted_materialized_copy(replay, bundle, tmp_path):
     assert (out / "bundle/calendar/monthly.json").read_bytes() == FILES["calendar/monthly.json"]
 
 
-def test_synthetic_manifest_is_valid_contract_1_1_0(contracts, bundle):
+def test_synthetic_manifest_is_valid_contract_1_4_0(contracts, bundle):
     """The replay fixture uses P4's real manifest shape, checked by P4's own schema."""
     pytest.importorskip("pydantic")
     import subprocess

@@ -1,7 +1,7 @@
-﻿"""P5 independent UI parity suite.
+"""P5 independent UI parity suite.
 
 Contract Parity Mode (default, always runs)
-    Verifies the 18 contract 1.1.0 fixtures against contracts/generated/types.ts,
+    Verifies the 20 contract 1.4.0 fixtures against contracts/generated/types.ts,
     checks that every view's data source (Landing, Research Lab, Quick Mission,
     Evidence view, Export download) carries the same identity and statuses for a
     case, verifies the five frozen edge cases, and enforces the two compound
@@ -35,6 +35,8 @@ import pytest
 
 EXPECTED_FIXTURES = {
     "sample_calendar": "CalendarArtifact",
+    "sample_calendar_sealed_boundary": "CalendarArtifact",
+    "sample_calendar_unverified_footprint": "CalendarArtifact",
     "sample_claim_audit_missing_evidence": "ClaimAuditRecord",
     "sample_claim_audit_out_of_domain": "ClaimAuditRecord",
     "sample_claim_audit_record": "ClaimAuditRecord",
@@ -233,7 +235,7 @@ def test_contract_source_is_1_1_0(contracts):
     assert contracts.fixtures.is_dir(), contracts.description
 
 
-def test_all_18_fixtures_present(fixtures):
+def test_all_20_fixtures_present(fixtures):
     assert set(fixtures) == set(EXPECTED_FIXTURES), (
         f"missing {sorted(set(EXPECTED_FIXTURES) - set(fixtures))}, "
         f"unexpected {sorted(set(fixtures) - set(EXPECTED_FIXTURES))}"
@@ -251,7 +253,7 @@ def test_fixture_matches_typescript_type(stem, fixtures, ts):
 @pytest.mark.parametrize("stem", sorted(EXPECTED_FIXTURES))
 def test_fixture_is_visibly_synthetic_and_versioned(stem, fixtures):
     f = fixtures[stem]
-    assert f["contract_version"] == "1.1.0"
+    assert f["contract_version"] == "1.4.0"
     assert f["data_classification"] == "synthetic_dev_fixture"
     assert f["fixture_label"] == "[SYNTHETIC DEV FIXTURE]"
 
@@ -305,7 +307,7 @@ def test_status_label_follows_p5_rule(stem, fixtures):
         assert f["conclusion_eligible"] is False
 
 
-# ---- compound statuses (contract 1.1.0)
+# ---- compound statuses (contract 1.1.0 rules, unchanged in 1.4.0)
 
 
 def test_compound_statuses_declared_in_typescript(ts):
