@@ -7,31 +7,11 @@
     "*"
   ],
   "allowedTools": [
-    "*"
+    "fs_read"
   ],
   "resources": [
     "file://AGENTS.md",
     "file://THE_THIRD_EYE_EXECUTION_SPEC.md",
     "file://THE_THIRD_EYE_AI_AGENTS_PLAYBOOK.md"
-  ],
-  "permissions": {
-    "rules": [
-      {
-        "capability": "fs_read",
-        "effect": "allow"
-      },
-      {
-        "capability": "fs_write",
-        "effect": "allow"
-      },
-      {
-        "capability": "shell",
-        "effect": "allow"
-      },
-      {
-        "capability": "skill",
-        "effect": "allow"
-      }
-    ]
-  }
+  ]
 }
