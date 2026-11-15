@@ -23,6 +23,9 @@ Guards (fail closed):
   data, so sealed observations cannot reach a public bundle.
 - Missing, failed and out-of-domain states are carried exactly as the contract stores them;
   the pipeline never rewrites values.
+- Non-contract evidence documents (P1 Stage A real-data summary, see stage_a_evidence.py) live
+  in a separate `evidence/` subtree, are listed under `evidence_entries`, are hashed and counted
+  in the size report, and are never indexed or served as contract artifacts.
 """
 from __future__ import annotations
 
@@ -53,6 +56,7 @@ from contracts.schemas import (
 P0_COMPRESSED_TARGET_BYTES = 10 * 1024 * 1024  # plan: at most 10 MB compressed initial artifacts
 INDEX_NAME = "bundle_index.json"
 BUNDLE_FORMAT = "tte-static-bundle-v1"
+EVIDENCE_FORMATS = ("tte-stage-a-evidence-v1",)
 
 FAMILIES: dict[type, str] = {
     CalendarArtifact: "calendar",
@@ -108,8 +112,30 @@ class Bundle:
     replay_manifests: list[dict] = field(default_factory=list)
     replay_manifests_missing: list[dict] = field(default_factory=list)
     _inputs: list[ProvenanceManifest] = field(default_factory=list, repr=False)
+    # Non-contract evidence documents (e.g. P1 Stage A real-data summary), served from `evidence/`.
+    evidence_entries: list[dict] = field(default_factory=list)
+    _evidence_payloads: dict[str, bytes] = field(default_factory=dict, repr=False)
 
     # ------------------------------------------------------------- building
+
+    def add_evidence(self, evidence_id: str, document: dict) -> dict:
+        """Add one JSON evidence document. It is not a contract artifact and never enters `entries`."""
+        if document.get("evidence_format") not in EVIDENCE_FORMATS:
+            raise BundleError(f"unknown evidence format {document.get('evidence_format')!r}")
+        if document.get("evidence_id") != evidence_id:
+            raise BundleError("evidence_id does not match the document")
+        if any(e["evidence_id"] == evidence_id for e in self.evidence_entries):
+            raise BundleError(f"evidence {evidence_id} already in the bundle; bump the bundle version instead")
+        payload = json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                             allow_nan=False).encode("utf-8")
+        sha = hashlib.sha256(payload).hexdigest()
+        path = str(PurePosixPath("evidence", _safe_segment(self.bundle_version), _safe_segment(evidence_id),
+                                 f"{evidence_id}.{sha[:16]}.json"))
+        entry = {"evidence_id": evidence_id, "evidence_format": document["evidence_format"], "path": path,
+                 "sha256": sha, "bytes": len(payload), "gzip_path": None, "gzip_bytes": None}
+        self._evidence_payloads[path] = payload
+        self.evidence_entries.append(entry)
+        return entry
 
     def add(self, model: BaseModel) -> Optional[BundleEntry]:
         if isinstance(model, ProvenanceManifest):
@@ -217,6 +243,20 @@ class Bundle:
                 gz_bytes = len(gz)
             written.append(BundleEntry(**{**entry.__dict__, "gzip_path": gz_path, "gzip_bytes": gz_bytes}))
         self.entries = written
+        evidence: list[dict] = []
+        for ev in self.evidence_entries:
+            payload = self._evidence_payloads[ev["path"]]
+            target = out_dir / ev["path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload)
+            gz_path = gz_bytes = None
+            if gzip_copies:
+                gz = gzip.compress(payload, compresslevel=9, mtime=0)
+                gz_path = ev["path"] + ".gz"
+                (out_dir / gz_path).write_bytes(gz)
+                gz_bytes = len(gz)
+            evidence.append({**ev, "gzip_path": gz_path, "gzip_bytes": gz_bytes})
+        self.evidence_entries = evidence
         self._write_replay_manifests(out_dir)
         index = self.index()
         (out_dir / INDEX_NAME).write_bytes(json.dumps(index, indent=2, sort_keys=True).encode("utf-8") + b"\n")
@@ -255,6 +295,10 @@ class Bundle:
         total = sum(e.bytes for e in self.entries)
         compressed = [e.gzip_bytes for e in self.entries]
         total_gz = sum(compressed) if all(c is not None for c in compressed) else None
+        ev_bytes = sum(e["bytes"] for e in self.evidence_entries)
+        ev_compressed = [e["gzip_bytes"] for e in self.evidence_entries]
+        ev_gz = sum(ev_compressed) if all(c is not None for c in ev_compressed) else None
+        combined_gz = None if total_gz is None or ev_gz is None else total_gz + ev_gz
         return {
             "bundle_format": BUNDLE_FORMAT,
             "bundle_version": self.bundle_version,
@@ -266,8 +310,11 @@ class Bundle:
             "size_report": {
                 "total_bytes": total,
                 "total_gzip_bytes": total_gz,
+                "evidence_bytes": ev_bytes,
+                "evidence_gzip_bytes": ev_gz,
+                "combined_gzip_bytes": combined_gz,
                 "p0_compressed_target_bytes": P0_COMPRESSED_TARGET_BYTES,
-                "within_p0_target": None if total_gz is None else total_gz <= P0_COMPRESSED_TARGET_BYTES,
+                "within_p0_target": None if combined_gz is None else combined_gz <= P0_COMPRESSED_TARGET_BYTES,
                 "measured": "exact byte counts of the files written; load time is measured by P4-C smoke checks",
                 # A synthetic bundle's size says nothing about the real P0 artifact size.
                 "measurement_basis": ("synthetic development fixtures, not real P0 artifacts"
@@ -279,6 +326,8 @@ class Bundle:
             # Replay manifests are not counted in size_report: they are provenance, not P0 payload.
             "replay_manifests": sorted(self.replay_manifests, key=lambda m: m["path"]),
             "replay_manifests_missing": sorted(self.replay_manifests_missing, key=lambda m: m["path"]),
+            # Non-contract evidence documents; never indexed as grid or FIRMS artifacts.
+            "evidence_entries": sorted(self.evidence_entries, key=lambda e: e["path"]),
         }
 
 
@@ -379,6 +428,17 @@ def verify_bundle(out_dir: Path) -> dict:
         part = man.partitions[0]
         if (part.file_path, part.sha256_checksum, part.file_size_bytes) != (e["path"], e["sha256"], e["bytes"]):
             raise BundleError(f"{m['path']}: partition does not match the indexed file")
+    for ev in index.get("evidence_entries", []):
+        if not ev["path"].startswith("evidence/"):
+            raise BundleError(f"{ev['path']}: evidence outside the evidence/ subtree")
+        payload = (out_dir / ev["path"]).read_bytes()
+        if hashlib.sha256(payload).hexdigest() != ev["sha256"] or len(payload) != ev["bytes"]:
+            raise BundleError(f"{ev['path']}: evidence hash or size mismatch")
+        if ev["gzip_path"] and gzip.decompress((out_dir / ev["gzip_path"]).read_bytes()) != payload:
+            raise BundleError(f"{ev['gzip_path']}: gzip copy differs from the JSON")
+        doc = json.loads(payload.decode("utf-8"))
+        if (doc.get("evidence_format"), doc.get("evidence_id")) != (ev["evidence_format"], ev["evidence_id"]):
+            raise BundleError(f"{ev['path']}: evidence identity differs from the index")
     return index
 
 

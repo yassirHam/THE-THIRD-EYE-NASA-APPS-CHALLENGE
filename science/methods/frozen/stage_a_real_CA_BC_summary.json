@@ -1,0 +1,1679 @@
+{
+  "composition_fixture_section_4b": {
+    "fixed_weight_0.5_0.5": [
+      5.5,
+      5.5
+    ],
+    "identity_holds": true,
+    "missing_block_reasons": [
+      "required block 'low' is missing"
+    ],
+    "missing_block_result": null,
+    "observed": [
+      8.2,
+      2.8
+    ],
+    "observed_pct_change": -65.85365853658537,
+    "zero_support_reasons": [
+      "required block 'low' has zero usable support (O = 0)"
+    ],
+    "zero_support_result": null
+  },
+  "composition_identity_real_own_support": {
+    "aqua_2016": {
+      "blocks_sum_D": 15749,
+      "blocks_sum_O": 341437486,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.43631037630121255,
+        "826": 0.5636896236987874
+      }
+    },
+    "aqua_2017": {
+      "blocks_sum_D": 56573,
+      "blocks_sum_O": 323697257,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.45191559346454396,
+        "826": 0.5480844065354561
+      }
+    },
+    "aqua_2018": {
+      "blocks_sum_D": 62187,
+      "blocks_sum_O": 342512818,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4443623158068204,
+        "826": 0.5556376841931796
+      }
+    },
+    "aqua_2019": {
+      "blocks_sum_D": 10414,
+      "blocks_sum_O": 331551526,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4267650060521815,
+        "826": 0.5732349939478185
+      }
+    },
+    "aqua_2022": {
+      "blocks_sum_D": 13546,
+      "blocks_sum_O": 291384727,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.45887872496488125,
+        "826": 0.5411212750351188
+      }
+    },
+    "aqua_2023": {
+      "blocks_sum_D": 78557,
+      "blocks_sum_O": 337720670,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4206149389671648,
+        "826": 0.5793850610328352
+      }
+    },
+    "aqua_2024": {
+      "blocks_sum_D": 23711,
+      "blocks_sum_O": 274457854,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.44775834689722527,
+        "826": 0.5522416531027747
+      }
+    },
+    "aqua_2025": {
+      "blocks_sum_D": 24594,
+      "blocks_sum_O": 314501272,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.44884461071432485,
+        "826": 0.5511553892856751
+      }
+    },
+    "viirs_2016": {
+      "blocks_sum_D": 11356,
+      "blocks_sum_O": 371420443,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4150623852440992,
+        "826": 0.5849376147559008
+      }
+    },
+    "viirs_2017": {
+      "blocks_sum_D": 40655,
+      "blocks_sum_O": 350041915,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.43180033453993644,
+        "826": 0.5681996654600635
+      }
+    },
+    "viirs_2018": {
+      "blocks_sum_D": 44074,
+      "blocks_sum_O": 369317716,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.42334265112806013,
+        "826": 0.5766573488719399
+      }
+    },
+    "viirs_2019": {
+      "blocks_sum_D": 8023,
+      "blocks_sum_O": 360025330,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4067247212855829,
+        "826": 0.5932752787144171
+      }
+    },
+    "viirs_2022": {
+      "blocks_sum_D": 9889,
+      "blocks_sum_O": 314762057,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.43774758086550436,
+        "826": 0.5622524191344956
+      }
+    },
+    "viirs_2023": {
+      "blocks_sum_D": 53936,
+      "blocks_sum_O": 367733240,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.401168113059347,
+        "826": 0.5988318869406529
+      }
+    },
+    "viirs_2024": {
+      "blocks_sum_D": 17518,
+      "blocks_sum_O": 302861044,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.423436409338931,
+        "826": 0.576563590661069
+      }
+    },
+    "viirs_2025": {
+      "blocks_sum_D": 17991,
+      "blocks_sum_O": 342570450,
+      "identity_holds": true,
+      "o_shares": {
+        "3218": 0.4265073943184533,
+        "826": 0.5734926056815467
+      }
+    }
+  },
+  "iso_years_in_eligible_weeks": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "method": "stage_a_finite_factors (science.methods.stage_a)",
+  "module_version": "stage_a_real/1.0.0",
+  "regions": {
+    "3218": {
+      "N_fp": 473731,
+      "eligible_weeks_by_year": {
+        "2016": 52,
+        "2017": 52,
+        "2018": 52,
+        "2019": 51,
+        "2022": 45,
+        "2023": 51,
+        "2024": 44,
+        "2025": 49
+      },
+      "excluded_weeks_by_year": {
+        "2015": 1,
+        "2019": 2,
+        "2022": 7,
+        "2023": 1,
+        "2024": 8,
+        "2025": 3,
+        "2026": 1
+      },
+      "min_support_O": 473731,
+      "name": "California",
+      "policies": {
+        "common_support": {
+          "applicability": {
+            "2022": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6501,
+                "O": 131676980,
+                "rate": 0.04937081637200367
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.034804868702183175,
+                  "pooled_error": -0.014565947669820493,
+                  "pooled_relative_error": -0.2950315336102138,
+                  "status": "available",
+                  "weekly_mae": 0.014592788256283863
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 7,
+              "n_weeks": 45,
+              "observed_ratio_A_over_V": 1.418503163866463,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 4583,
+                "O": 131676980,
+                "rate": 0.034804868702183175
+              },
+              "years": [
+                2022
+              ]
+            },
+            "2023": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 7889,
+                "O": 138617158,
+                "rate": 0.05691214647468101
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.041279161126647826,
+                  "pooled_error": -0.01563298534803318,
+                  "pooled_relative_error": -0.2746862720243377,
+                  "status": "available",
+                  "weekly_mae": 0.016222766093027422
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 1,
+              "n_weeks": 51,
+              "observed_ratio_A_over_V": 1.3787137364557849,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 5722,
+                "O": 138617158,
+                "rate": 0.041279161126647826
+              },
+              "years": [
+                2023
+              ]
+            },
+            "2024": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6518,
+                "O": 119979584,
+                "rate": 0.05432590931470474
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.04354907581609885,
+                  "pooled_error": -0.010776833498605892,
+                  "pooled_relative_error": -0.1983737342743172,
+                  "status": "available",
+                  "weekly_mae": 0.01232602163023551
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 8,
+              "n_weeks": 44,
+              "observed_ratio_A_over_V": 1.2474641148325358,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 5225,
+                "O": 119979584,
+                "rate": 0.04354907581609885
+              },
+              "years": [
+                2024
+              ]
+            },
+            "2025": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 7259,
+                "O": 138085307,
+                "rate": 0.052568952900977364
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.04030841601416724,
+                  "pooled_error": -0.01226053688681012,
+                  "pooled_relative_error": -0.23322771731643474,
+                  "status": "available",
+                  "weekly_mae": 0.015324483332521835
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 3,
+              "n_weeks": 49,
+              "observed_ratio_A_over_V": 1.3041681638519582,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 5566,
+                "O": 138085307,
+                "rate": 0.04030841601416724
+              },
+              "years": [
+                2025
+              ]
+            }
+          },
+          "development_2019": {
+            "aqua": {
+              "D": 5976,
+              "O": 138246429,
+              "rate": 0.04322715634123179
+            },
+            "by_variant": {
+              "ex_2016": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "ex_2017": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "ex_2018": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "full_training_2016_2017_2018": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "raw": {
+                "factor": 1.0,
+                "mapped_rate": 0.031183445613629557,
+                "pooled_error": -0.012043710727602231,
+                "pooled_relative_error": -0.2786144578313253,
+                "status": "available",
+                "weekly_mae": 0.01335658534500336
+              }
+            },
+            "n_weeks": 51,
+            "observed_ratio_A_over_V": 1.3862212943632568,
+            "viirs": {
+              "D": 4311,
+              "O": 138246429,
+              "rate": 0.031183445613629557
+            },
+            "years": [
+              2019
+            ]
+          },
+          "factor_name": "a_C",
+          "role": "diagnostic only; never substitutes for a_H",
+          "variant_envelope": null,
+          "variant_envelope_note": "Min-max of registered leave-one-year-out variants; not a confidence interval or physical bound.",
+          "variants": {
+            "ex_2016": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            },
+            "ex_2017": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            },
+            "ex_2018": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017
+              ],
+              "viirs_pooled_rate": null
+            },
+            "full_training_2016_2017_2018": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            }
+          }
+        },
+        "own_support": {
+          "applicability": {
+            "2022": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6560,
+                "O": 133710252,
+                "rate": 0.04906130907598619
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.4739978505921467,
+                  "mapped_rate": 0.04956247903080004,
+                  "pooled_error": 0.0005011699548138557,
+                  "pooled_relative_error": 0.010215176974541045,
+                  "status": "available",
+                  "weekly_mae": 0.005252543458563396
+                },
+                "ex_2017": {
+                  "factor": 1.475915030892474,
+                  "mapped_rate": 0.04962694330962858,
+                  "pooled_error": 0.0005656342336423925,
+                  "pooled_relative_error": 0.0115291304756328,
+                  "status": "available",
+                  "weekly_mae": 0.005265809819379499
+                },
+                "ex_2018": {
+                  "factor": 1.4687886216184558,
+                  "mapped_rate": 0.04938732117580624,
+                  "pooled_error": 0.0003260120998200555,
+                  "pooled_relative_error": 0.006644993905790972,
+                  "status": "available",
+                  "weekly_mae": 0.005216497025618681
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.4733372843970909,
+                  "mapped_rate": 0.0495402678056088,
+                  "pooled_error": 0.0004789587296226139,
+                  "pooled_relative_error": 0.00976245311515847,
+                  "status": "available",
+                  "weekly_mae": 0.0052479725220244446
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.03362452598617385,
+                  "pooled_error": -0.015436783089812334,
+                  "pooled_relative_error": -0.3146427068609978,
+                  "status": "available",
+                  "weekly_mae": 0.01534193889730673
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 7,
+              "n_weeks": 45,
+              "observed_ratio_A_over_V": 1.4590929578058534,
+              "variant_envelope": [
+                1.4687886216184558,
+                1.475915030892474
+              ],
+              "viirs": {
+                "D": 4633,
+                "O": 137786329,
+                "rate": 0.03362452598617385
+              },
+              "years": [
+                2022
+              ]
+            },
+            "2023": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 7949,
+                "O": 142050359,
+                "rate": 0.05595902788249905
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.4739978505921467,
+                  "mapped_rate": 0.058681006884883785,
+                  "pooled_error": 0.0027219790023847376,
+                  "pooled_relative_error": 0.048642356834723094,
+                  "status": "available",
+                  "weekly_mae": 0.007886984190523397
+                },
+                "ex_2017": {
+                  "factor": 1.475915030892474,
+                  "mapped_rate": 0.05875733133159711,
+                  "pooled_error": 0.0027983034490980593,
+                  "pooled_relative_error": 0.050006291298945474,
+                  "status": "available",
+                  "weekly_mae": 0.007899481791591159
+                },
+                "ex_2018": {
+                  "factor": 1.4687886216184558,
+                  "mapped_rate": 0.05847362340657865,
+                  "pooled_error": 0.0025145955240796006,
+                  "pooled_relative_error": 0.04493636896909051,
+                  "status": "available",
+                  "weekly_mae": 0.007871290216895078
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.4733372843970909,
+                  "mapped_rate": 0.058654709228191534,
+                  "pooled_error": 0.002695681345692487,
+                  "pooled_relative_error": 0.048172411989586224,
+                  "status": "available",
+                  "weekly_mae": 0.007882678130846461
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.0398107818551499,
+                  "pooled_error": -0.01614824602734915,
+                  "pooled_relative_error": -0.28857266894015227,
+                  "status": "available",
+                  "weekly_mae": 0.016156823598096812
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 1,
+              "n_weeks": 51,
+              "observed_ratio_A_over_V": 1.4056249406531116,
+              "variant_envelope": [
+                1.4687886216184558,
+                1.475915030892474
+              ],
+              "viirs": {
+                "D": 5873,
+                "O": 147522850,
+                "rate": 0.0398107818551499
+              },
+              "years": [
+                2023
+              ]
+            },
+            "2024": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6557,
+                "O": 122890795,
+                "rate": 0.053356315255345205
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.4739978505921467,
+                  "mapped_rate": 0.061285167529253184,
+                  "pooled_error": 0.00792885227390798,
+                  "pooled_relative_error": 0.14860194591705192,
+                  "status": "available",
+                  "weekly_mae": 0.012662628989450676
+                },
+                "ex_2017": {
+                  "factor": 1.475915030892474,
+                  "mapped_rate": 0.06136487912166978,
+                  "pooled_error": 0.008008563866324578,
+                  "pooled_relative_error": 0.1500958945159221,
+                  "status": "available",
+                  "weekly_mae": 0.012706665574306388
+                },
+                "ex_2018": {
+                  "factor": 1.4687886216184558,
+                  "mapped_rate": 0.061068580734216386,
+                  "pooled_error": 0.007712265478871182,
+                  "pooled_relative_error": 0.14454269268713363,
+                  "status": "available",
+                  "weekly_mae": 0.012542975843790037
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.4733372843970909,
+                  "mapped_rate": 0.06125770282846553,
+                  "pooled_error": 0.007901387573120325,
+                  "pooled_relative_error": 0.14808720458500493,
+                  "status": "available",
+                  "weekly_mae": 0.012647456144571967
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.04157751485501366,
+                  "pooled_error": -0.011778800400331545,
+                  "pooled_relative_error": -0.22075738071420797,
+                  "status": "available",
+                  "weekly_mae": 0.012241583002954422
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 8,
+              "n_weeks": 44,
+              "observed_ratio_A_over_V": 1.2832973649677186,
+              "variant_envelope": [
+                1.4687886216184558,
+                1.475915030892474
+              ],
+              "viirs": {
+                "D": 5332,
+                "O": 128242393,
+                "rate": 0.04157751485501366
+              },
+              "years": [
+                2024
+              ]
+            },
+            "2025": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 7301,
+                "O": 141162201,
+                "rate": 0.051720644395449746
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.4739978505921467,
+                  "mapped_rate": 0.05719088856578264,
+                  "pooled_error": 0.005470244170332893,
+                  "pooled_relative_error": 0.1057651975197384,
+                  "status": "available",
+                  "weekly_mae": 0.0121947169009365
+                },
+                "ex_2017": {
+                  "factor": 1.475915030892474,
+                  "mapped_rate": 0.057265274864834896,
+                  "pooled_error": 0.005544630469385151,
+                  "pooled_relative_error": 0.10720342977538296,
+                  "status": "available",
+                  "weekly_mae": 0.012213099163080436
+                },
+                "ex_2018": {
+                  "factor": 1.4687886216184558,
+                  "mapped_rate": 0.05698877128750553,
+                  "pooled_error": 0.005268126892055781,
+                  "pooled_relative_error": 0.10185733286260559,
+                  "status": "available",
+                  "weekly_mae": 0.01216335743215476
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.4733372843970909,
+                  "mapped_rate": 0.05716525869960842,
+                  "pooled_error": 0.005444614304158678,
+                  "pooled_relative_error": 0.10526965330381076,
+                  "status": "available",
+                  "weekly_mae": 0.012188425866249117
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.038799845293402184,
+                  "pooled_error": -0.012920799102047562,
+                  "pooled_relative_error": -0.24981898916913536,
+                  "status": "available",
+                  "weekly_mae": 0.015510671271472038
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 3,
+              "n_weeks": 49,
+              "observed_ratio_A_over_V": 1.333011613946943,
+              "variant_envelope": [
+                1.4687886216184558,
+                1.475915030892474
+              ],
+              "viirs": {
+                "D": 5669,
+                "O": 146108830,
+                "rate": 0.038799845293402184
+              },
+              "years": [
+                2025
+              ]
+            }
+          },
+          "development_2019": {
+            "aqua": {
+              "D": 6014,
+              "O": 141494589,
+              "rate": 0.042503392126182295
+            },
+            "by_variant": {
+              "ex_2016": {
+                "factor": 1.4739978505921467,
+                "mapped_rate": 0.04410985154171436,
+                "pooled_error": 0.0016064594155320647,
+                "pooled_relative_error": 0.037796028391401684,
+                "status": "available",
+                "weekly_mae": 0.009208762372800135
+              },
+              "ex_2017": {
+                "factor": 1.475915030892474,
+                "mapped_rate": 0.04416722376813394,
+                "pooled_error": 0.0016638316419516422,
+                "pooled_relative_error": 0.03914585539460305,
+                "status": "available",
+                "weekly_mae": 0.009219074079307492
+              },
+              "ex_2018": {
+                "factor": 1.4687886216184558,
+                "mapped_rate": 0.043953963718279615,
+                "pooled_error": 0.0014505715920973203,
+                "pooled_relative_error": 0.034128372337693044,
+                "status": "available",
+                "weekly_mae": 0.009180744121049297
+              },
+              "full_training_2016_2017_2018": {
+                "factor": 1.4733372843970909,
+                "mapped_rate": 0.0440900838895528,
+                "pooled_error": 0.0015866917633705069,
+                "pooled_relative_error": 0.03733094428463504,
+                "status": "available",
+                "weekly_mae": 0.009205209465058001
+              },
+              "raw": {
+                "factor": 1.0,
+                "mapped_rate": 0.029925316053883107,
+                "pooled_error": -0.012578076072299188,
+                "pooled_relative_error": -0.29593111145006784,
+                "status": "available",
+                "weekly_mae": 0.013448808118101565
+              }
+            },
+            "n_weeks": 51,
+            "observed_ratio_A_over_V": 1.420315563239208,
+            "viirs": {
+              "D": 4382,
+              "O": 146431202,
+              "rate": 0.029925316053883107
+            },
+            "years": [
+              2019
+            ]
+          },
+          "factor_name": "a_H",
+          "role": "historical own-support factor",
+          "variant_envelope": [
+            1.4687886216184558,
+            1.475915030892474
+          ],
+          "variant_envelope_note": "Min-max of registered leave-one-year-out variants; not a confidence interval or physical bound.",
+          "variants": {
+            "ex_2016": {
+              "aqua_pooled_rate": 0.13022154813201864,
+              "factor": 1.4739978505921467,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": 0.08834581955442129
+            },
+            "ex_2017": {
+              "aqua_pooled_rate": 0.0998597126264251,
+              "factor": 1.475915030892474,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2018
+              ],
+              "viirs_pooled_rate": 0.0676595268265821
+            },
+            "ex_2018": {
+              "aqua_pooled_rate": 0.09475826846669579,
+              "factor": 1.4687886216184558,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017
+              ],
+              "viirs_pooled_rate": 0.06451457144478816
+            },
+            "full_training_2016_2017_2018": {
+              "aqua_pooled_rate": 0.10830330275012638,
+              "factor": 1.4733372843970909,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": 0.0735088318860033
+            }
+          }
+        }
+      }
+    },
+    "826": {
+      "N_fp": 1101703,
+      "eligible_weeks_by_year": {
+        "2016": 52,
+        "2017": 51,
+        "2018": 52,
+        "2019": 51,
+        "2022": 45,
+        "2023": 51,
+        "2024": 44,
+        "2025": 46
+      },
+      "excluded_weeks_by_year": {
+        "2015": 1,
+        "2017": 1,
+        "2019": 2,
+        "2022": 7,
+        "2023": 1,
+        "2024": 8,
+        "2025": 6,
+        "2026": 1
+      },
+      "min_support_O": 1101703,
+      "name": "British Columbia",
+      "policies": {
+        "common_support": {
+          "applicability": {
+            "2022": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6812,
+                "O": 146370465,
+                "rate": 0.046539443596083405
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.032431406158339386,
+                  "pooled_error": -0.014108037437744018,
+                  "pooled_relative_error": -0.3031415149735761,
+                  "status": "available",
+                  "weekly_mae": 0.014947299344549239
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 7,
+              "n_weeks": 45,
+              "observed_ratio_A_over_V": 1.4350115862650097,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 4747,
+                "O": 146370465,
+                "rate": 0.032431406158339386
+              },
+              "years": [
+                2022
+              ]
+            },
+            "2023": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 69765,
+                "O": 182447653,
+                "rate": 0.3823836528058818
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.25558563913124166,
+                  "pooled_error": -0.12679801367464016,
+                  "pooled_relative_error": -0.33159893929620876,
+                  "status": "available",
+                  "weekly_mae": 0.07884091541204792
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 1,
+              "n_weeks": 51,
+              "observed_ratio_A_over_V": 1.4961077394866078,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 46631,
+                "O": 182447653,
+                "rate": 0.25558563913124166
+              },
+              "years": [
+                2023
+              ]
+            },
+            "2024": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 16884,
+                "O": 138565669,
+                "rate": 0.12184836346440185
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.08423442894790917,
+                  "pooled_error": -0.037613934516492684,
+                  "pooled_relative_error": -0.30869462212745796,
+                  "status": "available",
+                  "weekly_mae": 0.02522304165759949
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 8,
+              "n_weeks": 44,
+              "observed_ratio_A_over_V": 1.4465387251542152,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 11672,
+                "O": 138565669,
+                "rate": 0.08423442894790917
+              },
+              "years": [
+                2024
+              ]
+            },
+            "2025": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 17004,
+                "O": 158195098,
+                "rate": 0.10748752783730378
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2017": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "ex_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": null,
+                  "status": "unavailable"
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.07349785263257652,
+                  "pooled_error": -0.03398967520472726,
+                  "pooled_relative_error": -0.3162197130087038,
+                  "status": "available",
+                  "weekly_mae": 0.024216449281876183
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": null,
+              "excluded_weeks": 6,
+              "n_weeks": 46,
+              "observed_ratio_A_over_V": 1.4624580717295947,
+              "variant_envelope": null,
+              "viirs": {
+                "D": 11627,
+                "O": 158195098,
+                "rate": 0.07349785263257652
+              },
+              "years": [
+                2025
+              ]
+            }
+          },
+          "development_2019": {
+            "aqua": {
+              "D": 4214,
+              "O": 176176093,
+              "rate": 0.023919249929103603
+            },
+            "by_variant": {
+              "ex_2016": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "ex_2017": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "ex_2018": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "full_training_2016_2017_2018": {
+                "factor": null,
+                "status": "unavailable"
+              },
+              "raw": {
+                "factor": 1.0,
+                "mapped_rate": 0.018345281388434467,
+                "pooled_error": -0.0055739685406691365,
+                "pooled_relative_error": -0.23303274798291412,
+                "status": "available",
+                "weekly_mae": 0.00661364549656843
+              }
+            },
+            "n_weeks": 51,
+            "observed_ratio_A_over_V": 1.3038366336633664,
+            "viirs": {
+              "D": 3232,
+              "O": 176176093,
+              "rate": 0.018345281388434467
+            },
+            "years": [
+              2019
+            ]
+          },
+          "factor_name": "a_C",
+          "role": "diagnostic only; never substitutes for a_H",
+          "variant_envelope": null,
+          "variant_envelope_note": "Min-max of registered leave-one-year-out variants; not a confidence interval or physical bound.",
+          "variants": {
+            "ex_2016": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            },
+            "ex_2017": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            },
+            "ex_2018": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017
+              ],
+              "viirs_pooled_rate": null
+            },
+            "full_training_2016_2017_2018": {
+              "aqua_pooled_rate": null,
+              "factor": null,
+              "reasons": [
+                "fit_common_support_variants called with pairing_validated=False. All a_C variants are UNAVAILABLE until the data layer confirms that every common-support record covers the identical spatial cell-days for both sensors (spec \u00a76: 'identical paired common-support cell-days').  Pass pairing_validated=True after verifying the join on a canonical cell ID is complete and lossless."
+              ],
+              "status": "unavailable",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": null
+            }
+          }
+        },
+        "own_support": {
+          "applicability": {
+            "2022": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 6986,
+                "O": 157674475,
+                "rate": 0.04430647382843672
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.5544718041836447,
+                  "mapped_rate": 0.0461662392641167,
+                  "pooled_error": 0.0018597654356799775,
+                  "pooled_relative_error": 0.04197502701030443,
+                  "status": "available",
+                  "weekly_mae": 0.011777769210197346
+                },
+                "ex_2017": {
+                  "factor": 1.5628229385598211,
+                  "mapped_rate": 0.04641425950269531,
+                  "pooled_error": 0.0021077856742585874,
+                  "pooled_relative_error": 0.04757285994864641,
+                  "status": "available",
+                  "weekly_mae": 0.011913427694147714
+                },
+                "ex_2018": {
+                  "factor": 1.5439629536607167,
+                  "mapped_rate": 0.04585413703985852,
+                  "pooled_error": 0.0015476632114218014,
+                  "pooled_relative_error": 0.03493085948149822,
+                  "status": "available",
+                  "weekly_mae": 0.011607060098622236
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.5549080207960762,
+                  "mapped_rate": 0.04617919445600007,
+                  "pooled_error": 0.0018727206275633498,
+                  "pooled_relative_error": 0.04226742653488716,
+                  "status": "available",
+                  "weekly_mae": 0.01178485525164403
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.029698987874766648,
+                  "pooled_error": -0.014607485953670073,
+                  "pooled_relative_error": -0.3296919093636993,
+                  "status": "available",
+                  "weekly_mae": 0.01578699363335574
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 7,
+              "n_weeks": 45,
+              "observed_ratio_A_over_V": 1.491851305346373,
+              "variant_envelope": [
+                1.5439629536607167,
+                1.5628229385598211
+              ],
+              "viirs": {
+                "D": 5256,
+                "O": 176975728,
+                "rate": 0.029698987874766648
+              },
+              "years": [
+                2022
+              ]
+            },
+            "2023": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 70608,
+                "O": 195670311,
+                "rate": 0.36085188212329256
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.5544718041836447,
+                  "mapped_rate": 0.3392781708641382,
+                  "pooled_error": -0.02157371125915436,
+                  "pooled_relative_error": -0.059785502938802054,
+                  "status": "available",
+                  "weekly_mae": 0.02108997982286522
+                },
+                "ex_2017": {
+                  "factor": 1.5628229385598211,
+                  "mapped_rate": 0.34110088491283574,
+                  "pooled_error": -0.01975099721045681,
+                  "pooled_relative_error": -0.054734361074243953,
+                  "status": "available",
+                  "weekly_mae": 0.020914254927524654
+                },
+                "ex_2018": {
+                  "factor": 1.5439629536607167,
+                  "mapped_rate": 0.33698451486233244,
+                  "pooled_error": -0.023867367260960115,
+                  "pooled_relative_error": -0.06614172862428173,
+                  "status": "available",
+                  "weekly_mae": 0.02131110746554321
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.5549080207960762,
+                  "mapped_rate": 0.33937337926481037,
+                  "pooled_error": -0.021478502858482185,
+                  "pooled_relative_error": -0.05952165950223202,
+                  "status": "available",
+                  "weekly_mae": 0.021080800935888613
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.21825945633173802,
+                  "pooled_error": -0.14259242579155454,
+                  "pooled_relative_error": -0.3951550008621955,
+                  "status": "available",
+                  "weekly_mae": 0.08259057736172225
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 1,
+              "n_weeks": 51,
+              "observed_ratio_A_over_V": 1.6533161412022612,
+              "variant_envelope": [
+                1.5439629536607167,
+                1.5628229385598211
+              ],
+              "viirs": {
+                "D": 48063,
+                "O": 220210390,
+                "rate": 0.21825945633173802
+              },
+              "years": [
+                2023
+              ]
+            },
+            "2024": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 17154,
+                "O": 151567059,
+                "rate": 0.11317762654482859
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.5544718041836447,
+                  "mapped_rate": 0.10848092856805941,
+                  "pooled_error": -0.004696697976769179,
+                  "pooled_relative_error": -0.041498466792010885,
+                  "status": "available",
+                  "weekly_mae": 0.012096510836034679
+                },
+                "ex_2017": {
+                  "factor": 1.5628229385598211,
+                  "mapped_rate": 0.10906372383606366,
+                  "pooled_error": -0.004113902708764924,
+                  "pooled_relative_error": -0.03634908094786249,
+                  "status": "available",
+                  "weekly_mae": 0.012241975827587652
+                },
+                "ex_2018": {
+                  "factor": 1.5439629536607167,
+                  "mapped_rate": 0.1077475541447717,
+                  "pooled_error": -0.0054300724000568845,
+                  "pooled_relative_error": -0.04797832014886868,
+                  "status": "available",
+                  "weekly_mae": 0.011913461470081467
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.5549080207960762,
+                  "mapped_rate": 0.1085113705375091,
+                  "pooled_error": -0.004666256007319486,
+                  "pooled_relative_error": -0.041229491638713825,
+                  "status": "available",
+                  "weekly_mae": 0.012104109114661784
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.06978635976290987,
+                  "pooled_error": -0.04339126678191872,
+                  "pooled_relative_error": -0.38339085300337034,
+                  "status": "available",
+                  "weekly_mae": 0.026938162737210558
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 8,
+              "n_weeks": 44,
+              "observed_ratio_A_over_V": 1.6217728927162118,
+              "variant_envelope": [
+                1.5439629536607167,
+                1.5628229385598211
+              ],
+              "viirs": {
+                "D": 12186,
+                "O": 174618651,
+                "rate": 0.06978635976290987
+              },
+              "years": [
+                2024
+              ]
+            },
+            "2025": {
+              "applicability_passed": null,
+              "applicability_reason": "No registered applicability pass criterion; the envelope check below is descriptive and is not a gate.",
+              "applicability_status": "insufficient_evidence",
+              "aqua": {
+                "D": 17293,
+                "O": 173339071,
+                "rate": 0.09976400531187801
+              },
+              "by_variant": {
+                "ex_2016": {
+                  "factor": 1.5544718041836447,
+                  "mapped_rate": 0.09749589548915899,
+                  "pooled_error": -0.002268109822719022,
+                  "pooled_relative_error": -0.022734751031983462,
+                  "status": "available",
+                  "weekly_mae": 0.014500875202622244
+                },
+                "ex_2017": {
+                  "factor": 1.5628229385598211,
+                  "mapped_rate": 0.09801967554239914,
+                  "pooled_error": -0.0017443297694788723,
+                  "pooled_relative_error": -0.017484560328405244,
+                  "status": "available",
+                  "weekly_mae": 0.01462794531943131
+                },
+                "ex_2018": {
+                  "factor": 1.5439629536607167,
+                  "mapped_rate": 0.09683678427881919,
+                  "pooled_error": -0.002927221033058827,
+                  "pooled_relative_error": -0.029341454604873498,
+                  "status": "available",
+                  "weekly_mae": 0.014341441110378656
+                },
+                "full_training_2016_2017_2018": {
+                  "factor": 1.5549080207960762,
+                  "mapped_rate": 0.09752325483343387,
+                  "pooled_error": -0.002240750478444145,
+                  "pooled_relative_error": -0.022460510395900864,
+                  "status": "available",
+                  "weekly_mae": 0.01450751263574197
+                },
+                "raw": {
+                  "factor": 1.0,
+                  "mapped_rate": 0.06271962941158685,
+                  "pooled_error": -0.037044375900291165,
+                  "pooled_relative_error": -0.37132005460771755,
+                  "status": "available",
+                  "weekly_mae": 0.02450633157202944
+                }
+              },
+              "descriptive_ratio_inside_variant_envelope": false,
+              "excluded_weeks": 6,
+              "n_weeks": 46,
+              "observed_ratio_A_over_V": 1.590634483140737,
+              "variant_envelope": [
+                1.5439629536607167,
+                1.5628229385598211
+              ],
+              "viirs": {
+                "D": 12322,
+                "O": 196461620,
+                "rate": 0.06271962941158685
+              },
+              "years": [
+                2025
+              ]
+            }
+          },
+          "development_2019": {
+            "aqua": {
+              "D": 4400,
+              "O": 190056937,
+              "rate": 0.023150957126074276
+            },
+            "by_variant": {
+              "ex_2016": {
+                "factor": 1.5544718041836447,
+                "mapped_rate": 0.0264980685191526,
+                "pooled_error": 0.003347111393078323,
+                "pooled_relative_error": 0.1445776679923339,
+                "status": "available",
+                "weekly_mae": 0.0054887038356441435
+              },
+              "ex_2017": {
+                "factor": 1.5628229385598211,
+                "mapped_rate": 0.026640424868310558,
+                "pooled_error": 0.0034894677422362824,
+                "pooled_relative_error": 0.15072671610221214,
+                "status": "available",
+                "weekly_mae": 0.005581532431292173
+              },
+              "ex_2018": {
+                "factor": 1.5439629536607167,
+                "mapped_rate": 0.026318930988021683,
+                "pooled_error": 0.003167973861947407,
+                "pooled_relative_error": 0.13683986561313297,
+                "status": "available",
+                "weekly_mae": 0.005371890742718539
+              },
+              "full_training_2016_2017_2018": {
+                "factor": 1.5549080207960762,
+                "mapped_rate": 0.0265055044196651,
+                "pooled_error": 0.0033545472935908247,
+                "pooled_relative_error": 0.14489885991852544,
+                "status": "available",
+                "weekly_mae": 0.0054935526829631215
+              },
+              "raw": {
+                "factor": 1.0,
+                "mapped_rate": 0.01704634876479376,
+                "pooled_error": -0.006104608361280517,
+                "pooled_relative_error": -0.2636870833476283,
+                "status": "available",
+                "weekly_mae": 0.007796467266560998
+              }
+            },
+            "n_weeks": 51,
+            "observed_ratio_A_over_V": 1.3581182366682838,
+            "viirs": {
+              "D": 3641,
+              "O": 213594128,
+              "rate": 0.01704634876479376
+            },
+            "years": [
+              2019
+            ]
+          },
+          "factor_name": "a_H",
+          "role": "historical own-support factor",
+          "variant_envelope": [
+            1.5439629536607167,
+            1.5628229385598211
+          ],
+          "variant_envelope_note": "Min-max of registered leave-one-year-out variants; not a confidence interval or physical bound.",
+          "variants": {
+            "ex_2016": {
+              "aqua_pooled_rate": 0.21725660592136686,
+              "factor": 1.5544718041836447,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": 0.1397623329909561
+            },
+            "ex_2017": {
+              "aqua_pooled_rate": 0.12503598791546416,
+              "factor": 1.5628229385598211,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2018
+              ],
+              "viirs_pooled_rate": 0.08000649646893962
+            },
+            "ex_2018": {
+              "aqua_pooled_rate": 0.11988811873353321,
+              "factor": 1.5439629536607167,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017
+              ],
+              "viirs_pooled_rate": 0.07764960839849168
+            },
+            "full_training_2016_2017_2018": {
+              "aqua_pooled_rate": 0.15360469343739228,
+              "factor": 1.5549080207960762,
+              "reasons": [],
+              "status": "available",
+              "support_failures": [],
+              "training_years": [
+                2016,
+                2017,
+                2018
+              ],
+              "viirs_pooled_rate": 0.09878699664739674
+            }
+          }
+        }
+      }
+    }
+  },
+  "selection": {
+    "c_min": 1.0,
+    "c_min_registered": false,
+    "common_pairing_attested": false,
+    "eligible_week_rule": "both sensors state 'complete', comparison_eligible, processed coverage >= c_min for both sensors",
+    "eligible_weeks": 788,
+    "excluded_weeks": 50,
+    "min_support_O_registered": false,
+    "min_support_O_rule": "region N_fp per sensor-year",
+    "regions_fitted_separately": true,
+    "rows_loaded": 838,
+    "strata_registered": false,
+    "stratum": "annual",
+    "union_factor_fitted": false,
+    "week_definition": "utc_iso_week (registered)"
+  },
+  "source": {
+    "file": "focus_weekly_CA_BC.parquet",
+    "read_filter": "iso_year not in (2020, 2021); partition in train_2016_2018, dev_2019, applicability_2022_2025",
+    "sha256": "e83144accbe1092dc9f49666f228476daaf5b0a896d3dfc43715dae960ae2ca6"
+  },
+  "splits": {
+    "applicability": [
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "development": 2019,
+    "sealed_not_read": [
+      2020,
+      2021
+    ],
+    "training": [
+      2016,
+      2017,
+      2018
+    ]
+  },
+  "status_dimensions": {
+    "applicability_note": "No registered applicability criterion; applicability_passed is null for every year.",
+    "inference_status": "not_established",
+    "stability_note": "Variants test training-year composition only, not every plausible sensor bias or transfer failure."
+  },
+  "summary_id": "stage_a_real_CA_BC_weekly",
+  "unit": "fire-cell-days per 1000 usable land-cell-days (not fire counts, not FIRMS points)"
+}
