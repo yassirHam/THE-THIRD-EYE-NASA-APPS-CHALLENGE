@@ -85,9 +85,9 @@ export default function RegionMap({ markers, selected, onSelect, home, compact }
             const on = m.id === selected
             return <g key={m.id} className={`rm__marker ${on ? 'is-selected' : ''} ${m.placeholder ? 'is-placeholder' : ''}`} transform={`translate(${m.lon},${-m.lat})`}
               onPointerEnter={() => setHover(m.id)} onPointerLeave={() => setHover(undefined)} onClick={() => { if (!m.placeholder) onSelect?.(m.id) }}>
-              <circle r={u * (on ? 4.2 : 3.2)} className="rm__halo" />
-              <circle r={u * 1.4} className="rm__dot" />
-              <text x={u * 4.5} y={u * 1.4} style={{ fontSize: u * 3.6 }} className="rm__label">{m.name}</text>
+              <circle r={u * (on ? 3.2 : m.placeholder ? 1.8 : 2.4)} className="rm__halo" />
+              <circle r={u * (m.placeholder ? 0.8 : 1.1)} className="rm__dot" />
+              {(!m.placeholder || hover === m.id) && <text x={u * 3.4} y={u * 1.1} style={{ fontSize: u * 2.8 }} className="rm__label">{m.name}</text>}
             </g>
           })}
         </svg>
