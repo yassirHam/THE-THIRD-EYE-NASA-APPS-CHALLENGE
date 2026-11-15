@@ -1,37 +1,71 @@
 {
-  "artifact_version": "eval-v1-summary-20261114",
+  "contract_version": "1.6.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "held_out_sensor_switch",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
   "eval_protocol_version": "P0-held-out-sensor-switch-v1",
   "baseline_a_raw_handover": {
-    "mean_reference_relative_error": 0.482,
-    "decision_coverage_percent": 100.0,
-    "abstention_rate_percent": 0.0
+    "status": "available",
+    "evaluated_case_count": 20,
+    "answered_case_count": 17,
+    "abstention_count": 3,
+    "mean_reference_relative_error": 0.1,
+    "directional_error_count": 2,
+    "decision_coverage_percent": 85.0,
+    "unavailable_reason": null
   },
   "baseline_b_point_a_h": {
-    "mean_reference_relative_error": 0.124,
-    "decision_coverage_percent": 100.0,
-    "abstention_rate_percent": 0.0
+    "status": "available",
+    "evaluated_case_count": 20,
+    "answered_case_count": 17,
+    "abstention_count": 3,
+    "mean_reference_relative_error": 0.1,
+    "directional_error_count": 2,
+    "decision_coverage_percent": 85.0,
+    "unavailable_reason": null
   },
   "baseline_c_uncertainty_aware": {
-    "mean_reference_relative_error": 0.088,
-    "decision_coverage_percent": 84.5,
-    "abstention_rate_percent": 15.5
+    "status": "available",
+    "evaluated_case_count": 20,
+    "answered_case_count": 17,
+    "abstention_count": 3,
+    "mean_reference_relative_error": 0.1,
+    "directional_error_count": 2,
+    "decision_coverage_percent": 85.0,
+    "unavailable_reason": null
   },
   "baseline_d_stage_a_finite_audit": {
-    "mean_reference_relative_error": 0.091,
-    "decision_coverage_percent": 88.0,
-    "abstention_rate_percent": 12.0
+    "status": "available",
+    "evaluated_case_count": 20,
+    "answered_case_count": 17,
+    "abstention_count": 3,
+    "mean_reference_relative_error": 0.1,
+    "directional_error_count": 2,
+    "decision_coverage_percent": 85.0,
+    "unavailable_reason": null
   },
-  "headline_metric_description": "Held-out sensor-switch error reduction relative to raw sensor handover",
-  "headline_metric_value": 78.4,
-  "headline_denominator": "evaluated across 420 block-periods (35 blocks x 12 months in 2020-2021 test years)",
-  "independent_units": {
-    "blocks": 35,
-    "regions": 1,
-    "test_years": 2
+  "landing_headline_metric": {
+    "status": "available",
+    "description": "Synthetic sensor-switch headline",
+    "registered_case_count": 20,
+    "raw_wrong_way_count": 8,
+    "corrected_wrong_way_count": 3,
+    "flagged_remaining_error_count": 2,
+    "abstained_count": 3,
+    "denominator_statement": "20 registered cases; not independent tests.",
+    "independent_units": {
+      "blocks": 5,
+      "regions": 1,
+      "test_years": 2,
+      "dependence_note": "Blocks within one region are dependent."
+    },
+    "unavailable_reason": null
   },
   "failures_and_limitations": [
-    "Evaluated exclusively on held-out 2020-2021 blocks.",
-    "Abstentions triggered when usable land-cell days O fell below 1,000.",
-    "Transferability to other biomes remains unvalidated."
+    "Synthetic values only; not a result."
   ]
 }

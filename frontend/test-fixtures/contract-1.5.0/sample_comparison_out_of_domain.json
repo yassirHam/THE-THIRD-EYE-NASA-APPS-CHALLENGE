@@ -1,0 +1,82 @@
+{
+  "contract_version": "1.5.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "stage_a_finite_factors",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "sensitivity_status": "stable_across_displayed_settings",
+  "applicability_status": "out_of_domain",
+  "inference_status": "not_established",
+  "practical_change": {
+    "category": "meaningful_increase",
+    "magnitude": 2.4,
+    "effect_units": "R points",
+    "practical_margin_tau": 0.5,
+    "observed_signs": [
+      "increase"
+    ]
+  },
+  "headline_direction": "unavailable",
+  "required_variant_ids": [
+    "full_training",
+    "ex_2016",
+    "ex_2017"
+  ],
+  "registered_variants": [
+    {
+      "variant_id": "full_training",
+      "factor_value": 1.4,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2016,
+        2017,
+        2018
+      ],
+      "effect_delta": 2.0,
+      "direction": "increase"
+    },
+    {
+      "variant_id": "ex_2016",
+      "factor_value": 1.5,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2017,
+        2018
+      ],
+      "effect_delta": 2.4,
+      "direction": "increase"
+    },
+    {
+      "variant_id": "ex_2017",
+      "factor_value": 1.3,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2016,
+        2018
+      ],
+      "effect_delta": 1.8,
+      "direction": "increase"
+    }
+  ],
+  "applicability_checks": [
+    {
+      "check_id": "domain",
+      "status": "out_of_domain",
+      "detail": "Outside evaluated domain."
+    }
+  ],
+  "missing_evidence_reasons": [],
+  "conclusion_eligible": false,
+  "reviewed_summary": {
+    "template_id": "stage_a_default",
+    "template_version": "1",
+    "generated_by": "reviewed_deterministic_template",
+    "output_category": "outside_evaluated_calibration",
+    "status_label": "Outside evaluated calibration",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] This area/period was not evaluated.",
+    "limit_sentence": "Raw observations may still be shown."
+  }
+}

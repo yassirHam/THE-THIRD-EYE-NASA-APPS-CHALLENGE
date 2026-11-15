@@ -1,28 +1,66 @@
-"""
-THE THIRD EYE — Claim Audit Record Contract
-Standardized, downloadable, reproducible audit certificate.
-"""
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+"""Downloadable claim audit record and deterministic summary contract."""
 
-class ClaimAuditRecord(BaseModel):
-    """Reproducible audit record verifying an environmental assertion."""
-    record_id: str = Field(..., description="SHA256 hash of query and inputs")
-    statement: str = Field(..., description="Natural language environmental claim tested")
-    analyst_entity: Optional[str] = None
-    target_region: str
-    geometry_id: str
-    date_range_tested: str
-    dataset_versions: List[str] = Field(
-        default=["MODIS/061/MYD14A1", "NASA/VIIRS/002/VNP14A1"],
-        description="Exact NASA Earth Engine collections utilized"
-    )
-    snpp_cessation_verified: bool = True
-    formulas_applied: List[str]
-    sensitivity_status: str
-    applicability_status: str
-    inference_status: str = "not_established"
-    practical_margin_applied: Optional[float] = None
-    counterexample_interpretations: Optional[List[Dict[str, Any]]] = None
-    reproducibility_hash: str
-    verification_steps: List[str]
+from __future__ import annotations
+
+from pydantic import Field, model_validator
+
+from .common import ArtifactIdentity
+from .comparison import (
+    ApplicabilityCheck,
+    ApplicabilityStatus,
+    InferenceStatus,
+    PracticalChange,
+    ReviewedTemplateSummary,
+    SensitivityStatus,
+    check_applicability_consistency,
+    expected_output_category,
+    is_conclusion_eligible,
+)
+
+
+class ClaimAuditRecord(ArtifactIdentity):
+    record_id: str = Field(min_length=1)
+    statement: str = Field(min_length=1)
+    analyst_entity: str | None = None
+    target_region: str = Field(min_length=1)
+    date_range_tested: str = Field(min_length=1)
+    dataset_versions: list[str] = Field(min_length=1)
+    formulas_applied: list[str] = Field(min_length=1)
+    sensitivity_status: SensitivityStatus
+    applicability_status: ApplicabilityStatus
+    inference_status: InferenceStatus = "not_established"
+    practical_change: PracticalChange
+    applicability_checks: list[ApplicabilityCheck] = Field(min_length=1)
+    missing_evidence_reasons: list[str] = Field(default_factory=list)
+    conclusion_eligible: bool
+    reviewed_summary: ReviewedTemplateSummary
+    counterexample_interpretations: list[dict[str, object]] = Field(default_factory=list)
+    reproducibility_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    verification_steps: list[str] = Field(min_length=1)
+    evidence_artifact_versions: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def preserve_applicability_distinctions(self) -> "ClaimAuditRecord":
+        check_applicability_consistency(self.applicability_status, self.applicability_checks)
+        has_missing_check = any(check.status == "missing" for check in self.applicability_checks)
+        has_missing_reasons = bool(self.missing_evidence_reasons)
+        is_missing_support = self.applicability_status == "missing_required_support"
+        complete = not has_missing_check and not has_missing_reasons and not is_missing_support
+
+        if self.reviewed_summary.output_category != expected_output_category(
+            self.applicability_status, self.sensitivity_status, complete=complete
+        ):
+            raise ValueError(
+                "summary must preserve failed, missing, and out-of-domain applicability states"
+            )
+        if self.conclusion_eligible != is_conclusion_eligible(
+            self.applicability_status, self.sensitivity_status, complete=complete
+        ):
+            raise ValueError("conclusion eligibility must follow applicability and sensitivity")
+        if self.sensitivity_status == "unavailable":
+            if (not has_missing_reasons and not has_missing_check and not is_missing_support) or self.practical_change.category != "unavailable":
+                raise ValueError("unavailable sensitivity requires reasons or missing check and no practical category")
+        elif self.practical_change.category == "unavailable":
+            if not has_missing_reasons and not has_missing_check and not is_missing_support:
+                raise ValueError("practical change cannot be unavailable when sensitivity is available unless evidence is missing")
+        return self

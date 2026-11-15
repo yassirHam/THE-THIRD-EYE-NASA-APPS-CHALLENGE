@@ -1,0 +1,318 @@
+/* ---------- Story chapters: 3D illustration left, narration right ---------- */
+
+.story {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+}
+
+/* The scene fills its column. The chapter name lives in the objective label (top left), so
+   there is no second, larger title competing with the illustration. */
+.story__art { position: relative; overflow: hidden; background: #050708; }
+.story__stage { position: absolute; inset: 0; }
+.story__art canvas { position: absolute !important; inset: 0; }
+
+/* Overlay rows: controls, open space, readouts, caption. Each has its own row. */
+.story__overlay {
+  position: absolute;
+  inset: 104px 0 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  row-gap: 10px;
+  padding: 0 22px 20px;
+  pointer-events: none;
+}
+.story__overlay > * { pointer-events: auto; }
+.story__controls { grid-row: 1; display: grid; gap: 10px; justify-items: start; }
+.story__body { grid-row: 2; min-height: 0; position: relative; }
+.art__toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.readouts {
+  grid-row: 3;
+  justify-self: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 8px 12px;
+  background: rgba(5, 7, 8, 0.8);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ivory-dim);
+}
+.readout b, .readouts b { font-weight: 600; color: var(--ivory); margin-right: 4px; }
+.readout--modis b { color: var(--amber); }
+.readout--viirs b { color: var(--teal); }
+
+.story__caption {
+  grid-row: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 18px;
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(19px, 1.5vw, 24px);
+  line-height: 1.2;
+  color: var(--ivory);
+  text-shadow: 0 1px 14px rgba(5, 7, 8, 0.95);
+  pointer-events: none;
+}
+.story__note { font-family: var(--ui); font-weight: 400; font-size: 12px; letter-spacing: 0.04em; color: var(--ivory-dim); }
+
+/* Per-chapter composition */
+.story__overlay--third .story__caption { font-size: clamp(24px, 2.1vw, 34px); max-width: 15em; flex-direction: column; justify-content: flex-start; text-wrap: balance; }
+.story__overlay--seam .readouts { grid-row: 1; justify-self: end; }
+.story__overlay--verdict { grid-template-rows: 1fr auto; }
+.story__overlay--verdict .story__controls { grid-row: 1; align-self: center; width: min(400px, 48%); }
+.story__overlay--verdict .story__caption { grid-row: 2; }
+
+.verdicts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.verdict {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 10px 14px;
+  background: rgba(5, 7, 8, 0.82);
+}
+.verdict b { display: block; font-weight: 600; font-size: 16px; }
+.verdict span { font-size: 14px; color: var(--ivory-dim); }
+.verdict__mark { width: 14px; height: 14px; margin-top: 3px; border: 1.5px solid currentColor; }
+.verdict--ok { color: var(--ivory); }
+.verdict--ok .verdict__mark { background: var(--ivory); }
+.verdict--warn .verdict__mark { color: var(--amber); background: repeating-linear-gradient(90deg, var(--amber) 0 3px, transparent 3px 6px); }
+.verdict--gap .verdict__mark { color: var(--ivory-dim); border-style: dashed; }
+.verdict--out .verdict__mark { color: var(--teal); }
+.verdict--fail .verdict__mark { color: var(--oxide); background: var(--oxide); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+
+/* Narration column */
+.story__text {
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+  padding: 0 clamp(20px, 3vw, 56px) 28px;
+  background: var(--void);
+}
+
+.story__log {
+  overflow-y: auto;
+  padding-top: clamp(40px, 9vh, 120px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ivory-faint) transparent;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 70px);
+}
+.story__entry { margin-bottom: 28px; transition: opacity 400ms var(--ease-out); }
+.story__entry.is-past { opacity: 0.64; }
+.story__para {
+  margin: 0 0 18px;
+  font-family: var(--prose);
+  font-weight: 500;
+  font-size: clamp(21px, 1.65vw, 28px);
+  line-height: 1.42;
+  max-width: 32em;
+  text-wrap: pretty;
+}
+.story__said { margin: 0; font-family: var(--ui); font-size: 14px; letter-spacing: 0.04em; color: var(--amber); }
+
+/* A question put to the reader: its own line with a mark, and answers as a set of options */
+.story__question {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 14px;
+  align-items: center;
+  margin: 26px 0 8px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(25px, 2vw, 34px);
+  line-height: 1.15;
+  color: var(--amber);
+  text-wrap: balance;
+}
+.story__qmark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--amber);
+  border-radius: 50%;
+  font-family: var(--ui);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+.story__entry.is-past .story__question { font-size: clamp(19px, 1.4vw, 24px); }
+
+.story__answers { list-style: none; margin: 0; padding: 8px 0 0 48px; display: grid; gap: 8px; }
+.story__answers button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font-family: var(--ui);
+  font-size: clamp(16px, 1.15vw, 18px);
+  color: var(--ivory);
+  background: rgba(229, 217, 188, 0.05);
+  border: 1px solid var(--ivory-faint);
+  transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.story__answers kbd { color: var(--ivory); border-color: var(--ivory-dim); }
+.story__answers button:hover, .story__answers button:focus-visible { background: rgba(229, 164, 59, 0.12); border-color: var(--amber); outline: none; }
+.story__answers button:hover kbd, .story__answers button:focus-visible kbd { border-color: var(--amber); color: var(--amber); }
+.story__answers button:active { transform: scale(0.99); }
+.story__answers button.is-tried { grid-template-columns: auto 1fr auto; color: var(--ivory-dim); border-color: rgba(185, 167, 232, 0.35); }
+.story__tried { font-family: var(--ui); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--parallel); }
+
+/* Next-step choices: framed buttons with the arrow and key always shown, so they read as
+   clickable before the pointer reaches them. All choices look the same; none is pre-selected. */
+.story__choices { list-style: none; margin: 0; padding: 12px 0 0 clamp(8px, 4vw, 90px); display: grid; gap: 8px; }
+.story__choices button {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 16px 12px 18px;
+  text-align: left;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(21px, 1.6vw, 27px);
+  line-height: 1.15;
+  color: var(--ivory);
+  background: rgba(229, 217, 188, 0.06);
+  border: 1px solid var(--ivory-dim);
+  transition: color 200ms, background 200ms var(--ease-out), border-color 200ms var(--ease-out), translate 300ms var(--ease-out);
+}
+.story__choices kbd { color: var(--ivory); border-color: var(--ivory-dim); }
+.story__arrow {
+  width: 0; height: 0;
+  border-left: 12px solid var(--amber);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  transition: translate 200ms var(--ease-out);
+}
+.story__choices button:hover, .story__choices button:focus-visible { color: var(--void); background: var(--amber); border-color: var(--amber); outline: none; translate: 4px 0; }
+.story__choices button:hover .story__arrow, .story__choices button:focus-visible .story__arrow { border-left-color: var(--void); translate: 3px 0; }
+.story__choices button:hover kbd, .story__choices button:focus-visible kbd { color: var(--void); border-color: var(--void); }
+.story__choices button:active { transform: scale(0.99); }
+
+/* Top chapter bar */
+.chapterbar { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 14px; row-gap: 6px; align-items: center; padding: 8px 0; }
+.chapterbar__label { grid-row: 1 / 3; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ivory-dim); }
+.chapterbar__slots { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.chapterbar__slot { display: grid; place-items: center; width: 44px; height: 40px; border: 1px solid var(--ivory-dim); color: var(--ivory-dim); transition: background 160ms, color 160ms; }
+.chapterbar__slot.is-done { color: var(--ivory); border-color: var(--ivory); }
+.chapterbar__slot.is-current { background: var(--amber); border-color: var(--amber); color: var(--void); }
+.chapterbar__slot:hover { color: var(--ivory); border-color: var(--ivory); }
+.chapterbar__slot.is-current:hover { color: var(--void); }
+.chapterbar__progress { grid-column: 2; height: 6px; border: 1px solid var(--ivory-dim); padding: 1px; }
+.chapterbar__progress span { display: block; height: 100%; background: var(--ivory); transition: width 600ms var(--ease-out); }
+
+.story__bottom { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.story__keys { font-size: 13px; color: var(--ivory-dim); display: inline-flex; gap: 4px; align-items: center; }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .hud { position: relative; min-height: 100%; }
+  .story { position: relative; grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .story__art { min-height: 58vh; }
+  .objective { top: 12px; }
+  .story__overlay { inset: 84px 0 0; padding: 0 12px 12px; }
+  .story__caption { font-size: 18px; }
+  .story__overlay--third .story__caption { font-size: 22px; }
+  /* the verdict cards go below the eye instead of over it */
+  .story[data-kind='verdict'] .story__art { display: grid; grid-template-rows: 46vh auto; }
+  .story[data-kind='verdict'] .story__stage { position: relative; inset: auto; }
+  .story[data-kind='verdict'] .story__overlay { position: relative; inset: auto; padding: 12px; }
+  .story__overlay--verdict .story__controls { width: auto; }
+  .story__text { padding: 0 16px 24px; }
+  .story__log { padding-top: 24px; mask-image: none; }
+  .story__answers { padding-left: 0; }
+  .story__question { grid-template-columns: 30px 1fr; gap: 10px; }
+  .story__qmark { width: 30px; height: 30px; font-size: 16px; }
+  .chapterbar__slot { width: 36px; height: 34px; }
+}
+
+/* ---------- Parallel universes: where a wrong answer leads ---------- */
+/* One extra accent, used only here, so a parallel universe never reads as the main story.
+   The 3D stage is mirrored and drained of warmth: the same world, turned the wrong way. */
+.story { --parallel: #b9a7e8; }
+.story[data-universe='parallel'] .story__stage { transform: scaleX(-1); filter: saturate(0.45) hue-rotate(200deg) brightness(0.9); }
+.story[data-universe='parallel'] .story__art { box-shadow: inset 0 0 0 1px var(--parallel); }
+
+.story__universe {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(5, 7, 8, 0.82);
+  border-left: 3px solid var(--parallel);
+  font-size: 13px;
+  color: var(--ivory-dim);
+}
+.story__universe b { font-weight: 600; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--parallel); }
+.readout--parallel { color: var(--parallel); }
+
+.story__entry.is-parallel { padding-left: 16px; border-left: 2px solid var(--parallel); }
+.story__universe-tag { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--parallel); }
+.story__back-note { margin: 0 0 12px; font-size: 14px; color: var(--parallel); }
+.story__choices button.is-back { color: var(--parallel); border-color: var(--parallel); background: rgba(185, 167, 232, 0.08); }
+.story__choices button.is-back .story__arrow { border-left-color: var(--parallel); rotate: 180deg; }
+.story__choices button.is-back:hover, .story__choices button.is-back:focus-visible { color: var(--void); background: var(--parallel); border-color: var(--parallel); }
+.story__choices button.is-back:hover .story__arrow, .story__choices button.is-back:focus-visible .story__arrow { border-left-color: var(--void); }
+
+/* ---------- Seam chart ---------- */
+.seam { position: absolute; inset: 6px 0 4px; }
+.seam svg { display: block; overflow: visible; font-family: var(--ui); }
+.seam__era { fill: rgba(114, 156, 158, 0.07); }
+.seam__era-label { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; fill: var(--ivory-dim); }
+.seam__grid { stroke: rgba(229, 217, 188, 0.1); }
+.seam__base { stroke: rgba(229, 217, 188, 0.45); }
+.seam__tick { font-size: 12px; fill: var(--ivory-dim); font-variant-numeric: tabular-nums; }
+.seam__tick.is-seam { fill: var(--ivory); font-weight: 600; }
+.seam__axis { font-size: 12px; fill: var(--ivory-dim); }
+.seam__seam { stroke: var(--ivory); stroke-dasharray: 3 5; opacity: 0.7; }
+.seam__area { fill: rgba(229, 217, 188, 0.06); }
+.seam__line { fill: none; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.seam__line--stitched { stroke: var(--ivory); }
+.seam__line--modis { stroke: var(--amber); }
+.seam__line--viirs { stroke: var(--teal-bright, #8cc9cc); }
+.seam__line--ghost { stroke: #8cc9cc; stroke-width: 1.5; stroke-dasharray: 4 5; }
+.seam__dot { stroke: #050708; stroke-width: 1.5; }
+.seam__dot--stitched { fill: var(--ivory); }
+.seam__dot--modis { fill: var(--amber); }
+.seam__jump line { stroke: var(--ivory); stroke-width: 1.2; }
+.seam__jump text { font-size: 13px; font-weight: 600; fill: var(--ivory); }
+.seam__end { font-size: 13px; font-weight: 600; }
+.seam__end--stitched { fill: var(--ivory); }
+.seam__end--modis { fill: var(--amber); }
+.seam__end--viirs { fill: #8cc9cc; }
+.seam__end--ghost { fill: #8cc9cc; font-weight: 400; opacity: 0.9; }
+
+.seam__headline {
+  /* sits in the empty band under the line, inside the plot, so it covers no data */
+  position: absolute;
+  right: 148px;
+  bottom: 54px;
+  max-width: 300px;
+  margin: 0;
+  padding: 12px 16px 14px;
+  background: #e9e1cc;
+  color: #14100c;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(22px, 2vw, 30px);
+  line-height: 1.05;
+}
+.seam__headline span { display: block; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(20, 16, 12, 0.4); font-family: var(--ui); font-weight: 600; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+
+@media (max-width: 860px) {
+  .seam__headline { right: 84px; bottom: 50px; max-width: 200px; font-size: 18px; }
+  .story__overlay--seam .story__body { min-height: 300px; }
+}

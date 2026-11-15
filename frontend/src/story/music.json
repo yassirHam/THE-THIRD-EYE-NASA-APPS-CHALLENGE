@@ -1,0 +1,6 @@
+{
+  "file": "/audio/music/intro-bed.mp3",
+  "loopSeconds": 64.0,
+  "sampleRate": 44100,
+  "made": "synthesized by scripts/compose.py (numpy, no samples)"
+}
