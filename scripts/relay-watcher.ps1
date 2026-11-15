@@ -604,17 +604,21 @@ function Invoke-NextRoleTask {
             RebaseIntegration = $true; RequiresMerged = @()
             TestCmd = "python -m pytest tests/unit -q -p no:cacheprovider"
             Prompt = @"
-Make pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py pass ALL requirements below in one complete revision on task/P2-A-002 (already rebased onto integration):
-1. Always enforce sealed holdout 2020-01-01..2021-12-31 in coverage.py: even when sealed_window=None or another window is passed, ALWAYS exclude 2020-2021 from `expected`, and raise ValueError if any 2020-2021 day in `day_present` is truthy. Add a test for a 1-day period inside 2020 with sealed_window=None.
-2. Enforce partition table & horizon in coverage.py:
+Make pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py pass ALL requirements below (including Codex findings on 6e09bf8) in one complete revision on task/P2-A-002 (merged with origin/integration so Contract 1.6.0 schemas exist):
+1. Always enforce sealed holdout 2020-01-01..2021-12-31 in coverage.py:
+   - Exclude the UNION of [2020-01-01..2021-12-31] and any caller-supplied `sealed_window` independently (NEVER take min(start)..max(end) across windows, so a 2024 window does NOT exclude 2022-2023). Validate `sealed_window` bounds (`ws <= we`).
+   - Raise ValueError if any 2020-2021 day in `day_present` is truthy. Add tests for a 1-day period inside 2020 with `sealed_window=None` AND for a 2024 `sealed_window` preserving 2022-2023.
+2. Enforce registered coverage threshold & Contract 1.6.0 rule:
+   - Do NOT classify coverage < 1.0 as complete/certifiable via caller-supplied `c_min < 1.0`. Reject `c_min < 1.0` with ValueError (or classify any coverage < 1.0 as `partial`/`low_processed_coverage`, never `complete`) until a threshold is registered in Contract 1.6.0.
+3. Enforce partition table & horizon in coverage.py:
    - Partitions: pre_2016 (<=2015-12-31), train (2016-2018), dev (2019), sealed (2020-2021), applicability (2022-2024), conditional_2025 (2025).
-   - Reject record_end > date(2025, 12, 31) or period_end > date(2025, 12, 31) with ValueError (explicitly documenting in COVERAGE_RULE.md that the conditional 2026 extension is not enabled here).
+   - Reject record_end > date(2025, 12, 31) or period_end > date(2025, 12, 31) with ValueError (documenting in COVERAGE_RULE.md that the conditional 2026 extension is not enabled here).
    - Add optional `partition: Optional[str] = None` parameter to `period_coverage`. If the in-record period spans >1 partition, REQUIRE `partition` to be one of the spanned partitions and exclude out-of-partition days with `'partition_boundary'`; raise ValueError if omitted or invalid. Add tests (including 2024-12-31..2025-01-01 without `partition` raising ValueError, and with `partition='applicability'` succeeding as partial with `partition_boundary`).
-3. Strict bool & wholly-sealed rules in coverage.py:
+4. Strict bool, wholly-sealed, and footprint summary rules in coverage.py:
    - Validate every value in `day_present` is `isinstance(v, bool)` (raise ValueError on `None`).
    - When `not present`: only add `'no_file'` if `expected` is non-empty (`len(expected) > 0`). If `inside` is non-empty and `expected` is empty (wholly sealed/excluded), return `state='unavailable'` with `reasons=('partition_boundary',)` and NO `'no_file'`.
-   - In `footprint_evidence_summary`, never convert `r.coverage is None` to `0.0` (only average over periods with `r.coverage is not None`, or return `coverage_fraction=None` if any cell-level period is unavailable).
-4. In pipeline/grid/COVERAGE_RULE.md: reference contract 1.6.0, state that `paired_comparison_eligible` is a validated Boolean field in `contracts/schemas/calendar.py` (not a function here), and document the exact partition table (`2022-2024` applicability, `2025` conditional_2025, `partition` matches any spanned partition, >2025-12-31 rejected).
+   - In `footprint_evidence_summary`, NEVER return `supports_status='partial'` with `coverage_fraction=None`. When any cell-level period is unavailable (`r.coverage is None`), return an explicit unverified/unavailable outcome (`supports_status='unavailable'` or `'unverified'` with `coverage_fraction=None`), and only return `supports_status='partial'` when `coverage_fraction` is a valid non-null float in `[0.0, 1.0)`.
+5. In pipeline/grid/COVERAGE_RULE.md: reference contract 1.6.0, state that `paired_comparison_eligible` is a validated Boolean field in `contracts/schemas/calendar.py` (not a function here), and document the exact partition table (`2022-2024` applicability, `2025` conditional_2025, `partition` matches any spanned partition, >2025-12-31 rejected).
 Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
 "@
         },
