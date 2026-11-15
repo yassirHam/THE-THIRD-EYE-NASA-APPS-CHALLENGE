@@ -1,49 +1,76 @@
 {
-  "manifest_version": "prov-v1-20261114",
+  "contract_version": "1.6.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "same_sensor_calendar",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "manifest_version": "synthetic-manifest-1",
+  "described_artifact_type": "calendar",
   "generated_at": "2026-11-14T00:20:00Z",
-  "snpp_cessation_date": "2026-11-02T15:40:00Z",
-  "primary_region_id": "geo-canonical-primary-angola",
-  "canonical_boundaries": {
+  "snpp_cessation_date": "2026-11-02",
+  "snpp_cutoff_status": "reserved_inactive",
+  "canonical_boundary": {
     "type": "Polygon",
     "coordinates": [
       [
         [
-          11.5,
-          -18.0
+          0.0,
+          0.0
         ],
         [
-          24.0,
-          -18.0
+          1.0,
+          0.0
         ],
         [
-          24.0,
-          -4.5
+          1.0,
+          1.0
         ],
         [
-          11.5,
-          -4.5
+          0.0,
+          1.0
         ],
         [
-          11.5,
-          -18.0
+          0.0,
+          0.0
         ]
       ]
     ]
   },
-  "gee_collections": [
-    "MODIS/061/MYD14A1",
-    "NASA/VIIRS/002/VNP14A1"
+  "boundary_source": "synthetic",
+  "boundary_version": "1",
+  "crs": "EPSG:4326",
+  "grid_inclusion_rule": "cell centroid inside boundary",
+  "source_collections": [
+    {
+      "collection_id": "MODIS/061/MYD14A1",
+      "sensor": "MODIS_Aqua",
+      "source_version": "061",
+      "record_end_date": "2025-12-31"
+    },
+    {
+      "collection_id": "NASA/VIIRS/002/VNP14A1",
+      "sensor": "VIIRS_SNPP",
+      "source_version": "002",
+      "record_end_date": "2025-12-31"
+    }
   ],
-  "total_file_size_bytes": 4820150,
-  "compressed_bundle_size_bytes": 1145020,
+  "total_file_size_bytes": 2000,
+  "compressed_bundle_size_bytes": 800,
   "partitions": [
     {
-      "file_path": "data/parquet/myd14a1_2016_2024.parquet",
-      "sensor": "Aqua_MODIS",
-      "year": 2016,
-      "row_count": 3287,
-      "file_size_bytes": 2410000,
-      "sha256_checksum": "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+      "file_path": "synthetic/calendar.json",
+      "geometry_id": "geo-synthetic-primary",
+      "period_spec": "synthetic-2023",
+      "method_id": "same_sensor_calendar",
+      "policy_id": "own_support_eligible",
+      "sensor": null,
+      "cache_key_sha256": "tte-cache-v1:d1f188407014baed9d3af951a541540b971fa674b330ab7dc9069ffed3b2047d",
+      "row_count": 2,
+      "file_size_bytes": 2000,
+      "sha256_checksum": "b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
       "coverage_status": "complete"
     }
   ]

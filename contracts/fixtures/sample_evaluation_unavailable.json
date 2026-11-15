@@ -1,0 +1,71 @@
+{
+  "contract_version": "1.6.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "held_out_sensor_switch",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "eval_protocol_version": "P0-held-out-sensor-switch-v1",
+  "baseline_a_raw_handover": {
+    "status": "unavailable",
+    "evaluated_case_count": 0,
+    "answered_case_count": 0,
+    "abstention_count": 0,
+    "mean_reference_relative_error": null,
+    "directional_error_count": null,
+    "decision_coverage_percent": null,
+    "unavailable_reason": "No evaluable cases."
+  },
+  "baseline_b_point_a_h": {
+    "status": "unavailable",
+    "evaluated_case_count": 0,
+    "answered_case_count": 0,
+    "abstention_count": 0,
+    "mean_reference_relative_error": null,
+    "directional_error_count": null,
+    "decision_coverage_percent": null,
+    "unavailable_reason": "No evaluable cases."
+  },
+  "baseline_c_uncertainty_aware": {
+    "status": "unavailable",
+    "evaluated_case_count": 0,
+    "answered_case_count": 0,
+    "abstention_count": 0,
+    "mean_reference_relative_error": null,
+    "directional_error_count": null,
+    "decision_coverage_percent": null,
+    "unavailable_reason": "No evaluable cases."
+  },
+  "baseline_d_stage_a_finite_audit": {
+    "status": "unavailable",
+    "evaluated_case_count": 0,
+    "answered_case_count": 0,
+    "abstention_count": 0,
+    "mean_reference_relative_error": null,
+    "directional_error_count": null,
+    "decision_coverage_percent": null,
+    "unavailable_reason": "No evaluable cases."
+  },
+  "landing_headline_metric": {
+    "status": "unavailable",
+    "description": "Synthetic sensor-switch headline",
+    "registered_case_count": null,
+    "raw_wrong_way_count": null,
+    "corrected_wrong_way_count": null,
+    "flagged_remaining_error_count": null,
+    "abstained_count": null,
+    "denominator_statement": "No evaluable cases.",
+    "independent_units": {
+      "blocks": 5,
+      "regions": 1,
+      "test_years": 2,
+      "dependence_note": "Blocks within one region are dependent."
+    },
+    "unavailable_reason": "Evaluation infeasible."
+  },
+  "failures_and_limitations": [
+    "Synthetic values only; not a result."
+  ]
+}

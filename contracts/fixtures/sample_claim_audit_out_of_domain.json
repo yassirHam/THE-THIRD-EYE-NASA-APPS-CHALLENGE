@@ -1,0 +1,61 @@
+{
+  "contract_version": "1.6.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "claim_audit",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "record_id": "car-synthetic-1-sample_claim_audit_out_of_domain",
+  "statement": "Synthetic claim: activity rose in the target period.",
+  "analyst_entity": null,
+  "target_region": "Synthetic Test Region",
+  "date_range_tested": "2023",
+  "dataset_versions": [
+    "MODIS/061/MYD14A1",
+    "NASA/VIIRS/002/VNP14A1"
+  ],
+  "formulas_applied": [
+    "R = 1000 * D / O (sums before division)"
+  ],
+  "sensitivity_status": "stable_across_displayed_settings",
+  "applicability_status": "out_of_domain",
+  "inference_status": "not_established",
+  "practical_change": {
+    "category": "meaningful_increase",
+    "magnitude": 2.4,
+    "effect_units": "R points",
+    "practical_margin_tau": 0.5,
+    "observed_signs": [
+      "increase"
+    ]
+  },
+  "applicability_checks": [
+    {
+      "check_id": "domain",
+      "status": "out_of_domain",
+      "detail": "Outside evaluated domain."
+    }
+  ],
+  "missing_evidence_reasons": [],
+  "conclusion_eligible": false,
+  "reviewed_summary": {
+    "template_id": "stage_a_default",
+    "template_version": "1",
+    "generated_by": "reviewed_deterministic_template",
+    "output_category": "outside_evaluated_calibration",
+    "status_label": "Outside evaluated calibration",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] This area/period was not evaluated.",
+    "limit_sentence": "Raw observations may still be shown."
+  },
+  "counterexample_interpretations": [],
+  "reproducibility_sha256": "7d940a1c4d3e9a89868ef5ef9eac96ade9e99c7583b603bea6dd9bf729561638",
+  "verification_steps": [
+    "Check O > 0.",
+    "Check all registered variants."
+  ],
+  "evidence_artifact_versions": [
+    "synthetic-v1"
+  ]
+}

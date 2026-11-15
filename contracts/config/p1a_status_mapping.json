@@ -1,0 +1,42 @@
+{
+  "_comment": "PROPOSED mapping from P1-A (science/methods/stage_a.py at ab80688) status names to contract enums. NOT approved: registered stays false until P1 records a written decision with UTC date/time and reference. Production exports must refuse to map while unregistered.",
+  "registered": false,
+  "decision_at": null,
+  "reference": null,
+  "p1a_source": "origin/task/P1-A-001 ab8068821550638daab1e1e8670be432c84c4b55: science/methods/stage_a.py",
+  "open_questions": [
+    "P1-A-001-r3 item 2: adopt contract names in P1-A, or map at the P4 export boundary (this file proposes mapping at the boundary).",
+    "P1-A-001-r3 item 2 / P1-C-001-r5 item 1: where insufficient_evidence (a missing calibration check) goes. Left unmapped: mapping it raises until P1 decides between options A, B and C.",
+    "P1-A-001-r3 item 2: which of the two failed spellings (failed_applicability, or evaluated_for_conditions with applicability_passed=false) remains. Both map to failed_applicability here."
+  ],
+  "sensitivity": {
+    "stable_across_displayed_settings": "stable_across_displayed_settings",
+    "sensitive": "sensitive_to_assumptions",
+    "unresolved": "unavailable"
+  },
+  "applicability": {
+    "evaluated_for_conditions+passed": "applicable",
+    "evaluated_for_conditions+not_passed": "failed_applicability",
+    "failed_applicability": "failed_applicability",
+    "outside_evaluated_conditions": "out_of_domain",
+    "missing_required_support": "missing_required_support",
+    "insufficient_evidence": null
+  },
+  "headline": {
+    "increase": "increase",
+    "decrease": "decrease",
+    "within_practical_margin": "within_practical_margin",
+    "no_change": "no_change",
+    "ambiguous": "ambiguous",
+    "unresolved": "unavailable"
+  },
+  "practical_change": {
+    "meaningful_increase": "meaningful_increase",
+    "meaningful_decrease": "meaningful_decrease",
+    "within_practical_margin": "within_practical_margin",
+    "unspecified": "unspecified"
+  },
+  "inference": {
+    "not_established": "not_established"
+  }
+}

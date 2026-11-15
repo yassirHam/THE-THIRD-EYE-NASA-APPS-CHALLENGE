@@ -1,0 +1,87 @@
+{
+  "contract_version": "1.6.0",
+  "artifact_version": "synthetic-v1",
+  "geometry_id": "geo-synthetic-primary",
+  "period_spec": "synthetic-2023",
+  "method_id": "stage_a_finite_factors",
+  "policy_id": "own_support_eligible",
+  "data_classification": "synthetic_dev_fixture",
+  "fixture_label": "[SYNTHETIC DEV FIXTURE]",
+  "sensitivity_status": "sensitive_to_assumptions",
+  "applicability_status": "applicable",
+  "inference_status": "not_established",
+  "practical_change": {
+    "category": "unspecified",
+    "magnitude": 2.0,
+    "effect_units": "R points",
+    "observed_signs": [
+      "increase",
+      "decrease"
+    ]
+  },
+  "headline_direction": "ambiguous",
+  "required_variant_ids": [
+    "full_training",
+    "ex_2016",
+    "ex_2017"
+  ],
+  "registered_variants": [
+    {
+      "variant_id": "full_training",
+      "factor_value": 1.4,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2016,
+        2017,
+        2018
+      ],
+      "effect_delta": 2.0,
+      "direction": "increase"
+    },
+    {
+      "variant_id": "ex_2016",
+      "factor_value": 1.5,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2017,
+        2018
+      ],
+      "effect_delta": -1.0,
+      "direction": "decrease"
+    },
+    {
+      "variant_id": "ex_2017",
+      "factor_value": 1.3,
+      "factor_type": "own_support_a_H",
+      "training_years": [
+        2016,
+        2018
+      ],
+      "effect_delta": 0.5,
+      "direction": "increase"
+    }
+  ],
+  "applicability_checks": [
+    {
+      "check_id": "support",
+      "status": "passed",
+      "detail": "Support minimum met."
+    },
+    {
+      "check_id": "late_period",
+      "status": "passed",
+      "detail": "Late-period check passed."
+    }
+  ],
+  "missing_evidence_reasons": [],
+  "conclusion_eligible": true,
+  "reviewed_summary": {
+    "template_id": "stage_a_default",
+    "template_version": "1",
+    "generated_by": "reviewed_deterministic_template",
+    "output_category": "depends_on_the_correction",
+    "status_label": "Depends on the correction",
+    "finding_sentence": "[SYNTHETIC DEV FIXTURE] Registered corrections disagree.",
+    "limit_sentence": "Both interpretations are shown."
+  }
+}
