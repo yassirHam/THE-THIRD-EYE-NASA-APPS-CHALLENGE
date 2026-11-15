@@ -1,0 +1,33 @@
+{
+  "bundle_format": "tte-static-bundle-v1",
+  "bundle_version": "stage-a-real-CA-BC-1",
+  "contract_version": "1.6.0",
+  "data_classification": "production",
+  "entries": [],
+  "evidence_entries": [
+    {
+      "bytes": 62278,
+      "evidence_format": "tte-stage-a-evidence-v1",
+      "evidence_id": "stage_a_real_CA_BC",
+      "gzip_bytes": 11405,
+      "gzip_path": "evidence/stage-a-real-CA-BC-1/stage_a_real_CA_BC/stage_a_real_CA_BC.6c92fce7f0e55032.json.gz",
+      "path": "evidence/stage-a-real-CA-BC-1/stage_a_real_CA_BC/stage_a_real_CA_BC.6c92fce7f0e55032.json",
+      "sha256": "6c92fce7f0e550324d63d66a8ae59509331f8375da5b70456b49c5eabc7a7936"
+    }
+  ],
+  "firms_separate": true,
+  "label": null,
+  "replay_manifests": [],
+  "replay_manifests_missing": [],
+  "size_report": {
+    "combined_gzip_bytes": 11405,
+    "evidence_bytes": 62278,
+    "evidence_gzip_bytes": 11405,
+    "measured": "exact byte counts of the files written; load time is measured by P4-C smoke checks",
+    "measurement_basis": "production artifacts in this bundle",
+    "p0_compressed_target_bytes": 10485760,
+    "total_bytes": 0,
+    "total_gzip_bytes": 0,
+    "within_p0_target": true
+  }
+}
