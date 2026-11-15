@@ -262,7 +262,7 @@ function Get-ActionableFixedForP5 {
 
     $latestByTask = @{}
     foreach ($ff in $allFiles) {
-        if ($ff -match "^handoff/fixed/(P[1-4])/([^/]+)/r(\d+)\.md$") {
+        if ($ff -match "^handoff/fixed/(P[1-5])/([^/]+)/r(\d+)\.md$") {
             $owner  = $Matches[1]
             $taskId = $Matches[2]
             $round  = [int]$Matches[3]
@@ -671,6 +671,13 @@ In frontend/:
         $queueKey = "QUEUE:$fixedRelPath"
         if (($allFiles -contains $fixedRelPath) -or ($Handled -contains $queueKey)) { continue }
 
+        $attemptCount = @($Handled | Where-Object { $_ -eq "ATTEMPT:$queueKey" }).Count
+        if ($attemptCount -ge 2) {
+            Write-Warning "[QUEUE] $($job.TaskId) reached max 2 failed attempts; halting auto-retry to prevent infinite loop."
+            Add-Content -Path $HandledLog -Value $queueKey
+            continue
+        }
+
         $prereqsMet = $true
         foreach ($req in $job.RequiresMerged) {
             if (-not (Test-TaskMergedInIntegration -TaskId $req)) {
@@ -705,12 +712,19 @@ In frontend/:
         if ($LASTEXITCODE -eq 0) {
             git -C "$TargetWorktree" checkout -B "$($job.Branch)" "origin/$($job.Branch)" 2>$null
             if ($job.RebaseIntegration) {
-                git -C "$TargetWorktree" rebase origin/integration 2>$null
-                if ($LASTEXITCODE -ne 0) { git -C "$TargetWorktree" rebase --abort 2>$null }
+                git -C "$TargetWorktree" merge --no-edit origin/integration 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning "[QUEUE] Merge conflict integrating origin/integration into $($job.Branch); aborting."
+                    git -C "$TargetWorktree" merge --abort 2>$null
+                    Add-Content -Path $HandledLog -Value $queueKey
+                    continue
+                }
             }
         } else {
             git -C "$TargetWorktree" checkout -B "$($job.Branch)" origin/integration 2>$null
         }
+
+        Add-Content -Path $HandledLog -Value "ATTEMPT:$queueKey"
 
         $TempDir = Join-Path $RepoRoot ".relay-tmp"
         New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
@@ -749,6 +763,10 @@ In frontend/:
 
         $CurrentSHA = (git -C "$TargetWorktree" rev-parse HEAD 2>$null) -join ""
         git -C "$TargetWorktree" push -u origin "$($job.Branch)" 2>&1 | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "[QUEUE] Failed to push $($job.Branch) ($CurrentSHA) to origin."
+            continue
+        }
         $FixedNote = Join-Path $TempDir "fixed_$($job.TaskId)_r$($job.Round).md"
         @"
 # Handoff / Ready For Review: $($job.TaskId) Round $($job.Round)
