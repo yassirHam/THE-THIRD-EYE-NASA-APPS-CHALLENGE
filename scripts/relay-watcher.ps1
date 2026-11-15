@@ -423,6 +423,13 @@ function Process-IncomingFixedForTesting {
     $OwnerRole = $FixedItem.Owner
     $TaskId    = $FixedItem.TaskId
     $Round     = $FixedItem.Round
+    $VerdictDestPath = "handoff/verdicts/$OwnerRole/$TaskId/r${Round}-P5.md"
+
+    git -C "$RepoRoot" fetch origin handoff --quiet 2>$null
+    git -C "$RepoRoot" cat-file -e "origin/handoff:$VerdictDestPath" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
 
     Write-Host "`n>>> [DETECTED P5 TEST JOB] Fixed task from ${OwnerRole}: $TaskId (Round $Round)" -ForegroundColor Yellow
 
@@ -482,6 +489,10 @@ function Process-IncomingFixedForTesting {
                     New-Item -ItemType Junction -Path "$TestSandbox\frontend\node_modules" -Target $existingNM -ErrorAction SilentlyContinue | Out-Null
                 }
             }
+            if (-not (Test-Path "$TestSandbox\frontend\node_modules\.bin\tsc")) {
+                Write-Host "  -> Installing frontend dependencies in test sandbox..." -ForegroundColor Gray
+                npm --prefix "$TestSandbox\frontend" install --no-audit --no-fund 2>&1 | Out-Null
+            }
             $TestResults = (npm --prefix "$TestSandbox\frontend" run build 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
         } else {
@@ -536,8 +547,15 @@ $TestResults
 "@ | Set-Content -Path $VerdictOut -Encoding utf8
     }
 
+    git -C "$RepoRoot" fetch origin handoff --quiet 2>$null
+    git -C "$RepoRoot" cat-file -e "origin/handoff:$VerdictDestPath" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  -> Verdict $VerdictDestPath already pushed by another session; skipping duplicate push." -ForegroundColor Gray
+        return $true
+    }
+
     Write-Host "[4/4] Relaying verdict to origin/handoff..." -ForegroundColor Cyan
-    return (Push-HandoffFile -SourceFile $VerdictOut -DestPath "handoff/verdicts/$OwnerRole/$TaskId/r${Round}-P5.md")
+    return (Push-HandoffFile -SourceFile $VerdictOut -DestPath $VerdictDestPath)
 }
 
 # MAIN WATCH LOOP
