@@ -6,13 +6,14 @@
 $ErrorActionPreference = "Continue"
 
 function Show-HandoffDashboard {
-    git fetch origin handoff --quiet 2>$null
+    git fetch origin handoff integration --quiet 2>$null
     $HeadSha = (git rev-parse --short origin/handoff 2>$null)
+    $IntSha  = (git rev-parse --short origin/integration 2>$null)
     $AllFiles = git ls-tree -r --name-only origin/handoff 2>$null
 
     if (-not $Voice -and -not $Once) { Clear-Host }
     Write-Host "========================================================================================" -ForegroundColor Cyan
-    Write-Host " THE THIRD EYE — LIVE HANDOFF & QA MONITOR (origin/handoff @ $HeadSha) | $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Cyan
+    Write-Host " THE THIRD EYE — LIVE HANDOFF & QA MONITOR (handoff @ $HeadSha | integration @ $IntSha) | $(Get-Date -Format 'HH:mm:ss')" -ForegroundColor Cyan
     Write-Host "========================================================================================" -ForegroundColor Cyan
 
     # Parse all tasks from fixed/ and verdicts/
@@ -23,12 +24,13 @@ function Show-HandoffDashboard {
             $TaskId = $Matches[2]
             $Round = [int]$Matches[3]
             if (-not $Tasks.ContainsKey($TaskId)) {
-                $Tasks[$TaskId] = @{ Role = $Role; MaxFixed = 0; MaxVerdict = 0; VerdictStatus = "NONE"; TestedSha = "-"; Escalated = $false }
+                $Tasks[$TaskId] = @{ Role = $Role; MaxFixed = 0; MaxVerdict = 0; VerdictStatus = "NONE"; TestedSha = "-"; FullSha = ""; Escalated = $false }
             }
             if ($Round -gt $Tasks[$TaskId].MaxFixed) {
                 $Tasks[$TaskId].MaxFixed = $Round
                 $RawFixed = (git show "origin/handoff:$f" 2>$null) -join "`n"
                 if ($RawFixed -match '(?i)\b(?:Tested|Result)\s+SHA[\*\s:]*`?([0-9a-fA-F]{7,40})`?') {
+                    $Tasks[$TaskId].FullSha = $Matches[1]
                     $Tasks[$TaskId].TestedSha = $Matches[1].Substring(0, [Math]::Min(7, $Matches[1].Length))
                 }
             }
@@ -86,8 +88,18 @@ function Show-HandoffDashboard {
             $Color = "Red"
         }
         elseif ($t.VerdictStatus -like "PASS*") {
-            $Action = "READY FOR P4 MERGE (PASS)"
-            $Color = "Green"
+            $IsMerged = $false
+            if ($t.FullSha) {
+                git merge-base --is-ancestor "$($t.FullSha)" origin/integration 2>$null
+                if ($LASTEXITCODE -eq 0) { $IsMerged = $true }
+            }
+            if ($IsMerged) {
+                $Action = "MERGED INTO INTEGRATION (DONE)"
+                $Color = "Cyan"
+            } else {
+                $Action = "READY FOR P4 AUTO-MERGE (PASS)"
+                $Color = "Green"
+            }
         }
         else {
             $Action = "IDLE"

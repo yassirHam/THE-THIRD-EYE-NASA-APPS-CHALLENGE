@@ -119,9 +119,38 @@ function Get-LaneStatus {
     }
 
     $Branch = (git -C "$Path" rev-parse --abbrev-ref HEAD 2>$null)
-    $SHA    = (git -C "$Path" rev-parse --short HEAD 2>$null)
-    $Dirty  = [bool](git -C "$Path" status --porcelain 2>$null)
-    $Status = if ($Dirty) { "DIRTY (Uncommitted)" } else { "CLEAN" }
+    $Porcelain = (git -C "$Path" status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") }
+    $Dirty  = [bool]($Porcelain)
+
+    # Auto-fast-forward clean lanes to remote branch if behind
+    if (-not $Dirty -and $Branch -and $Branch -ne "HEAD") {
+        git -C "$Path" fetch origin "$Branch" --quiet 2>$null
+        $LocalHead  = (git -C "$Path" rev-parse HEAD 2>$null)
+        $RemoteHead = (git -C "$Path" rev-parse "origin/$Branch" 2>$null)
+        if ($RemoteHead -and $LocalHead -ne $RemoteHead) {
+            git -C "$Path" checkout -- .kiro/agents/the-third-eye-coder.json 2>$null
+            git -C "$Path" merge --ff-only "origin/$Branch" --quiet 2>$null
+            $KiroSrc = Join-Path $RepoRoot ".kiro\agents\the-third-eye-coder.json"
+            if (Test-Path $KiroSrc) {
+                Copy-Item -Path $KiroSrc -Destination (Join-Path $Path ".kiro\agents\the-third-eye-coder.json") -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    $SHA = (git -C "$Path" rev-parse --short HEAD 2>$null)
+    $IsMerged = $false
+    if ($SHA) {
+        git -C "$Path" merge-base --is-ancestor HEAD origin/integration 2>$null
+        if ($LASTEXITCODE -eq 0) { $IsMerged = $true }
+    }
+
+    $Status = if ($Dirty) {
+        "DIRTY (Uncommitted)"
+    } elseif ($IsMerged) {
+        "MERGED INTO INTEGRATION (PASS)"
+    } else {
+        "CLEAN"
+    }
 
     return [PSCustomObject]@{
         Lane   = $LaneLetter
@@ -136,7 +165,7 @@ function Show-Dashboard {
     Write-Host "`n--- LANE STATUS OVERVIEW ---" -ForegroundColor Yellow
     foreach ($L in @("A", "B", "C")) {
         $Obj = Get-LaneStatus -LaneLetter $L
-        $Color = if ($Obj.Status -eq "CLEAN") { "Green" } elseif ($Obj.Status -like "*IDLE*") { "DarkGray" } else { "Yellow" }
+        $Color = if ($Obj.Status -like "CLEAN*" -or $Obj.Status -like "MERGED*") { "Green" } elseif ($Obj.Status -like "*IDLE*") { "DarkGray" } else { "Yellow" }
         Write-Host "  Lane $L [${Role}-${L}]: $($Obj.Branch) ($($Obj.SHA)) | Status: $($Obj.Status)" -ForegroundColor $Color
     }
     Write-Host "----------------------------" -ForegroundColor Yellow
@@ -150,6 +179,7 @@ if (-not (Test-Path $RelayScript)) {
 
 do {
     git -C "$RepoRoot" fetch origin handoff integration 2>$null
+    git -C "$RepoRoot" checkout origin/handoff -- start.bat start.ps1 monitor.bat monitor.ps1 scripts .kiro/agents/the-third-eye-coder.json 2>$null
     Show-Dashboard
 
     $RelayArgs = @("-ExecutionPolicy", "Bypass", "-File", $RelayScript, "-Role", $Role, "-RunOnce")

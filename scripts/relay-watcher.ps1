@@ -558,10 +558,105 @@ $TestResults
     return (Push-HandoffFile -SourceFile $VerdictOut -DestPath $VerdictDestPath)
 }
 
+# INTEGRATION LEAD (P4): AUTOMATIC SERIAL MERGE OF P5-PASSED TASKS INTO INTEGRATION
+function Invoke-P4AutoMergePassedTasks {
+    git -C "$RepoRoot" fetch origin handoff integration --quiet 2>$null
+    $allFiles = (git -C "$RepoRoot" ls-tree -r --name-only origin/handoff handoff/ 2>$null) -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+
+    $tasks = @{}
+    foreach ($f in $allFiles) {
+        if ($f -match "^handoff/fixed/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)\.md$") {
+            $owner = $Matches[1]; $tid = $Matches[2]; $rn = [int]$Matches[3]
+            if (-not $tasks.ContainsKey($tid)) {
+                $tasks[$tid] = @{ Owner = $owner; MaxFixed = 0; MaxVerdict = 0; FixedPath = ""; VerdictPath = ""; Escalated = $false }
+            }
+            if ($rn -gt $tasks[$tid].MaxFixed) {
+                $tasks[$tid].MaxFixed = $rn
+                $tasks[$tid].FixedPath = $f
+            }
+        } elseif ($f -match "^handoff/verdicts/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)-P5\.md$") {
+            $owner = $Matches[1]; $tid = $Matches[2]; $rn = [int]$Matches[3]
+            if (-not $tasks.ContainsKey($tid)) {
+                $tasks[$tid] = @{ Owner = $owner; MaxFixed = 0; MaxVerdict = 0; FixedPath = ""; VerdictPath = ""; Escalated = $false }
+            }
+            if ($rn -gt $tasks[$tid].MaxVerdict) {
+                $tasks[$tid].MaxVerdict = $rn
+                $tasks[$tid].VerdictPath = $f
+            }
+        }
+    }
+
+    foreach ($f in $allFiles) {
+        if ($f -match "^handoff/escalations/(P[1-5])/([A-Za-z0-9_-]+)-r(\d+)\.md$") {
+            $tid = $Matches[2]; $rn = [int]$Matches[3]
+            if ($tasks.ContainsKey($tid) -and $rn -ge $tasks[$tid].MaxFixed -and $rn -ge $tasks[$tid].MaxVerdict) {
+                $tasks[$tid].Escalated = $true
+            }
+        }
+    }
+
+    foreach ($tid in ($tasks.Keys | Sort-Object)) {
+        $t = $tasks[$tid]
+        if ($t.Escalated -or $t.MaxFixed -eq 0 -or $t.MaxVerdict -lt $t.MaxFixed) { continue }
+
+        $vContent = (git -C "$RepoRoot" show "origin/handoff:$($t.VerdictPath)" 2>$null) -join "`n"
+        if (-not $vContent) { continue }
+        $isFail = $vContent -match "(?i)(?:Overall\s+Verdict|Verdict|Status)[\s\*:-]*FAIL" -or ($vContent -match "\bFAIL\b" -and $vContent -notmatch "(?i)Verdict[\s\*:-]*PASS")
+        if ($isFail) { continue }
+
+        $fContent = (git -C "$RepoRoot" show "origin/handoff:$($t.FixedPath)" 2>$null) -join "`n"
+        $branch = if ($vContent -match '(?i)\bBranch[\*\s:]*`?([a-zA-Z0-9/_.-]+)`?') { $Matches[1] } elseif ($fContent -match '(?i)\bBranch[\*\s:]*`?([a-zA-Z0-9/_.-]+)`?') { $Matches[1] } else { "task/$tid" }
+        $sha    = if ($vContent -match '(?i)\b(?:Tested|Result)\s+SHA[\*\s:]*`?([0-9a-fA-F]{7,40})`?') { $Matches[1] } elseif ($fContent -match '(?i)\b(?:Tested|Result)\s+SHA[\*\s:]*`?([0-9a-fA-F]{7,40})`?') { $Matches[1] } else { "" }
+        if (-not $sha) { continue }
+
+        git -C "$RepoRoot" fetch origin "$branch" integration --quiet 2>$null
+        git -C "$RepoRoot" merge-base --is-ancestor "$sha" origin/integration 2>$null
+        if ($LASTEXITCODE -eq 0) { continue }
+
+        $shortSha = $sha.Substring(0, [Math]::Min(7, $sha.Length))
+        Write-Host "`n>>> [P4 AUTO-MERGE] Merging verified PASS task $tid (Round $($t.MaxVerdict), SHA $shortSha) into integration..." -ForegroundColor Green
+
+        $MergeWt = Join-Path $ProjectsDir "the-third-eye-p4-integration-merge"
+        git -C "$RepoRoot" worktree prune 2>$null
+        $wtValid = $false
+        if (Test-Path "$MergeWt\.git") {
+            $gd = (git -C $MergeWt rev-parse --git-dir 2>$null)
+            if ($gd -match "worktrees") { $wtValid = $true }
+        }
+        if (-not $wtValid) {
+            if (Test-Path $MergeWt) { Remove-Item -Recurse -Force $MergeWt -ErrorAction SilentlyContinue }
+            git -C "$RepoRoot" worktree add --detach "$MergeWt" origin/integration 2>$null
+        } else {
+            git -C "$MergeWt" fetch origin integration "$branch" --quiet 2>$null
+            git -C "$MergeWt" checkout --detach origin/integration 2>$null
+            git -C "$MergeWt" reset --hard origin/integration 2>$null
+            git -C "$MergeWt" clean -fd 2>$null
+        }
+
+        git -C "$MergeWt" merge --no-ff "$sha" -m "Merge $tid (Round $($t.MaxVerdict), SHA $shortSha) into integration [P5 PASS]" 2>&1 | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "[P4 AUTO-MERGE] Merge conflict on $tid ($shortSha); aborting merge to keep integration clean."
+            git -C "$MergeWt" merge --abort 2>$null
+            continue
+        }
+
+        git -C "$MergeWt" push origin HEAD:refs/heads/integration 2>&1 | Out-Host
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  -> Successfully merged and pushed $tid ($shortSha) to origin/integration!" -ForegroundColor Green
+            git -C "$RepoRoot" fetch origin integration --quiet 2>$null
+        } else {
+            Write-Warning "[P4 AUTO-MERGE] Failed to push integration after merging $tid."
+        }
+    }
+}
+
 # MAIN WATCH LOOP
 do {
     Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Checking origin/handoff for ${Role}..." -ForegroundColor Gray
-    git -C "$RepoRoot" fetch origin handoff 2>$null
+    git -C "$RepoRoot" fetch origin handoff integration 2>$null
+    if (-not $RunOnce) {
+        git -C "$RepoRoot" checkout origin/handoff -- start.bat start.ps1 monitor.bat monitor.ps1 scripts .kiro/agents/the-third-eye-coder.json 2>$null
+    }
 
     if ($Role -eq "P5") {
         $PendingJobs = Get-ActionableFixedForP5
@@ -578,6 +673,9 @@ do {
             if ($ok) {
                 Add-Content -Path $HandledLog -Value $v.Path
             }
+        }
+        if ($Role -eq "P4") {
+            Invoke-P4AutoMergePassedTasks
         }
     }
 
