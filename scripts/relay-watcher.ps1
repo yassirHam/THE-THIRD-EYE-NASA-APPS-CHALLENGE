@@ -845,7 +845,15 @@ function Invoke-P4AutoMergePassedTasks {
             git -C "$MergeWt" clean -fd 2>$null
         }
 
-        git -C "$MergeWt" merge --no-ff "$sha" -m "Merge $tid (Round $($t.MaxVerdict), SHA $shortSha) into integration [P5 PASS]" 2>&1 | Out-Host
+        $mergeTarget = $sha
+        git -C "$MergeWt" cat-file -e "$mergeTarget^{commit}" 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            $branchSha = (git -C "$MergeWt" rev-parse "origin/$branch" 2>$null) -join ""
+            if ($branchSha -and $branchSha.StartsWith($shortSha)) {
+                $mergeTarget = $branchSha
+            }
+        }
+        git -C "$MergeWt" merge --no-ff "$mergeTarget" -m "Merge $tid (Round $($t.MaxVerdict), SHA $shortSha) into integration [P5 PASS]" 2>&1 | Out-Host
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "[P4 AUTO-MERGE] Merge conflict on $tid ($shortSha); aborting merge to keep integration clean."
             git -C "$MergeWt" merge --abort 2>$null
@@ -898,6 +906,7 @@ do {
     }
     Start-Sleep -Seconds $PollIntervalSeconds
 } while ($true)
+
 
 
 
