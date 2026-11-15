@@ -19,7 +19,7 @@ function Show-HandoffDashboard {
     # Parse all tasks from fixed/ and verdicts/
     $Tasks = @{}
     foreach ($f in $AllFiles) {
-        if ($f -match "^handoff/fixed/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)\.md$") {
+        if ($f -match "^handoff/fixed/(P[1-5])/([A-Za-z0-9_-]+)/r(\d+)\.md$") {
             $Role = $Matches[1]
             $TaskId = $Matches[2]
             $Round = [int]$Matches[3]
@@ -35,16 +35,20 @@ function Show-HandoffDashboard {
                 }
             }
         }
-        elseif ($f -match "^handoff/verdicts/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)-P5\.md$") {
+        elseif ($f -match "^handoff/verdicts/(P[1-5])/([A-Za-z0-9_-]+)/r(\d+)-P5\.md$") {
             $Role = $Matches[1]
             $TaskId = $Matches[2]
             $Round = [int]$Matches[3]
             if (-not $Tasks.ContainsKey($TaskId)) {
-                $Tasks[$TaskId] = @{ Role = $Role; MaxFixed = 0; MaxVerdict = 0; VerdictStatus = "NONE"; TestedSha = "-"; Escalated = $false }
+                $Tasks[$TaskId] = @{ Role = $Role; MaxFixed = 0; MaxVerdict = 0; VerdictStatus = "NONE"; TestedSha = "-"; FullSha = ""; Escalated = $false }
             }
             if ($Round -ge $Tasks[$TaskId].MaxVerdict) {
                 $Tasks[$TaskId].MaxVerdict = $Round
                 $RawVerdict = (git show "origin/handoff:$f" 2>$null) -join "`n"
+                if ($RawVerdict -match '(?i)\b(?:Tested|Result)\s+SHA[\*\s:]*`?([0-9a-fA-F]{7,40})`?') {
+                    $Tasks[$TaskId].FullSha = $Matches[1]
+                    $Tasks[$TaskId].TestedSha = $Matches[1].Substring(0, [Math]::Min(7, $Matches[1].Length))
+                }
                 if ($RawVerdict -match "(?i)(?:Verdict|Status|Overall)[\s\*:-]*FAIL" -or ($RawVerdict -match "\bFAIL\b" -and $RawVerdict -notmatch "(?i)Verdict[\s\*:-]*PASS")) {
                     $Tasks[$TaskId].VerdictStatus = "FAIL (r$Round)"
                 } else {

@@ -571,7 +571,7 @@ function Invoke-P4AutoMergePassedTasks {
 
     $tasks = @{}
     foreach ($f in $allFiles) {
-        if ($f -match "^handoff/fixed/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)\.md$") {
+        if ($f -match "^handoff/fixed/(P[1-5])/([A-Za-z0-9_-]+)/r(\d+)\.md$") {
             $owner = $Matches[1]; $tid = $Matches[2]; $rn = [int]$Matches[3]
             if (-not $tasks.ContainsKey($tid)) {
                 $tasks[$tid] = @{ Owner = $owner; MaxFixed = 0; MaxVerdict = 0; FixedPath = ""; VerdictPath = ""; Escalated = $false }
@@ -580,7 +580,7 @@ function Invoke-P4AutoMergePassedTasks {
                 $tasks[$tid].MaxFixed = $rn
                 $tasks[$tid].FixedPath = $f
             }
-        } elseif ($f -match "^handoff/verdicts/(P[1-4])/([A-Za-z0-9_-]+)/r(\d+)-P5\.md$") {
+        } elseif ($f -match "^handoff/verdicts/(P[1-5])/([A-Za-z0-9_-]+)/r(\d+)-P5\.md$") {
             $owner = $Matches[1]; $tid = $Matches[2]; $rn = [int]$Matches[3]
             if (-not $tasks.ContainsKey($tid)) {
                 $tasks[$tid] = @{ Owner = $owner; MaxFixed = 0; MaxVerdict = 0; FixedPath = ""; VerdictPath = ""; Escalated = $false }
