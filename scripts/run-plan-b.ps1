@@ -226,7 +226,7 @@ Make pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/t
 1. Exclude the union of [2020-01-01..2021-12-31] and any caller-supplied sealed_window independently (never min(start)..max(end)); validate ws <= we; raise ValueError if any 2020-2021 day in day_present is truthy.
 2. Enforce c_min == 1.0 (never classify coverage < 1.0 as complete via caller-supplied c_min < 1.0).
 3. Reject record_end > date(2025, 12, 31) with ValueError, but allow period_end > record_end when period_start <= record_end (so 2026-W01 clips at 2025-12-31 as partial with 'period_clipped'). Emit 'partition_boundary' ONLY for sealed-window exclusions, never for non-sealed partition crossings (such as 2024-12-30..2025-01-05).
-4. Validate every value in day_present is isinstance(v, bool); when wholly sealed return state='unavailable' with reasons=('partition_boundary',) and no 'no_file'; in footprint_evidence_summary never return supports_status='partial' with coverage_fraction=None.
+4. Validate every value in day_present is isinstance(v, bool); when wholly sealed return state='unavailable' with reasons=('partition_boundary',) and no 'no_file'; in footprint_evidence_summary never return supports_status='partial' with coverage_fraction=None or coverage_fraction == 0.0 (only emit supports_status='partial' when 0.0 < coverage_fraction < 1.0; emit 'unavailable'/'unverified' when coverage_fraction is None or 0.0, per contracts/schemas/calendar.py:263).
 5. Align pipeline/grid/COVERAGE_RULE.md with Contract 1.6.0 and paired_comparison_eligible in contracts/schemas/calendar.py.
 Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
 "@
