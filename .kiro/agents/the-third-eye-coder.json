@@ -1,0 +1,37 @@
+{
+  "name": "the-third-eye-coder",
+  "description": "Isolated coder for THE THIRD EYE. Writes only inside the assigned worktree editable paths, runs acceptance commands, commits only to its task branch, never pushes.",
+  "prompt": "file://./the-third-eye-coder.md",
+  "model": "claude-sonnet-4.6",
+  "tools": [
+    "*"
+  ],
+  "allowedTools": [
+    "*"
+  ],
+  "resources": [
+    "file://AGENTS.md",
+    "file://THE_THIRD_EYE_EXECUTION_SPEC.md",
+    "file://THE_THIRD_EYE_AI_AGENTS_PLAYBOOK.md"
+  ],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_write",
+        "effect": "allow"
+      },
+      {
+        "capability": "shell",
+        "effect": "allow"
+      },
+      {
+        "capability": "skill",
+        "effect": "allow"
+      }
+    ]
+  }
+}
