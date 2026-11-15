@@ -265,6 +265,7 @@ export default function ThirdEye({ source, open = 1, reveal = 1, size = 3, posit
       if (e.button !== 0 || overControl(e.target)) return
       if (hit(e.clientX, e.clientY)) {
         blinkAt.current = performance.now() / 1000
+        window.dispatchEvent(new Event('third-eye-blink'))
         if (import.meta.env.DEV) { const w = window as unknown as { __eyeBlinks?: number }; w.__eyeBlinks = (w.__eyeBlinks ?? 0) + 1 }
       }
     }

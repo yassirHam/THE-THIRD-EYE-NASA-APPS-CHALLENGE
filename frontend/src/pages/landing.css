@@ -37,6 +37,15 @@ body.is-scroll .hud { display: none; }
 .topbar__nav a { font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; text-decoration: none; position: relative; }
 .topbar__nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform 400ms var(--ease-out); }
 .topbar__nav a:hover::after { transform: scaleX(1); transform-origin: left; }
+/* sound toggle for the menu music; framed like the other controls, square corners */
+.topbar__nav { align-items: center; }
+.topbar__sound { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border: 1px solid var(--ivory-faint); color: var(--ivory); font: 500 12px var(--ui); letter-spacing: 0.18em; text-transform: uppercase; transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out); }
+.topbar__sound:hover { background: var(--ivory); color: var(--void); border-color: var(--ivory); }
+.topbar__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
+.topbar__bars i { display: block; width: 2px; background: var(--amber); }
+.topbar__bars i:nth-child(1) { height: 5px; } .topbar__bars i:nth-child(2) { height: 10px; } .topbar__bars i:nth-child(3) { height: 7px; }
+.topbar__sound[aria-pressed='false'] .topbar__bars i { height: 2px; background: var(--ivory-faint); }
+.topbar__sound:hover .topbar__bars i { background: var(--void); }
 
 /* ---------- scroll track ---------- */
 .landing__track { position: relative; z-index: 10; }
@@ -428,3 +437,13 @@ body.is-scroll .hud { display: none; }
   .topbar__nav a { font-size: 12px; letter-spacing: 0.14em; }
   .hero__kicker { max-width: 30ch; text-shadow: 0 0 12px #050708, 0 0 4px #050708; color: var(--ivory); }
 }
+
+/* ---------- Sensor-switch headline: the frozen result and its denominator, or "Unavailable" ---------- */
+.gate__headline { margin: 6px 0 0; max-width: 46ch; font: 400 14px/1.5 var(--sans); color: var(--ivory-dim); text-shadow: 0 0 18px #000; }
+.gate__headline b { color: var(--ivory); font-weight: 600; }
+.status-chip { display: inline-block; padding: 1px 7px; border: 1px dashed currentColor; font: 600 11px var(--ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ivory); }
+
+.credits--si { margin-top: 14px; max-width: 640px; }
+.credits--si h3 { margin: 0 0 6px; font: 600 11px var(--ui); letter-spacing: .16em; text-transform: uppercase; color: var(--ivory); }
+.credits--si ul { margin: 0 0 6px; padding-left: 16px; }
+.credits--si p { margin: 0; }

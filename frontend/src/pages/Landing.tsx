@@ -13,10 +13,13 @@ import Cursor from '../components/Cursor'
 import { landing, type PortalKey } from '../three/state'
 import { prefersReducedMotion } from '../lib/random'
 import { playSfx, preloadSfx } from '../lib/sfx'
+import { menuMusicScroll, setMenuSound, soundOn, startMenuMusic, stopMenuMusic } from '../lib/menuMusic'
 import { prefetchRoutes } from '../routes'
 import { blink } from '../lib/pointer'
 import { LabPreview, MissionPreview, StoryPreview } from '../components/ModePreviews'
 import { Animated, Name } from '../components/Keep'
+import { HEADLINE_UNAVAILABLE, labView } from '../lab/model'
+import { DATA_CREDITS, NASA_BRANDING_RULE, SI_USE } from '../lib/credits'
 import './landing.css'
 
 gsap.registerPlugin(ScrollTrigger, SplitText)
@@ -50,6 +53,18 @@ const MODES: Mode[] = [
 
 const PREVIEW = { story: StoryPreview, lab: LabPreview, mission: MissionPreview }
 
+/** The frozen sensor-switch result and its denominator, or its unavailable status. Same source
+ *  and wording as the Research Lab, so the two pages cannot disagree. */
+function HeadlineStatus({ className }: { className: string }) {
+  const h = labView.headline
+  return (
+    <p className={className}>
+      <b>{HEADLINE_UNAVAILABLE.title}:</b>{' '}
+      {h ? <>{h.text} <span>{h.denominator}</span></> : <><span className="status-chip">{HEADLINE_UNAVAILABLE.status}</span> {HEADLINE_UNAVAILABLE.text}</>}
+    </p>
+  )
+}
+
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
@@ -61,6 +76,7 @@ export default function Landing() {
   const [film] = useState(false)
   const [paused, setPaused] = useState(film)
   const filmDone = useRef(false)
+  const [sound, setSound] = useState(soundOn)
   const warm = useCallback(() => {
     // render the hidden page for a moment so its shaders compile while the film is dark
     setPaused(false)
@@ -94,7 +110,11 @@ export default function Landing() {
     const reduced = prefersReducedMotion()
     const lenis = reduced ? null : new Lenis({ lerp: 0.085, wheelMultiplier: 0.9 })
     const raf = (t: number) => { lenis?.raf(t * 1000) }
-    if (lenis) { lenis.on('scroll', ScrollTrigger.update); gsap.ticker.add(raf); gsap.ticker.lagSmoothing(0) }
+    if (lenis) { lenis.on('scroll', ScrollTrigger.update); lenis.on('scroll', (l: Lenis) => menuMusicScroll(l.velocity)); gsap.ticker.add(raf); gsap.ticker.lagSmoothing(0) }
+    // without smooth scrolling, read the scroll speed from the native position
+    let lastY = window.scrollY
+    const onScroll = () => { menuMusicScroll(window.scrollY - lastY); lastY = window.scrollY }
+    if (!lenis) window.addEventListener('scroll', onScroll, { passive: true })
     const st = ScrollTrigger.create({
       trigger: '.landing__track',
       start: 'top top',
@@ -102,7 +122,7 @@ export default function Landing() {
       onUpdate: (s) => { landing.progress = s.progress },
     })
     ScrollTrigger.refresh()
-    return () => { st.kill(); if (lenis) { gsap.ticker.remove(raf); lenis.destroy() } }
+    return () => { st.kill(); window.removeEventListener('scroll', onScroll); if (lenis) { gsap.ticker.remove(raf); lenis.destroy() } }
   }, [chosen])
 
   const { contextSafe } = useGSAP(
@@ -179,6 +199,19 @@ export default function Landing() {
   // compete with the Earth maps for bandwidth, and are still ready before the first click.
   useEffect(() => { if (ready) { preloadSfx(); prefetchRoutes() } }, [ready])
 
+  // Menu music: starts on the first click, tap or key press on this page (browsers block sound
+  // before that), carries on into the Story scroll page, and fades out when the reader leaves.
+  useEffect(() => {
+    const go = () => startMenuMusic()
+    const events = ['pointerdown', 'keydown', 'touchstart'] as const
+    for (const ev of events) window.addEventListener(ev, go, { capture: true, passive: true })
+    return () => {
+      for (const ev of events) window.removeEventListener(ev, go, { capture: true })
+      stopMenuMusic()
+    }
+  }, [])
+  const toggleSound = () => { const next = !sound; setSound(next); setMenuSound(next) }
+
   const hover = (key: PortalKey) => ({
     onPointerEnter: () => { landing.hover = key },
     onPointerLeave: () => { landing.hover = '' },
@@ -209,6 +242,10 @@ export default function Landing() {
           <Link to="/?mode=story" aria-current={chosen ? 'page' : undefined} data-cursor="Story" onClick={() => playSfx('mode')}>Story</Link>
           <Link to="/lab" data-cursor="Soon" onClick={() => playSfx('mode')}>Lab</Link>
           <Link to="/mission" data-cursor="Soon" onClick={() => playSfx('mode')}>Mission</Link>
+          <button type="button" className="topbar__sound" aria-pressed={sound} onClick={toggleSound} data-cursor={sound ? 'Mute' : 'Unmute'}>
+            <span className="topbar__bars" aria-hidden="true"><i /><i /><i /></span>
+            Sound {sound ? 'on' : 'off'}
+          </button>
         </nav>
       </header>
 
@@ -217,7 +254,7 @@ export default function Landing() {
           <div className="gate__head">
             <h1 className="gate__title notranslate" id="gate-title" translate="no">The Third Eye</h1>
             <p className="gate__sub">A fire calendar with a third eye.</p>
-            <p className="gate__sub">Sensor-switch test: unavailable. The result and number of evaluated cases are not yet available.</p>
+            <HeadlineStatus className="gate__headline" />
           </div>
 
           <section className="gate__modes" aria-labelledby="gate-choose">
@@ -312,9 +349,14 @@ export default function Landing() {
               </p>
               <aside className="headline">
                 <span className="headline__mark" aria-hidden="true" />
-                <p><b>Sensor-switch test: not run yet.</b> Its result goes here after the held-out test, with how many cases it covers, whatever it shows.</p>
+                <HeadlineStatus className="headline__text" />
               </aside>
-              <p className="credits">Earth maps derived from NASA Blue Marble and Black Marble imagery. Fire glints, satellites and rings are illustrations, not NASA detections.</p>
+              <p className="credits">{DATA_CREDITS}</p>
+              <section className="credits credits--si" aria-labelledby="si-title">
+                <h3 id="si-title">Use of Super Intelligence (SI)</h3>
+                <ul>{SI_USE.map((u) => <li key={u.what}><b>{u.what}:</b> {u.how}</li>)}</ul>
+                <p>{NASA_BRANDING_RULE}</p>
+              </section>
             </section>
           </main>
         </>

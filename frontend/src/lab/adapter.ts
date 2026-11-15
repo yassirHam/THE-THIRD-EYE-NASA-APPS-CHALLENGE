@@ -208,7 +208,7 @@ export function areaFromArtifacts(option: RegionSelectorOption, calendar?: Calen
   } : undefined
   const limitation = !certified ? 'The whole area is not certified as fully observed, so no whole-area comparison is shown.' : comparison?.reviewed_summary.limit_sentence ?? 'Satellite observations do not count individual fires.'
   return {
-    id: option.geometry_id, name: option.display_name, rawOnly: !evaluated, entries,
+    id: option.geometry_id, name: option.display_name, rawOnly: !evaluated, role: option.geometry_role, entries,
     finding: access === 'evaluated' && comparison ? { text: comparison.reviewed_summary.finding_sentence, evidenceUrl: '' } : undefined,
     limitation, comparison: view, access,
   }

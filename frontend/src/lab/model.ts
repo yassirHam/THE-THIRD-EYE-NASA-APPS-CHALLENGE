@@ -1,6 +1,12 @@
 /** Presentation model only. P4's published artifact contract must be adapted here;
  * these types are not a scientific schema or an approval of any result. */
 export type Sensor = 'MODIS' | 'VIIRS'
+export const SENSOR_LABEL: Record<Sensor, string> = { MODIS: 'MODIS / Aqua', VIIRS: 'VIIRS / Suomi NPP' }
+export const HEADLINE_UNAVAILABLE = {
+  title: 'Sensor-switch test',
+  status: 'Unavailable',
+  text: 'The result and the number of evaluated cases are not available yet.',
+} as const
 export type Resolution = 'month' | 'week'
 export type Availability = 'available' | 'missing' | 'failed' | 'out-of-domain'
 export type CalendarEntry = {
@@ -65,6 +71,8 @@ export type AreaView = {
   id: string
   name: string
   rawOnly: boolean
+  /** Artifact geometry role, used to place and style the area on the map. */
+  role?: 'primary_region' | 'backup_region' | 'predeclared_sub_area'
   entries: CalendarEntry[]
   finding?: { text: string; evidenceUrl: string }
   limitation: string
