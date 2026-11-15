@@ -108,7 +108,7 @@ export default function SeamChart({ view, headline }: Props) {
           ))}
           {!narrow && (
             <text className="seam__axis" transform={`translate(${m.l - 40}, ${m.t + ih / 2}) rotate(-90)`} textAnchor="middle">
-              fire squares per 1,000 clear
+              detected fire-cell-days per 1,000 usable land-cell-days
             </text>
           )}
           {SEAM.years.filter((yr) => (yr - y0) % (narrow ? 6 : 3) === 0 || yr === SEAM.start).map((yr) => (

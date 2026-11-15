@@ -67,9 +67,10 @@ function Content({ art, fieldView }: { art: Art; fieldView: FieldView | null }) 
   )
 }
 
-export default function ChapterScene({ art, fieldView }: { art: Art; fieldView: FieldView | null }) {
+export default function ChapterScene({ art, fieldView, paused = false }: { art: Art; fieldView: FieldView | null; paused?: boolean }) {
   return (
     <Canvas
+      frameloop={paused ? 'demand' : 'always'}
       dpr={[1, 1.6]}
       camera={{ fov: 40, near: 0.1, far: 150, position: VIEWS[art.kind].cam }}
       gl={{ antialias: false, toneMapping: THREE.ACESFilmicToneMapping }}

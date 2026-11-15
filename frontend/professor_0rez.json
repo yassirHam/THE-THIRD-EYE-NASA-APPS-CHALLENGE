@@ -1,0 +1,144 @@
+{
+  "celestar": 1,
+  "exportedAt": "2026-11-14T10:13:03.111Z",
+  "skinUrl": "https://cdn.minefun.io/store/6732fdf99a2a63e2ba5f9451/C9GEV6BI1RUOQ.png",
+  "bodyColor": 0,
+  "joints": {
+    "head": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "upperBody": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "leftArm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "leftElbow": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rightArm": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rightElbow": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "leftLeg": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "leftKnee": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rightLeg": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rightKnee": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "cosmetics": [
+    {
+      "name": "Long Blonde",
+      "type": "hair",
+      "attachedTo": "head",
+      "visible": true,
+      "modelUrl": "https://cdn.minefun.io/store/6722343047d34f4b01935111/6S7H3FQICYY81.glb",
+      "color": 0,
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1
+      }
+    },
+    {
+      "name": "Black glasses",
+      "type": "glasses",
+      "attachedTo": "head",
+      "visible": true,
+      "modelUrl": "https://cdn.minefun.io/store/67d968539b7e691ee230fe74/OLMV9YBUIQ00T.glb",
+      "color": 0,
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1
+      }
+    },
+    {
+      "name": "Brown eyes",
+      "type": "eyes",
+      "attachedTo": "head",
+      "visible": true,
+      "modelUrl": "https://cdn.minefun.io/store/674f5cdd4b3cf418a60e7039/3ZV1J9434NLOM.glb",
+      "color": 0,
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1
+      }
+    },
+    {
+      "name": "Blacky",
+      "type": "boots",
+      "attachedTo": "split",
+      "visible": true,
+      "modelUrl": "https://cdn.minefun.io/store/6722307f47d34f4b0193502a/8EUT62I5DBGEO.glb",
+      "color": 0,
+      "transform": {
+        "position": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "rotation": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "scale": 1
+      }
+    }
+  ]
+}

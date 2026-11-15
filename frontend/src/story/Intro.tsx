@@ -92,7 +92,9 @@ export default function Intro() {
         // park lines take their place only when they start, so the card grows with the text
         if (k.startsWith('p')) t.set(`.intro__line[data-k="${k}"]`, { display: 'block' }, '<')
         // the narrator reads the line as it types; the timeline waits until the voice is done
-        t.call(() => narrator.say(k), undefined, '<')
+        // The existing recordings for these lines describe the retired wording.
+        // Leave them silent until matching narration is recorded.
+        if (k !== 'l3' && k !== 'r3') t.call(() => narrator.say(k), undefined, '<')
         t.to({}, { duration: LINE_SECONDS[k] ?? 0 }, '<')
       }
       const show = (sel: string, pos?: gsap.Position) => t.to(sel, { autoAlpha: 1, duration: 0.6 }, pos)
@@ -287,14 +289,14 @@ export default function Intro() {
       <section className="intro__panel intro__panel--l" aria-label="MODIS">
         <Line k="l1" text="Close your left eye." className="intro__line--big" />
         <Line k="l2" text="This is MODIS, on NASA's Aqua satellite. It has watched Earth since 2002." />
-        <Line k="l3" text="It sees in squares about a kilometre wide. Small fires can slip through." />
+        <Line k="l3" text="It sees in chunks about a kilometre wide. Small fires can slip through." />
         <p className="intro__tag intro__tag--modis">Coarse eye <span>Grid drawn larger than real</span></p>
       </section>
 
       <section className="intro__panel intro__panel--r" aria-label="VIIRS">
         <Line k="r1" text="Now close your right eye." className="intro__line--big" />
         <Line k="r2" text="This is VIIRS, on Suomi NPP. It watched from 2012 until November 2026." />
-        <Line k="r3" text="Its squares are about 375 metres wide. It often catches small fires the first eye missed." />
+        <Line k="r3" text="VIIRS has a different view and detection pathway. It can detect activity MODIS does not." />
         <p className="intro__tag intro__tag--viirs">Fine eye <span>Grid enlarged by the same factor</span></p>
       </section>
 

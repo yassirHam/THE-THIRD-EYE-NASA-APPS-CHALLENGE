@@ -1,10 +1,27 @@
 /* ---------- Story chapters: 3D illustration left, narration right ---------- */
 
+.hud:has(.story) { --ivory: #fef3e2; --ivory-dim: rgba(254,243,226,.8); --ivory-faint: rgba(254,243,226,.3); --amber: #f4ae52; --oxide: #d4621a; --void-2: #2a1a0e; }
+.story__back, .story__menu-trigger { position: absolute; top: 8px; width: 48px; height: 48px; border: 1px solid var(--ivory-dim); color: var(--ivory); font-size: 25px; z-index: 20; }
+.story__back { left: calc(var(--frame-inset) + 10px); }
+.story__menu { position: absolute; top: 8px; right: calc(var(--frame-inset) + 10px); z-index: 30; }
+.story__menu-trigger { position: static; }
+.story__back:hover, .story__menu-trigger:hover { background: var(--amber); color: var(--void); }
+.story__back:active, .story__menu-trigger:active { transform: scale(.96); }
+.story__menu-panel { position: absolute; right: 0; top: 54px; width: 220px; padding: 8px; display: grid; background: var(--void-2); border: 1px solid var(--ivory-dim); }
+.story__menu-panel button, .story__menu-panel a { display: block; text-align: left; padding: 10px; color: var(--ivory); font: 400 14px var(--sans); text-decoration: none; }
+.story__menu-panel button:hover, .story__menu-panel a:hover { background: var(--amber); color: var(--void); }
+.story__bottom button:disabled { opacity: .5; cursor: not-allowed; }
+.story__eye-message { position: absolute; z-index: 8; left: 20px; top: 120px; background: var(--void-2); color: var(--ivory); margin: 0; }
+.story__eye-message:not(:empty) { padding: 10px; border: 1px solid var(--amber); }
+.story--reaction .story__art { animation: eye-reaction .35s ease-in-out; }
+@keyframes eye-reaction { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@media (max-width: 700px) { .story__back { left: 18px; } .story__menu { right: 18px; } .chapterbar__label { display: none; } }
+
 .story {
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(0, 1.22fr) minmax(400px, 1fr);
 }
 
 /* The scene fills its column. The chapter name lives in the objective label (top left), so
@@ -92,11 +109,15 @@
 .story__text {
   position: relative;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--prof-w);
   grid-template-rows: 1fr auto;
+  column-gap: 4px;
   min-height: 0;
-  padding: 0 clamp(20px, 3vw, 56px) 28px;
+  padding: 0 0 28px clamp(20px, 2.6vw, 48px);
   background: var(--void);
+  --prof-w: clamp(160px, 15vw, 260px);
 }
+.story__log, .story__choices { grid-column: 1; }
 
 .story__log {
   overflow-y: auto;
@@ -316,3 +337,229 @@
   .seam__headline { right: 84px; bottom: 50px; max-width: 200px; font-size: 18px; }
   .story__overlay--seam .story__body { min-height: 300px; }
 }
+
+/* ---------- Professor Orez: the guide stands beside the narration ---------- */
+/* He has his own column, so he never covers text. When a question is open he turns and points at
+   the quiz card, and three pixel question marks pop in once beside his head. */
+.professor {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: end;
+  position: relative;
+  height: min(66vh, 580px);
+  min-height: 300px;
+}
+.professor__stage { position: absolute; inset: 0 0 34px -18%; pointer-events: none; }
+.professor__stage canvas { width: 100% !important; height: 100% !important; }
+.professor__hit {
+  position: absolute;
+  z-index: 2;
+  inset: 8% 14% 34px 22%;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: border-color 160ms var(--ease-out);
+}
+.professor__hit:hover { border-color: var(--ivory-faint); }
+.professor__hit:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.professor__name {
+  position: absolute;
+  inset: auto 0 0;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  text-align: center;
+  font: 600 12px var(--ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ivory);
+}
+.professor__name span { color: var(--amber); margin-right: 0.4em; }
+.professor-fallback { grid-column: 2; grid-row: 1 / 3; align-self: end; padding-bottom: 8px; text-align: center; color: var(--ivory-dim); font: 12px var(--ui); letter-spacing: 0.2em; text-transform: uppercase; }
+
+.professor__qs { position: absolute; inset: 0 0 34px; pointer-events: none; }
+.professor__q { position: absolute; fill: var(--amber); animation: q-pop 520ms var(--ease-out) both; }
+.professor__q--0 { width: 30px; left: 6%; top: 9%; rotate: -12deg; animation-delay: 380ms; }
+.professor__q--1 { width: 20px; right: 8%; top: 4%; rotate: 10deg; animation-delay: 560ms; }
+.professor__q--2 { width: 16px; right: 2%; top: 30%; rotate: 18deg; animation-delay: 740ms; opacity: 0.8; }
+@keyframes q-pop { 0% { scale: 0; opacity: 0; } 60% { scale: 1.25; opacity: 1; } 100% { scale: 1; } }
+
+/* ---------- The open question: a framed quiz card ---------- */
+.quiz {
+  position: relative;
+  margin: 22px 0 8px;
+  padding: 14px 16px 16px;
+  background: rgba(42, 26, 14, 0.62);
+  border: 1.5px solid var(--amber);
+}
+.quiz::before, .quiz::after { content: ''; position: absolute; width: 14px; height: 14px; background: var(--amber); }
+.quiz::before { top: -1.5px; left: -1.5px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+.quiz::after { bottom: -1.5px; right: -1.5px; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+.quiz__head {
+  grid-template-columns: 34px 1fr 30px;
+  margin: 0 0 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(244, 174, 82, 0.35);
+}
+/* a stepped pixel arrow from the professor's side, pointing at the question */
+.quiz__pointer {
+  justify-self: end;
+  width: 28px;
+  height: 18px;
+  background: var(--amber);
+  clip-path: polygon(0 50%, 38% 0, 38% 28%, 100% 28%, 100% 72%, 38% 72%, 38% 100%);
+  animation: quiz-nudge 900ms var(--ease-out) 600ms 2;
+}
+@keyframes quiz-nudge { 50% { translate: -6px 0; } }
+.quiz .story__answers { padding: 0; }
+.quiz .story__answers button { background: rgba(5, 7, 8, 0.6); }
+
+@media (max-width: 860px) {
+  .story__text { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; padding: 0 16px 24px; }
+  .story__log { grid-row: 2; }
+  .story__choices { grid-row: 3; }
+  .professor, .professor-fallback { grid-column: 1; grid-row: 1; justify-self: end; width: 150px; height: 210px; min-height: 0; margin: 12px 0 -24px; }
+  .quiz__head { grid-template-columns: 30px 1fr 24px; }
+}
+
+/* ---------- Speech bubble: the current step is Professor Orez talking ---------- */
+/* The bubble pops out from his side, a stepped pixel tail points at him, and three pixel dots
+   bob a few times like he is speaking. Past steps drop back to plain text. */
+.speech {
+  position: relative;
+  margin: 0 28px 6px 0;
+  padding: 14px 20px 2px;
+  background: rgba(14, 18, 20, 0.86);
+  border: 1.5px solid rgba(244, 174, 82, 0.5);
+  transform-origin: 100% calc(100% - 40px);
+  animation: speech-pop 460ms var(--ease-out) both;
+}
+.speech__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  font: 600 11px var(--ui);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.speech__talk { display: inline-flex; gap: 3px; }
+.speech__talk i { width: 5px; height: 5px; background: var(--amber); animation: speech-talk 600ms steps(2, end) 4 both; }
+.speech__talk i:nth-child(2) { animation-delay: 150ms; }
+.speech__talk i:nth-child(3) { animation-delay: 300ms; }
+/* stepped pixel tail on the right edge, pointing at the professor's column */
+.speech__tail {
+  position: absolute;
+  bottom: 34px;
+  right: -20px;
+  width: 20px;
+  height: 22px;
+  background: var(--amber);
+  clip-path: polygon(0 0, 35% 0, 35% 25%, 65% 25%, 65% 50%, 100% 50%, 100% 75%, 65% 75%, 65% 100%, 0 100%);
+  animation: speech-tail 1.4s var(--ease-out) 500ms 2;
+}
+.story__entry.is-parallel .speech { border-color: var(--parallel); }
+.story__entry.is-parallel .speech__tail { background: var(--parallel); }
+.story__entry.is-parallel .speech__who { color: var(--parallel); }
+.story__entry.is-parallel .speech__talk i { background: var(--parallel); }
+@keyframes speech-pop {
+  0% { opacity: 0; transform: translateX(14px) scale(0.94); }
+  70% { opacity: 1; transform: translateX(-2px) scale(1.01); }
+  100% { transform: none; }
+}
+@keyframes speech-talk { 50% { translate: 0 -4px; } }
+@keyframes speech-tail { 50% { translate: 4px 0; } }
+
+@media (max-width: 860px) {
+  /* he stands above the log on phones, so the tail points up at him */
+  .speech { margin: 18px 0 6px; padding: 12px 16px 2px; transform-origin: calc(100% - 70px) 0; }
+  .speech__tail {
+    top: -20px;
+    bottom: auto;
+    right: 60px;
+    width: 22px;
+    height: 20px;
+    clip-path: polygon(0 100%, 0 65%, 25% 65%, 25% 35%, 50% 35%, 50% 0, 75% 0, 75% 35%, 75% 65%, 100% 65%, 100% 100%);
+    animation-name: speech-tail-up;
+  }
+}
+@keyframes speech-tail-up { 50% { translate: 0 -4px; } }
+
+/* ---------- Story menu: all controls live behind "Menu ⋯", so the bottom bar is gone ---------- */
+.hud:has(.story) .hud__bottom { display: none; }
+.story__menu-trigger { width: auto; min-width: 48px; display: inline-flex; align-items: center; gap: 10px; padding: 0 12px 0 14px; }
+.story__menu-label { font: 600 12px var(--ui); letter-spacing: 0.22em; text-transform: uppercase; }
+.story__menu-dots { font-size: 25px; line-height: 1; }
+.story__menu-panel { width: 240px; }
+.story__menu-panel button { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.story__menu-panel button:disabled { opacity: 0.45; cursor: not-allowed; background: none; color: var(--ivory); }
+.story__menu-panel kbd { font: 11px var(--ui); padding: 1px 5px; border: 1px solid currentColor; }
+.story__menu-rule { display: block; height: 1px; margin: 6px 4px; background: var(--rule); }
+.story__menu-hint { margin: 0 0 6px; padding: 8px 10px; font: 600 11px var(--ui); letter-spacing: 0.14em; text-transform: uppercase; color: var(--void); background: var(--amber); }
+.story__menu-panel { animation: menu-drop 260ms var(--ease-out) both; transform-origin: 100% 0; }
+@keyframes menu-drop { from { opacity: 0; transform: translateY(-6px) scaleY(0.96); } }
+/* first visit: the trigger glows while the menu previews itself */
+.story__menu.is-preview .story__menu-trigger { border-color: var(--amber); color: var(--amber); animation: menu-glow 1s var(--ease-out) 3; }
+@keyframes menu-glow { 50% { box-shadow: 0 0 0 4px rgba(244, 174, 82, 0.28); } }
+
+/* the open question lines up with Professor Orez's speech bubble */
+.quiz { margin: 18px 28px 8px 0; }
+
+@media (max-width: 860px) {
+  .quiz { margin-right: 0; }
+}
+@media (max-width: 480px) {
+  .story__menu-trigger { flex-direction: column; justify-content: center; gap: 1px; padding: 0 4px; }
+  .story__menu-dots { font-size: 20px; order: -1; }
+  .story__menu-label { font-size: 9px; letter-spacing: 0.12em; }
+}
+
+/* the reply buttons share the speech bubble's edges */
+.story__choices { padding: 12px 28px 0 0; }
+.story__log { scrollbar-gutter: stable; }
+@media (max-width: 860px) {
+  .story__choices { padding-right: 0; }
+}
+.story__choices { overflow: hidden; scrollbar-gutter: stable; scrollbar-width: thin; }
+
+/* ---------- Laptop fit: short and narrow screens ---------- */
+/* overflow on the reply list (for the scrollbar gutter) would let the grid squeeze it below its
+   content; keep its full height so no reply is clipped. */
+.story__choices { min-height: min-content; }
+/* the verdict cards scroll inside the illustration if they cannot all fit */
+.story__overlay--verdict { grid-template-rows: minmax(0, 1fr) auto; }
+.story__overlay--verdict .story__controls { min-height: 0; max-height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ivory-faint) transparent; }
+
+/* small laptops (1024-1180 wide): give the narration more room and the professor a bit less */
+@media (min-width: 861px) and (max-width: 1180px) {
+  .story { grid-template-columns: minmax(0, 1fr) minmax(400px, 1fr); }
+  .story__text { --prof-w: clamp(130px, 13vw, 170px); padding-left: 20px; }
+  .story__choices { padding-left: 0; }
+}
+
+/* short laptop screens (720-820 high): tighter type and spacing so the step, its replies and the
+   professor fit without cutting */
+@media (min-width: 861px) and (max-height: 820px) {
+  .story__log { padding-top: 28px; }
+  .story__para { font-size: clamp(18px, 1.35vw, 23px); line-height: 1.36; margin-bottom: 12px; }
+  .speech { padding-top: 10px; }
+  .speech__who { margin-bottom: 6px; }
+  .story__choices { padding-top: 8px; gap: 6px; }
+  .story__choices button { padding: 8px 14px 8px 16px; font-size: clamp(18px, 1.35vw, 23px); }
+  .story__text { padding-bottom: 22px; }
+  .professor { height: min(60vh, 460px); min-height: 260px; }
+  .quiz { margin-top: 12px; padding: 10px 12px 12px; }
+  .quiz__head { margin-bottom: 10px; padding-bottom: 10px; }
+  .verdict { padding: 7px 12px; gap: 10px; }
+  .verdict b { font-size: 15px; }
+  .verdict span { font-size: 13px; }
+  .story__overlay { inset: 92px 0 0; padding-bottom: 14px; }
+}
+
+/* a soft warm glow behind the professor, so his black suit stands out from the dark column */
+.professor::before { content: ''; position: absolute; inset: 6% 4% 40px; background: radial-gradient(50% 42% at 52% 52%, rgba(244, 174, 82, 0.16), transparent 72%); pointer-events: none; }
+
+/* short steps sit at the bottom of the narration, next to the professor, instead of floating at
+   the top of an empty column (chapter V). Long logs still scroll from the top as before. */
+.story__log { display: flex; flex-direction: column; }
+.story__log > :first-child { margin-top: auto; }

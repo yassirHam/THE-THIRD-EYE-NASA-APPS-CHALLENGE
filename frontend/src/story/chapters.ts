@@ -6,7 +6,7 @@ export type Art =
       kind: 'field'
       view: FieldView
       clouds?: boolean
-      /** parallel universe: squares under cloud are counted as seen with no fire */
+      /** parallel universe: chunks under cloud are counted as seen with no fire */
       cloudsAsZero?: boolean
       toggles?: boolean
     }
@@ -64,7 +64,8 @@ export const CHAPTERS: Chapter[] = [
       {
         id: 'start',
         text: [
-          'You are looking at the fire history of one place: twenty years of satellite records, month by month.',
+          "Hello, I'm Professor Orez. Two satellites can observe the same Earth and tell different stories. Let's investigate why.",
+          'We divide the observation area into small chunks. In the scientific data, these are grid cells.',
           'Two satellite eyes wrote that history. They never saw the ground the same way.',
           'The third eye does not see more fire. It checks whether a comparison between the two records holds up, and tells you when it does not.',
         ],
@@ -87,7 +88,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'two-eyes',
     title: 'Compare the two eyes',
     hint: 'Look through MODIS, then VIIRS.',
-    caption: 'Same land, same day, different squares.',
+    caption: 'Same land, same day, different chunks.',
     art: { kind: 'field', view: 'ground', toggles: true },
     nodes: [
       {
@@ -100,8 +101,8 @@ export const CHAPTERS: Chapter[] = [
         id: 'modis',
         art: { kind: 'field', view: 'modis', toggles: true },
         text: [
-          'MODIS, on the Aqua satellite since 2002, marks a square when it detects fire anywhere inside it.',
-          'Its squares are large. A small fire inside one can be too faint, against the rest of the square, to be detected.',
+          'MODIS, on the Aqua satellite since 2002, marks a chunk when it detects fire anywhere inside it.',
+          'Its chunks are large. A small fire inside one can be too faint, against the rest of the chunk, to be detected.',
         ],
         choices: [{ label: 'Look through VIIRS.', to: 'viirs' }],
       },
@@ -109,8 +110,8 @@ export const CHAPTERS: Chapter[] = [
         id: 'viirs',
         art: { kind: 'field', view: 'viirs', toggles: true },
         text: [
-          'VIIRS, on Suomi NPP from 2012, looks through smaller squares and often detects smaller fires. Its sensor and detection method differ too, not only the square size.',
-          'Same land, same day, more squares lit.',
+          'VIIRS, on Suomi NPP from 2012, looks through smaller chunks and often detects smaller fires. Its sensor and detection method differ too, not only the chunk size.',
+          'Same land, same day, more chunks lit.',
         ],
         question: 'So which eye is right?',
         skip: 'both',
@@ -126,7 +127,7 @@ export const CHAPTERS: Chapter[] = [
         art: { kind: 'field', view: 'modis' },
         text: [
           'In this universe, only the coarse eye is trusted.',
-          'Fires too small or too faint for its big squares never enter the record. Every season looks calmer than the ground was, and nobody can say by how much.',
+          'Fires too small or too faint for its big chunks never enter the record. Every season looks calmer than the ground was, and nobody can say by how much.',
         ],
         skip: 'both',
         choices: [{ label: 'Go back and answer again.', to: 'viirs', back: true }],
@@ -146,8 +147,8 @@ export const CHAPTERS: Chapter[] = [
         id: 'both',
         art: { kind: 'field', view: 'both', toggles: true },
         text: [
-          'Neither is right on its own, and neither is wrong. They count squares where fire was detected, not fires, and each eye detects differently.',
-          'The fine eye lights more squares. The coarse eye marks a larger share of its own, bigger squares. Neither number is the amount of fire, which is why the two records cannot simply be joined end to end.',
+          'Neither is right on its own, and neither is wrong. They count chunks where fire was detected, not fires, and each eye detects differently.',
+          'The fine eye lights more chunks. The coarse eye marks a larger share of its own, bigger chunks. Neither number is the amount of fire, which is why the two records cannot simply be joined end to end.',
         ],
         choices: [{ label: 'What about cloudy days?', to: '#clouds' }],
       },
@@ -156,18 +157,18 @@ export const CHAPTERS: Chapter[] = [
   {
     id: 'clouds',
     title: 'Count only what was seen',
-    hint: 'A square nobody saw is not a square without fire.',
-    caption: 'Hazy squares were never seen.',
+    hint: 'A chunk nobody saw is not a chunk without fire.',
+    caption: 'Hazy chunks were never seen.',
     art: { kind: 'field', view: 'modis', clouds: true },
     nodes: [
       {
         id: 'start',
         text: ['Clouds roll in. Under them, neither eye can see fire, or the absence of it.'],
-        question: 'How should the cloudy squares count?',
+        question: 'How should the cloudy chunks count?',
         skip: 'right',
         choices: [
-          { label: 'Count the cloudy squares as no fire.', to: 'u-zero' },
-          { label: 'Leave the cloudy squares out.', to: 'right', correct: true },
+          { label: 'Count the cloudy chunks as no fire.', to: 'u-zero' },
+          { label: 'Leave the cloudy chunks out.', to: 'right', correct: true },
         ],
       },
       {
@@ -175,22 +176,22 @@ export const CHAPTERS: Chapter[] = [
         universe: 'parallel',
         art: { kind: 'field', view: 'modis', clouds: true, cloudsAsZero: true },
         text: [
-          'In this universe, every cloudy square counts as a square with no fire.',
-          'Look at the rate: it drops, because squares nobody could see now count as calm. Every cloudy month and every rainy season looks quieter than it was.',
+          'In this universe, every cloudy chunk counts as a chunk with no fire.',
+          'Look at the rate: it drops, because chunks nobody could see now count as calm. Every cloudy month and every rainy season looks quieter than it was.',
         ],
         skip: 'right',
         choices: [{ label: 'Go back and answer again.', to: 'start', back: true }],
       },
       {
         id: 'right',
-        text: ['Right. THE THIRD EYE divides the squares with fire by the squares that were actually seen.'],
+        text: ['Right. Leave chunks classified as unobserved or unusable under the product policy out of the usable-observation count.'],
         choices: [{ label: 'And what does the calendar show?', to: 'rate' }],
       },
       {
         id: 'rate',
         text: [
-          'Each month on the calendar is fire squares per 1,000 clear squares.',
-          'When a month has no clear squares at all, it reads unavailable, never zero.',
+          'The calendar reports detected fire-cell-days per 1,000 usable land-cell-days.',
+          'When a month has no clear chunks at all, it reads unavailable, never zero.',
         ],
         choices: [{ label: 'Show me where the eyes change.', to: '#seam' }],
       },

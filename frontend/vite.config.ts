@@ -8,6 +8,8 @@ export default defineConfig({
     host: true,
     port: 5173,
     allowedHosts: true,
+    // The Lab reads the region outlines from ../data/manifests (read only), one level above this app.
+    fs: { allow: ['..'] },
   },
   build: {
     // three.js alone is over 500 kB minified; the split below keeps it in its own cached file.
