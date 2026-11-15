@@ -2,15 +2,19 @@
 // Run: node --experimental-strip-types --test scripts/contract-adapter.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import {
   ArtifactCache,
   COVERAGE_TEXT,
+  EVIDENCE_FORMAT,
   IdentityMismatch,
   areaFromArtifacts,
   cacheKeyOf,
   calendarEntries,
   comparisonViewFromClaimAudit,
+  counterexampleView,
+  evidenceFromDocument,
   findingVisible,
   footprintStatus,
   inactivePlatforms,
@@ -145,42 +149,57 @@ test('wrong or missing contract version is refused', () => {
 
 // --- Contract 1.6.0 sealed_window tests ---
 
-test('periods fully inside the sealed window are labelled as sealed, not missing data', () => {
-  const e = calendarEntries(sealedCal())
-  // The sealed_boundary fixture has sealed_window: 2020-01-01 to 2021-12-31.
-  // Week 2020-W01 (start: 2019-12-30, end: 2020-01-05) straddles the boundary -> partial, not sealed.
-  // Week 2021-W52 (start: 2021-12-27, end: 2022-01-02) straddles the boundary -> partial, not sealed.
-  // Week 2022-W01 (start: 2022-01-03, end: 2022-01-09) is after the window -> not sealed.
-  // Any periods with dates fully inside 2020-01-01..2021-12-31 should be sealed.
-  const sealed = e.filter((x) => x.sealedPeriod === true)
-  // The sample_calendar fixture's weekly series at 2020-W01 straddles (partial), not sealed.
-  // Both 2020-01-01..2021-12-31 boundary weeks straddle. We just check that no straddling
-  // periods are incorrectly marked sealed, and that any fully-inside periods are marked sealed.
-  const straddleWeek1 = e.find((x) => x.period === '2020-W01' && x.sensor === 'MODIS')
-  if (straddleWeek1) assert.equal(straddleWeek1.sealedPeriod, undefined)
-  const straddleWeek2 = e.find((x) => x.period === '2021-W52' && x.sensor === 'MODIS')
-  if (straddleWeek2) assert.equal(straddleWeek2.sealedPeriod, undefined)
-  // If any sealed periods exist, their detail should say "Sealed evaluation period"
-  for (const s of sealed) {
-    assert.match(s.detail!, /Sealed evaluation period/)
+test('the declared sealed window is shown as sealed, never as missing, zero or no file', () => {
+  const c = sealedCal()
+  assert.deepEqual([c.sealed_window.start, c.sealed_window.end], ['2020-01-01', '2021-12-31'])
+  const weeks = calendarEntries(c).filter((x) => x.sensor === 'MODIS' && x.resolution === 'week')
+  const sealed = weeks.filter((x) => x.availability === 'sealed')
+  assert.equal(sealed.length, 1)
+  const s = sealed[0]
+  assert.equal(s.sealedPeriod, true)
+  assert.equal(s.value, null) // no value is shown for the sealed window
+  assert.equal(s.label, '2020-01-01 to 2021-12-31')
+  assert.match(s.detail!, /not missing data/)
+  assert.doesNotMatch(s.detail!, /no satellite file|zero-fire|Unavailable:/)
+  // Placed between the last week before the window and the first week after it starts.
+  const order = weeks.map((x) => x.period)
+  assert.deepEqual(order.slice(order.indexOf('2020-W01'), order.indexOf('2020-W01') + 3), ['2020-W01', s.period, '2021-W52'])
+  // Straddling weeks keep their own values and say part of them is held back.
+  for (const p of ['2020-W01', '2021-W52']) {
+    const w = weeks.find((x) => x.period === p)!
+    assert.equal(w.availability, 'available')
+    assert.equal(w.sealedPeriod, undefined)
+    assert.match(w.detail!, new RegExp(COVERAGE_TEXT.partition_boundary))
   }
+  // Nothing in this artifact is rendered as missing because of the window.
+  assert.ok(weeks.every((x) => x.availability !== 'missing'))
 })
 
-test('sealed periods detail text says sealed, not missing data', () => {
+test('every series that spans the window gets its own sealed row; others get none', () => {
   const e = calendarEntries(sealedCal())
-  const sealed = e.filter((x) => x.sealedPeriod === true)
-  for (const s of sealed) {
-    assert.match(s.detail!, /withheld from public evaluation, not missing data/)
-    assert.ok(!s.detail!.includes('missing data') || s.detail!.includes('not missing data'), 'sealed should not say missing data without negation')
-  }
+  const rows = e.filter((x) => x.availability === 'sealed').map((x) => `${x.sensor}/${x.resolution}`).sort()
+  // MODIS weekly (2015-2022), MODIS monthly (2002-2023), VIIRS monthly (2011-2023) span the window.
+  assert.deepEqual(rows, ['MODIS/month', 'MODIS/week', 'VIIRS/month'])
+  const proposed = sealedCal()
+  proposed.sealed_window = { start: '2020-01-01', end: '2021-12-31', registration_status: 'proposed_unregistered', registration_ref: null, decision_date: null }
+  const p = calendarEntries(proposed).find((x) => x.availability === 'sealed')!
+  assert.match(p.detail!, /proposed and not yet registered/)
+})
+
+test('a record wholly inside the sealed window is refused, so its value never reaches the screen', () => {
+  const c = sealedCal()
+  const series = c.weekly_series[0]
+  series.records.push({ ...series.records[0], year: 2020, week_number: 30, start_date: '2020-07-20', end_date: '2020-07-26' })
+  assert.throws(() => calendarEntries(c), IdentityMismatch)
 })
 
 test('calendar with no sealed_window produces no sealed entries', () => {
   const e = calendarEntries(cal())
-  assert.ok(e.every((x) => !x.sealedPeriod), 'no sealed entries when sealed_window is null')
+  assert.ok(e.every((x) => !x.sealedPeriod && x.availability !== 'sealed'), 'no sealed entries when sealed_window is null')
 })
 
 // --- Contract 1.6.0 counterexample_interpretations tests ---
+
 
 test('claim audit record counterexample_interpretations are passed through verbatim', () => {
   const record = load('sample_claim_audit_record.json')
@@ -207,4 +226,69 @@ test('claim audit record counterexample_interpretations are passed through verba
 test('comparisonViewFromClaimAudit refuses wrong contract version', () => {
   const record = load('sample_claim_audit_record.json')
   assert.throws(() => comparisonViewFromClaimAudit({ ...record, contract_version: '1.5.0' }), IdentityMismatch)
+})
+
+
+test('claim-audit counterexample normalises to 8.2/2.8 observed and 5.5/5.5 fixed-weight', () => {
+  const [item] = load('sample_claim_audit_record.json').counterexample_interpretations
+  const v = counterexampleView(item)!
+  assert.equal(v.kind, 'synthetic')
+  assert.deepEqual(v.observed, { first: 8.2, second: 2.8, changePercent: -65.85 })
+  assert.deepEqual(v.standardized, { first: 5.5, second: 5.5, changePercent: 0, weights: 'A 0.5, B 0.5' })
+  assert.deepEqual(v.blockRates, [{ id: 'A', rate: 10 }, { id: 'B', rate: 1 }])
+  assert.ok(!v.text!.startsWith('[SYNTHETIC DEV FIXTURE]'))
+})
+
+test('a counterexample with missing numbers stays unavailable, never zero', () => {
+  const [item] = load('sample_claim_audit_record.json').counterexample_interpretations
+  const v = counterexampleView({ ...item, period_2: { observation_shares: {} }, fixed_weight_standardization: undefined })!
+  assert.equal(v.observed, undefined)
+  assert.equal(v.standardized, undefined)
+})
+
+// --- Static bundle from artifact_pipeline/ (public/artifacts) ---
+
+const artifacts = new URL('../public/artifacts/', import.meta.url)
+const pipelineBundle = new URL('../../artifact_pipeline/build/bundle/', import.meta.url)
+const bundleIndex = () => JSON.parse(readFileSync(new URL('bundle_index.json', artifacts), 'utf8'))
+
+test('public/artifacts is a byte-for-byte copy of the latest artifact_pipeline bundle', { skip: !existsSync(new URL('bundle_index.json', pipelineBundle)) && 'artifact_pipeline bundle not in this checkout' }, () => {
+  const index = bundleIndex()
+  const files = ['bundle_index.json', ...index.evidence_entries.flatMap((e: { path: string; gzip_path: string }) => [e.path, e.gzip_path]), ...index.entries.map((e: { path: string }) => e.path)]
+  for (const f of files) assert.ok(readFileSync(new URL(f, artifacts)).equals(readFileSync(new URL(f, pipelineBundle))), `stale copy: ${f}`)
+})
+
+test('bundle evidence matches its sha256 and contract 1.6.0', () => {
+  const index = bundleIndex()
+  assert.equal(index.bundle_format, 'tte-static-bundle-v1')
+  assert.equal(index.contract_version, '1.6.0')
+  assert.ok(index.evidence_entries.length > 0)
+  for (const e of index.evidence_entries) {
+    assert.equal(createHash('sha256').update(readFileSync(new URL(e.path, artifacts))).digest('hex'), e.sha256)
+  }
+})
+
+test('bundle evidence shows the Section 4B illustration and withholds unreleased real-data checks', () => {
+  const entry = bundleIndex().evidence_entries.find((e: { evidence_format: string }) => e.evidence_format === EVIDENCE_FORMAT)
+  const doc = JSON.parse(readFileSync(new URL(entry.path, artifacts), 'utf8'))
+  const view = evidenceFromDocument(doc)
+  assert.equal(view.released, false) // document says not_released
+  assert.equal(view.inference, 'Not established')
+  const fixture = view.counterexamples.find((x) => x.id === 'geo_composition_shift_section_4b')!
+  assert.equal(fixture.kind, 'illustration')
+  assert.deepEqual([fixture.observed!.first, fixture.observed!.second], [8.2, 2.8])
+  assert.deepEqual([fixture.standardized!.first, fixture.standardized!.second], [5.5, 5.5])
+  assert.equal(fixture.standardized!.changePercent, 0)
+  // Real-data items are counted but never rendered before approval.
+  const real = doc.counterexample_interpretations.filter((x: { data_kind: string }) => x.data_kind.startsWith('real_data'))
+  assert.equal(view.withheldCount, real.length)
+  assert.equal(view.counterexamples.length, doc.counterexample_interpretations.length - real.length)
+  assert.ok(!JSON.stringify(view.counterexamples).includes('British Columbia'))
+})
+
+test('evidence with another format or contract version is refused', () => {
+  const entry = bundleIndex().evidence_entries[0]
+  const doc = JSON.parse(readFileSync(new URL(entry.path, artifacts), 'utf8'))
+  assert.throws(() => evidenceFromDocument({ ...doc, evidence_format: 'other' }), IdentityMismatch)
+  assert.throws(() => evidenceFromDocument({ ...doc, contract_version_installed: '1.5.0' }), IdentityMismatch)
 })

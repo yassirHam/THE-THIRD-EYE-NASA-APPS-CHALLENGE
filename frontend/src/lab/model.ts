@@ -2,7 +2,8 @@
  * these types are not a scientific schema or an approval of any result. */
 export type Sensor = 'MODIS' | 'VIIRS'
 export type Resolution = 'month' | 'week'
-export type Availability = 'available' | 'missing' | 'failed' | 'out-of-domain'
+/** 'sealed' marks the declared sealed evaluation window: withheld on purpose, never missing data. */
+export type Availability = 'available' | 'missing' | 'failed' | 'out-of-domain' | 'sealed'
 export type CalendarEntry = {
   period: string
   label: string
@@ -17,9 +18,38 @@ export type CalendarEntry = {
   unusualLabel?: string
   criticalLabel?: string
   comparisonEligible?: boolean
-  /** Contract 1.6.0: true when the period falls inside the artifact's declared sealed evaluation
-   * window. Sealed periods are withheld from public evaluation, not missing data. */
+  /** Contract 1.6.0: true only for the placeholder row that stands for the artifact's declared
+   * sealed_window. Periods wholly inside the window are excluded from artifacts, so this row
+   * carries no value; it is withheld from public evaluation, not missing data. */
   sealedPeriod?: boolean
+}
+
+/** One geographic composition counterexample, normalised for display. Every number is copied
+ * from the artifact as given; nothing is recomputed, rounded to zero or filled in. */
+export type CounterexampleView = {
+  id: string
+  label: string
+  text?: string
+  /** 'illustration': hand-computed plan fixture (not observed data). */
+  kind: 'illustration' | 'synthetic'
+  observed?: { first: number; second: number; changePercent?: number }
+  standardized?: { first: number; second: number; changePercent?: number; weights?: string }
+  blockRates?: Array<{ id: string; rate: number }>
+  limits: string[]
+  note?: string
+}
+
+/** Stage A evidence document from the static bundle (tte-stage-a-evidence-v1), presentation only. */
+export type EvidenceView = {
+  id: string
+  released: boolean
+  releaseText: string
+  unit?: string
+  inference: string
+  counterexamples: CounterexampleView[]
+  /** Real-data items held back because the document is not released. Labels are not shown. */
+  withheldCount: number
+  evidenceUrl: string
 }
 
 /** Contract 1.4.0 five-field compound identity. A cached factor, baseline or result may be reused
@@ -90,7 +120,7 @@ export type ComparisonView = {
    * Each entry is preserved verbatim from the artifact; never recomputed or zero-filled. */
   counterexampleInterpretations?: Array<Record<string, unknown>>
 }
-export type LabView = { areas: AreaView[]; headline?: { text: string; denominator: string; evidenceUrl: string } }
+export type LabView = { areas: AreaView[]; headline?: { text: string; denominator: string; evidenceUrl: string }; evidence?: EvidenceView[] }
 
 const formatNumber = (value: number) => value.toLocaleString(undefined, { maximumSignificantDigits: 6 })
 const withUnits = (value: number, units?: string | null) => `${formatNumber(value)}${units ? ` ${units}` : ''}`

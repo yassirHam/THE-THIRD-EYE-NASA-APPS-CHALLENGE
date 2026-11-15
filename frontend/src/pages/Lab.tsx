@@ -5,6 +5,7 @@ import { Name } from '../components/Keep'
 import Calendar from '../lab/Calendar'
 import Chart from '../lab/Chart'
 import Comparison from '../lab/Comparison'
+import Composition from '../lab/Composition'
 import { findingVisible } from '../lab/adapter'
 import { loadBundle } from '../lab/loader'
 import { labView as placeholderView, type LabView, type Sensor } from '../lab/model'
@@ -23,9 +24,9 @@ export default function Lab() {
   useEffect(() => {
     const base = `${import.meta.env.BASE_URL}artifacts/`
     loadBundle(base).then((loaded) => {
-      if (loaded.areas.length > 0) {
+      if (loaded.areas.length > 0 || (loaded.evidence?.length ?? 0) > 0) {
         setLiveView(loaded)
-        setAreaId(loaded.areas[0]?.id ?? '')
+        if (loaded.areas.length > 0) setAreaId(loaded.areas[0]?.id ?? '')
       }
     }).catch(() => { /* bundle absent or fetch error: stay on placeholder */ })
   }, [])
@@ -64,6 +65,7 @@ export default function Lab() {
           </aside>
         </div>
         <Comparison area={area} />
+        <Composition evidence={liveView.evidence ?? []} />
         <section className="lab__comparison"><div className="lab__sectionhead"><div><p className="lab__eyebrow">Trace the record</p><h3>Source and evidence</h3></div><span className="lab__status">{area?.artifactUrl ? 'Available' : 'Unavailable'}</span></div><p>{area?.artifactUrl ? 'Open the artifact for the selected area and its accompanying evidence.' : 'The source artifact will be linked here when it is available for the selected area.'}</p>{area?.artifactUrl && <a className="chip" href={area.artifactUrl}>Open area artifact</a>}</section>
         <section className="lab__firms"><div><p className="lab__eyebrow">Another perspective</p><h3>Reported hotspots</h3></div><div><p>1-km grids come from the same active-fire detection algorithms as FIRMS points and add a usable-observation denominator; point hotspots never enter D, O, baselines, calibration factors, or verdicts.</p><p>Choose the area and dates manually in FIRMS until a supported selection is available here.</p><a className="chip" href="https://firms.modaps.eosdis.nasa.gov/map/" target="_blank" rel="noreferrer">Open NASA FIRMS</a></div></section>
       </div>
