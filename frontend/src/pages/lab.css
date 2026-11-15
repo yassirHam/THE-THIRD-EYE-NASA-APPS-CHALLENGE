@@ -34,6 +34,18 @@
 .lab__bar-slot { flex: 1; height: 100%; display: flex; align-items: end; min-width: 2px; }
 .lab__bar { width: 100%; background: var(--amber); }
 .lab__bar--missing { height: 6px; background: transparent; border: 1px dashed var(--ivory-dim); }
+.lab__chart--viirs .lab__bar--missing { background: transparent; }
+/* Sealed evaluation window: hatched full-height slot, distinct from the dashed missing marker. */
+.lab__bar--sealed { height: 100%; background: repeating-linear-gradient(135deg, var(--ivory-faint) 0 2px, transparent 2px 7px); border-inline: 1px solid var(--ivory-faint); }
+.lab__chart--viirs .lab__bar--sealed { background: repeating-linear-gradient(135deg, var(--ivory-faint) 0 2px, transparent 2px 7px); }
+.lab__table tr[data-sealed] { background: repeating-linear-gradient(135deg, var(--void-2) 0 6px, transparent 6px 14px); }
+.lab__table tr[data-sealed] td:first-of-type { color: var(--ivory-dim); font-style: italic; }
+.lab__counterexamples { display: grid; gap: 34px; margin-top: 28px; }
+.lab__counterexample { border-top: 1px solid var(--ivory-faint); padding-top: 18px; }
+.lab__counterexample h4 { margin: 0 0 10px; font: 500 22px/1.2 var(--display); }
+.lab__counterexample > p { max-width: 70ch; font: 400 14px/1.65 var(--sans); }
+.lab .lab__counterexample-kind { margin: 0 0 8px; color: var(--amber); font: 500 11px var(--ui); letter-spacing: .12em; text-transform: uppercase; }
+.lab__limits { margin: 14px 0 0; padding-left: 18px; color: var(--ivory-dim); font: 400 13px/1.6 var(--sans); max-width: 70ch; }
 .lab__comparison { margin-top: 45px; border-top: 1px solid var(--rule); padding-top: 25px; }
 .lab__comparison > p { max-width: 70ch; font: 400 14px/1.65 var(--sans); }
 .lab__status--failed { border-color: var(--oxide); }

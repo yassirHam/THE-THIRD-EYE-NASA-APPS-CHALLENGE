@@ -98,7 +98,7 @@ export type RegionEvidence = {
   policies: PolicyView[]
   boundaries: Boundary[]
 }
-export type EvidenceView = {
+export type StageADetail = {
   id: string
   unit: string
   releaseStatus: string
@@ -242,7 +242,7 @@ function illustrationFrom(c: Obj): Illustration | null {
 
 const byYear = (o: unknown) => Object.entries(obj(o)).map(([y, w]) => ({ year: Number(y), weeks: typeof w === 'number' ? w : NaN })).filter((x) => Number.isFinite(x.year) && Number.isFinite(x.weeks)).sort((a, b) => a.year - b.year)
 
-export function evidenceFromJson(raw: unknown): EvidenceView {
+export function evidenceFromJson(raw: unknown): StageADetail {
   const doc = obj(raw)
   if (doc.evidence_format !== EVIDENCE_FORMAT) throw new EvidenceRefused('unknown evidence format')
   if (doc.contract_version_installed !== EVIDENCE_CONTRACT) throw new EvidenceRefused(`evidence is not contract ${EVIDENCE_CONTRACT}`)

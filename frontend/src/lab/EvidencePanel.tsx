@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SENSOR_NAME, type Boundary, type Composition, type EvidenceView, type Illustration, type PolicyView, type RegionEvidence, type SensorKey, type YearResult } from './evidence'
+import { SENSOR_NAME, type Boundary, type Composition, type StageADetail, type Illustration, type PolicyView, type RegionEvidence, type SensorKey, type YearResult } from './evidence'
 import { formatValue } from './view'
 
 const f = (n: number) => formatValue(n)
@@ -122,7 +122,7 @@ function CompositionCard({ c, regions }: { c: Composition; regions: RegionEviden
   )
 }
 
-function WorkedExample({ x }: { x: Illustration }) {
+export function WorkedExample({ x }: { x: Illustration }) {
   return (
     <article className="ev__card ev__card--example">
       <p className="lab__eyebrow">Worked example, hand-computed, not observed data</p>
@@ -138,7 +138,7 @@ function WorkedExample({ x }: { x: Illustration }) {
 
 /* ---------- one region ---------- */
 
-function PolicyBlock({ policy, region, ev }: { policy: PolicyView; region: RegionEvidence; ev: EvidenceView }) {
+function PolicyBlock({ policy, region, ev }: { policy: PolicyView; region: RegionEvidence; ev: StageADetail }) {
   const years = policy.years
   const slots = useMemo(() => {
     if (!years.length) return []
@@ -186,7 +186,7 @@ function PolicyBlock({ policy, region, ev }: { policy: PolicyView; region: Regio
   )
 }
 
-export default function EvidencePanel({ evidence }: { evidence: EvidenceView }) {
+export default function EvidencePanel({ evidence }: { evidence: StageADetail }) {
   const [code, setCode] = useState(evidence.regions[0]?.code ?? '')
   const [policyKey, setPolicyKey] = useState<string>('own_support')
   const region = evidence.regions.find((r) => r.code === code)
@@ -219,10 +219,9 @@ export default function EvidencePanel({ evidence }: { evidence: EvidenceView }) 
         </details>
       </>}
 
-      {(evidence.composition.length > 0 || evidence.illustrations.length > 0) && <>
+      {evidence.composition.length > 0 && <>
         <h4 className="ev__sub">Why regions are never averaged together</h4>
         <div className="ev__grid">
-          {evidence.illustrations.map((x) => <WorkedExample key={x.id} x={x} />)}
           {evidence.composition.map((c) => <CompositionCard key={c.id} c={c} regions={evidence.regions} />)}
         </div>
       </>}

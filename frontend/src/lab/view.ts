@@ -10,7 +10,16 @@ export const MONTH_LONG = ['January', 'February', 'March', 'April', 'May', 'June
 export const hasValue = (entry: CalendarEntry): entry is CalendarEntry & { value: number } =>
   entry.availability === 'available' && !entry.sealedPeriod && typeof entry.value === 'number' && Number.isFinite(entry.value)
 
-export const yearOf = (entry: CalendarEntry): number => Number(entry.period.slice(0, 4))
+/** The adapter stands the declared sealed window in for its periods with one row whose period is
+ * 'sealed-<start>-<end>'. These helpers read its dates so it is drawn in place, as sealed. */
+export const isSealedWindow = (entry: CalendarEntry): boolean => entry.period.startsWith('sealed-')
+export const sealedRange = (entry: CalendarEntry): { start: string; end: string } | null =>
+  isSealedWindow(entry) ? { start: entry.period.slice(7, 17), end: entry.period.slice(18, 28) } : null
+/** Chronological sort key; the sealed window sorts at its start date. */
+export const orderKey = (entry: CalendarEntry): string => sealedRange(entry)?.start ?? entry.period
+export const byPeriod = (a: CalendarEntry, b: CalendarEntry): number => (orderKey(a) < orderKey(b) ? -1 : orderKey(a) > orderKey(b) ? 1 : 0)
+
+export const yearOf = (entry: CalendarEntry): number => Number(orderKey(entry).slice(0, 4))
 
 export function formatValue(value: number): string {
   return value.toLocaleString(undefined, { maximumSignificantDigits: 4 })
@@ -42,7 +51,13 @@ export function entryText(entry: CalendarEntry): string {
 }
 
 export function yearsOf(entries: CalendarEntry[]): number[] {
-  return [...new Set(entries.map(yearOf))].sort((a, b) => a - b)
+  const years = new Set<number>()
+  for (const entry of entries) {
+    const range = sealedRange(entry)
+    if (range) for (let y = Number(range.start.slice(0, 4)); y <= Number(range.end.slice(0, 4)); y += 1) years.add(y)
+    else years.add(yearOf(entry))
+  }
+  return [...years].filter(Number.isFinite).sort((a, b) => a - b)
 }
 
 /** Five equal-count bins over the observed values, for colour only. The numbers shown to the
@@ -84,7 +99,21 @@ export function highest(entries: CalendarEntry[]): CalendarEntry | undefined {
 export function yearGrid(entries: CalendarEntry[], columns: number): { years: number[]; rows: Array<Array<CalendarEntry | undefined>> } {
   const years = yearsOf(entries)
   const rows = years.map(() => new Array<CalendarEntry | undefined>(columns).fill(undefined))
+  // Sealed window first, so a real period in the same cell (a boundary-crossing partial) wins.
   for (const entry of entries) {
+    const range = sealedRange(entry)
+    if (!range) continue
+    const startY = Number(range.start.slice(0, 4)), endY = Number(range.end.slice(0, 4))
+    const startM = Number(range.start.slice(5, 7)), endM = Number(range.end.slice(5, 7))
+    for (let r = 0; r < years.length; r += 1) for (let c = 0; c < columns; c += 1) {
+      const y = years[r], m = c + 1
+      if (y < startY || y > endY) continue
+      if (columns === 12 && ((y === startY && m < startM) || (y === endY && m > endM))) continue
+      rows[r][c] = entry
+    }
+  }
+  for (const entry of entries) {
+    if (isSealedWindow(entry)) continue
     const row = years.indexOf(yearOf(entry))
     const column = Number(entry.period.slice(entry.period.includes('W') ? 6 : 5)) - 1
     if (row >= 0 && column >= 0 && column < columns) rows[row][column] = entry

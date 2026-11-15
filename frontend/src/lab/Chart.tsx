@@ -1,6 +1,6 @@
 import { useId, useState, type KeyboardEvent } from 'react'
 import type { CalendarEntry } from './model'
-import { MONTH_SHORT, cellState, entryText, formatValue, hasValue } from './view'
+import { MONTH_SHORT, byPeriod, cellState, entryText, formatValue, hasValue } from './view'
 
 const W = 960
 const H = 280
@@ -19,7 +19,7 @@ function niceMax(max: number): number {
 export default function Chart({ entries, selected, onPick }: { entries: CalendarEntry[]; selected?: string; onPick?: (period: string) => void }) {
   const patternId = useId().replace(/:/g, '')
   const [hover, setHover] = useState<string | undefined>()
-  const ordered = [...entries].sort((a, b) => (a.period < b.period ? -1 : 1))
+  const ordered = [...entries].sort(byPeriod)
   const sensors = new Set(ordered.map((entry) => entry.sensor))
   const values = ordered.filter(hasValue)
   const units = new Set(values.map((entry) => entry.unit))

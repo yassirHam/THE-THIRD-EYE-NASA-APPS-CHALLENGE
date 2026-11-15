@@ -7,6 +7,7 @@ import BurnCalendar from '../lab/BurnCalendar'
 import Calendar from '../lab/Calendar'
 import Chart from '../lab/Chart'
 import Comparison from '../lab/Comparison'
+import Composition from '../lab/Composition'
 import EvidencePanel from '../lab/EvidencePanel'
 import PeriodDetail from '../lab/PeriodDetail'
 import { findingVisible } from '../lab/adapter'
@@ -40,7 +41,7 @@ export default function Lab() {
     loadBundle(base).then((loaded) => {
       if (loaded.areas.length > 0 || (loaded.evidence?.length ?? 0) > 0) {
         setLiveView(loaded)
-        setAreaId(loaded.areas[0]?.id ?? '')
+        if (loaded.areas.length > 0) setAreaId(loaded.areas[0]?.id ?? '')
       }
     }).catch(() => { /* bundle absent or fetch error: stay on placeholder */ }).finally(() => setLoaded(true))
   }, [])
@@ -59,7 +60,8 @@ export default function Lab() {
           <p>Explore observations from two satellite perspectives. A comparison is only shown when its evidence is available.</p>
         </div>
 
-        {liveView.evidence?.map((item) => <EvidencePanel key={item.id} evidence={item} />)}
+        {liveView.evidence?.map((item) => item.detail && <EvidencePanel key={item.id} evidence={item.detail} />)}
+        <Composition evidence={liveView.evidence ?? []} />
 
         {liveView.areas.length === 0 ? <section className="lab__empty wb__none" aria-live="polite"><h4>{loaded ? 'No area calendars in this bundle yet' : 'Loading the artifact bundle'}</h4><p>{loaded ? 'Monthly and weekly calendars appear here once they are published for an area. Nothing is drawn in the meantime, and no period is shown as zero.' : 'Reading the published artifacts.'}</p></section> : <div className="wb">
           <div className="wb__toolbar lab__controls" role="group" aria-label="Selection">
