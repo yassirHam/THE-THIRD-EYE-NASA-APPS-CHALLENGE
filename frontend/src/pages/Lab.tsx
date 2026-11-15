@@ -128,14 +128,14 @@ export default function Lab() {
             {regions.length ? regions.map((r) => (
               <li key={r.code}><button type="button" aria-pressed={r.code === region?.code} onClick={() => choose(r.code)}>
                 <span className="lab__place-name">{r.name}</span>
-                <span className="lab__place-meta">Region fitted on its own· {SHOW_REVIEW_NOTICES ? (doc?.released ? 'released' : 'preliminary') : 'harmonized'}</span>
+                <span className="lab__place-meta">Region fitted on its own · {SHOW_REVIEW_NOTICES ? (doc?.released ? 'released' : 'preliminary') : 'harmonized'}</span>
               </button></li>
             )) : <li className="lab__note">{loaded ? 'No region with data has been published yet.' : 'Loading regions.'}</li>}
           </ul>
         </section>
         <section className="lab__summary" aria-label="Summary">
           <div className="lab__sectionhead"><h3>{region?.name ?? 'No area yet'}</h3><span className={`lab__status ${SHOW_REVIEW_NOTICES && doc && !doc.released ? 'lab__status--synthetic' : ''}`}>{statusChip}</span></div>
-          {region && detail && <p className="lab__meta">{from} to {to} · {SENSOR_NAME.aqua} and {SENSOR_NAME.viirs}, each on its own scale · sealed {detail.sealedYears.join(', ')}</p>}
+          {region && detail && <p className="lab__meta">{from} to {to} · {satView === 'harmonized' ? <>VIIRS harmonized to the {SENSOR_NAME.aqua} scale</> : <>{SENSOR_NAME.aqua} and {SENSOR_NAME.viirs}, each on its own scale</>} · sealed {detail.sealedYears.join(', ')}</p>}
           {detail && <dl className="lab__aside">
             {SHOW_REVIEW_NOTICES ? <>
             <div><dt>Finding</dt><dd>No finding yet. Statistical inference is not established, and no pass rule is registered for 2022 to 2025.</dd></div>
@@ -267,7 +267,7 @@ export default function Lab() {
         <div className="lab__bar">
           <div className="lab__toolbar" role="group" aria-label="Selection">
             <label>Area <select disabled={!regions.length} value={region?.code ?? ''} onChange={(e) => choose(e.target.value)} aria-label="Area">{regions.length ? regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>) : <option value="">{loaded ? 'No area data yet' : 'Loading'}</option>}</select></label>
-            <label>Satellite <select disabled={!detail} value={satView} onChange={(e) => set({ sensor: e.target.value === 'harmonized' ? null : e.target.value })}><option value="harmonized">Harmonized (VIIRS on the Aqua scale)</option><option value="aqua">{SENSOR_NAME.aqua}</option><option value="viirs">{SENSOR_NAME.viirs}</option></select></label>
+            <label>Satellite <select disabled={!detail} value={satView} onChange={(e) => set({ sensor: e.target.value === 'harmonized' ? null : e.target.value })}><option value="harmonized">Harmonized</option><option value="aqua">{SENSOR_NAME.aqua}</option><option value="viirs">{SENSOR_NAME.viirs}</option></select></label>
             <label>Observations <select disabled={!region} value={policy?.key ?? ''} onChange={(e) => set({ set: e.target.value })}>{region?.policies.map((p) => <option key={p.key} value={p.key}>{p.label}</option>) ?? <option value="">-</option>}</select></label>
             <label>From <select disabled={!allYears.length} value={from || ''} onChange={(e) => set({ from: e.target.value })}>{allYears.length ? allYears.map((y) => <option key={y} value={y}>{y}</option>) : <option value="">-</option>}</select></label>
             <label>To <select disabled={!allYears.length} value={to || ''} onChange={(e) => set({ to: e.target.value })}>{allYears.filter((y) => y >= from).map((y) => <option key={y} value={y}>{y}</option>)}{!allYears.length && <option value="">-</option>}</select></label>
