@@ -11,7 +11,7 @@ Write-Host "========================================================" -Foregroun
 # 1. Update scripts and Kiro agent config from handoff branch
 Write-Host "[1/3] Syncing latest relay scripts & Kiro permissions from origin..." -ForegroundColor Yellow
 git fetch origin handoff 2>$null
-git checkout origin/handoff -- scripts .kiro/agents/the-third-eye-coder.json 2>$null
+git checkout origin/handoff -- scripts monitor.bat monitor.ps1 .kiro/agents/the-third-eye-coder.json 2>$null
 
 # Propagate unlocked Kiro permissions to all local git worktrees
 $KiroConfig = ".kiro\agents\the-third-eye-coder.json"

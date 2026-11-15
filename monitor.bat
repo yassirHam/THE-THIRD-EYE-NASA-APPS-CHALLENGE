@@ -1,0 +1,3 @@
+@echo off
+powershell -ExecutionPolicy Bypass -File "%~dp0monitor.ps1" %*
+pause
