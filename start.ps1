@@ -11,7 +11,14 @@ Write-Host "========================================================" -Foregroun
 # 1. Update scripts and Kiro agent config from handoff branch
 Write-Host "[1/3] Syncing latest relay scripts & Kiro permissions from origin..." -ForegroundColor Yellow
 git fetch origin handoff 2>$null
-git checkout origin/handoff -- scripts monitor.bat monitor.ps1 .kiro/agents/the-third-eye-coder.json 2>$null
+git checkout origin/handoff -- scripts monitor.bat monitor.ps1 sync-data.bat .kiro/agents/the-third-eye-coder.json 2>$null
+
+# Sync P2 non-sealed real dataset outside Git ($HOME\the-third-eye-data\weekly)
+$SyncDataScript = Join-Path $PSScriptRoot "scripts\sync-p2-data.ps1"
+if (Test-Path $SyncDataScript) {
+    & "$SyncDataScript"
+}
+$env:THE_THIRD_EYE_DATA_DIR = "$HOME\the-third-eye-data\weekly"
 
 # Propagate unlocked Kiro permissions to all local git worktrees
 $KiroConfig = ".kiro\agents\the-third-eye-coder.json"

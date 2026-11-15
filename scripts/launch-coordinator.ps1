@@ -179,7 +179,8 @@ if (-not (Test-Path $RelayScript)) {
 
 do {
     git -C "$RepoRoot" fetch origin handoff integration 2>$null
-    git -C "$RepoRoot" checkout origin/handoff -- start.bat start.ps1 monitor.bat monitor.ps1 scripts .kiro/agents/the-third-eye-coder.json 2>$null
+    git -C "$RepoRoot" checkout origin/handoff -- start.bat start.ps1 monitor.bat monitor.ps1 sync-data.bat scripts .kiro/agents/the-third-eye-coder.json 2>$null
+    $env:THE_THIRD_EYE_DATA_DIR = "$HOME\the-third-eye-data\weekly"
     Show-Dashboard
 
     $RelayArgs = @("-ExecutionPolicy", "Bypass", "-File", $RelayScript, "-Role", $Role, "-RunOnce")
