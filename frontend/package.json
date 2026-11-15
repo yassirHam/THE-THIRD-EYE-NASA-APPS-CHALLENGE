@@ -8,7 +8,7 @@
     "test:contract": "node --experimental-strip-types --test scripts/contract-adapter.test.ts",
     "contract:check": "node scripts/sync-contract.mjs --check",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
