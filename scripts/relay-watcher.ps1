@@ -604,11 +604,17 @@ function Invoke-NextRoleTask {
             RebaseIntegration = $true; RequiresMerged = @()
             TestCmd = "python -m pytest tests/unit -q -p no:cacheprovider"
             Prompt = @"
-Fix ALL 4 Codex findings from commit 6aa9504 on task/P2-A-002:
-1. In pipeline/grid/coverage.py, set 'applicability' partition to 2022-01-01..2024-12-31 (per the scientific plan) and add 'conditional_2025' for 2025-01-01..2025-12-31. Reject any record_end > date(2025, 12, 31) or period_end > date(2025, 12, 31) with ValueError so dates after 2025-12-31 can never silently pass without a partition.
-2. In pipeline/grid/coverage.py, when `not present`: only add 'no_file' if `expected` is non-empty (`len(expected) > 0`). If `inside` is non-empty and `expected` is empty (wholly sealed / wholly excluded by partition_boundary), do NOT add 'no_file' — keep `reasons = ('partition_boundary',)` and `state = 'unavailable'`.
-3. In pipeline/grid/COVERAGE_RULE.md, update the partition table (`applicability` = 2022-2024, `conditional_2025` = 2025, >2025-12-31 rejected) and state that `partition` must match one of the partitions spanned by the period (matching the code, not requiring `period_start` only).
-4. Add synthetic unit tests in tests/unit/test_coverage.py for: (a) wholly sealed 2020 day returning state='unavailable' and reasons=('partition_boundary',) WITHOUT 'no_file', (b) 2025-12-31..2026-01-01 or record_end > 2025-12-31 raising ValueError, and (c) 2022-2024 as 'applicability'.
+Make pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py pass ALL requirements below in one complete revision on task/P2-A-002 (already rebased onto integration):
+1. Always enforce sealed holdout 2020-01-01..2021-12-31 in coverage.py: even when sealed_window=None or another window is passed, ALWAYS exclude 2020-2021 from `expected`, and raise ValueError if any 2020-2021 day in `day_present` is truthy. Add a test for a 1-day period inside 2020 with sealed_window=None.
+2. Enforce partition table & horizon in coverage.py:
+   - Partitions: pre_2016 (<=2015-12-31), train (2016-2018), dev (2019), sealed (2020-2021), applicability (2022-2024), conditional_2025 (2025).
+   - Reject record_end > date(2025, 12, 31) or period_end > date(2025, 12, 31) with ValueError (explicitly documenting in COVERAGE_RULE.md that the conditional 2026 extension is not enabled here).
+   - Add optional `partition: Optional[str] = None` parameter to `period_coverage`. If the in-record period spans >1 partition, REQUIRE `partition` to be one of the spanned partitions and exclude out-of-partition days with `'partition_boundary'`; raise ValueError if omitted or invalid. Add tests (including 2024-12-31..2025-01-01 without `partition` raising ValueError, and with `partition='applicability'` succeeding as partial with `partition_boundary`).
+3. Strict bool & wholly-sealed rules in coverage.py:
+   - Validate every value in `day_present` is `isinstance(v, bool)` (raise ValueError on `None`).
+   - When `not present`: only add `'no_file'` if `expected` is non-empty (`len(expected) > 0`). If `inside` is non-empty and `expected` is empty (wholly sealed/excluded), return `state='unavailable'` with `reasons=('partition_boundary',)` and NO `'no_file'`.
+   - In `footprint_evidence_summary`, never convert `r.coverage is None` to `0.0` (only average over periods with `r.coverage is not None`, or return `coverage_fraction=None` if any cell-level period is unavailable).
+4. In pipeline/grid/COVERAGE_RULE.md: reference contract 1.6.0, state that `paired_comparison_eligible` is a validated Boolean field in `contracts/schemas/calendar.py` (not a function here), and document the exact partition table (`2022-2024` applicability, `2025` conditional_2025, `partition` matches any spanned partition, >2025-12-31 rejected).
 Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
 "@
         },
@@ -892,6 +898,7 @@ do {
     }
     Start-Sleep -Seconds $PollIntervalSeconds
 } while ($true)
+
 
 
 
