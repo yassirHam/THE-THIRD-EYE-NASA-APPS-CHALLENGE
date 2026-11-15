@@ -604,10 +604,11 @@ function Invoke-NextRoleTask {
             RebaseIntegration = $true; RequiresMerged = @()
             TestCmd = "python -m pytest tests/unit -q -p no:cacheprovider"
             Prompt = @"
-Fix ALL 3 Codex findings from commit eb2d021 on task/P2-A-002 (and rebase onto origin/integration if needed):
-1. Always enforce the 2020-01-01..2021-12-31 sealed holdout boundary in pipeline/grid/coverage.py (never allow sealed_window=None or an unrelated window to return 'complete' for 2020-2021 days; reject any truthy day_present in 2020-2021 and raise ValueError if a period overlaps 2020-2021 without excluding those days as 'partition_boundary'). Add a synthetic test for a 1-day period wholly inside 2020 with sealed_window=None.
-2. Validate partition identity for ANY period spanning partitions (pre_2016: <=2015-12-31, train: 2016-2018, dev: 2019, sealed: 2020-2021, applicability: 2022-2025) by requiring an explicit partition parameter whenever a period spans >1 partition and excluding out-of-partition days with 'partition_boundary' (raise ValueError if omitted or mismatched). Add synthetic tests in tests/unit/test_coverage.py.
-3. In pipeline/grid/COVERAGE_RULE.md, state accurately that coverage.py returns per-sensor states only, and that P4 contracts (contracts/schemas/calendar.py, Contract 1.5.0/1.6.0) validate the `paired_comparison_eligible` Boolean field and `comparison_eligible` gates (do not describe `paired_comparison_eligible` as a function that computes eligibility). Also note that this revision addresses the r1 escalation items.
+Fix ALL 4 Codex findings from commit 6aa9504 on task/P2-A-002:
+1. In pipeline/grid/coverage.py, set 'applicability' partition to 2022-01-01..2024-12-31 (per the scientific plan) and add 'conditional_2025' for 2025-01-01..2025-12-31. Reject any record_end > date(2025, 12, 31) or period_end > date(2025, 12, 31) with ValueError so dates after 2025-12-31 can never silently pass without a partition.
+2. In pipeline/grid/coverage.py, when `not present`: only add 'no_file' if `expected` is non-empty (`len(expected) > 0`). If `inside` is non-empty and `expected` is empty (wholly sealed / wholly excluded by partition_boundary), do NOT add 'no_file' — keep `reasons = ('partition_boundary',)` and `state = 'unavailable'`.
+3. In pipeline/grid/COVERAGE_RULE.md, update the partition table (`applicability` = 2022-2024, `conditional_2025` = 2025, >2025-12-31 rejected) and state that `partition` must match one of the partitions spanned by the period (matching the code, not requiring `period_start` only).
+4. Add synthetic unit tests in tests/unit/test_coverage.py for: (a) wholly sealed 2020 day returning state='unavailable' and reasons=('partition_boundary',) WITHOUT 'no_file', (b) 2025-12-31..2026-01-01 or record_end > 2025-12-31 raising ValueError, and (c) 2022-2024 as 'applicability'.
 Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
 "@
         },
@@ -891,5 +892,6 @@ do {
     }
     Start-Sleep -Seconds $PollIntervalSeconds
 } while ($true)
+
 
 
