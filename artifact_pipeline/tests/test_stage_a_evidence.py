@@ -1,14 +1,18 @@
 """P4-A Stage A real-data evidence: P1 frozen summary -> static bundle evidence document.
 
 Most tests use only the committed frozen summary (no parquet, no sealed data). The replay test
-runs only when $THE_THIRD_EYE_DATA_DIR holds focus_weekly_CA_BC.parquet, and reads it only through
+runs only when $THE_THIRD_EYE_DATA_DIR holds focus_weekly_CA_BC.parquet and pyarrow is installed
+(a skip there does not establish reproduction), and reads the parquet only through
 science.methods.stage_a_real.load_rows, which filters ISO years 2020-2021 out before rows load.
 """
 from __future__ import annotations
 
 import copy
+import hashlib
+import importlib.util
 import json
 import math
+import sys
 from pathlib import Path
 
 import pytest
@@ -138,10 +142,25 @@ def test_absent_parquet_means_replay_not_run(tmp_path: Path) -> None:
     assert info["status"] == "not_run" and stage_a_real.PARQUET_NAME in info["reason"]
 
 
+def test_present_parquet_without_pyarrow_fails_with_dependency_message(tmp_path: Path, monkeypatch) -> None:
+    payload = b"stand-in parquet bytes"
+    (tmp_path / stage_a_real.PARQUET_NAME).write_bytes(payload)
+    summary = copy.deepcopy(SUMMARY)
+    summary["source"]["sha256"] = hashlib.sha256(payload).hexdigest()  # pass the hash gate
+    for mod in ("pyarrow", "pyarrow.parquet"):
+        monkeypatch.setitem(sys.modules, mod, None)  # makes `import pyarrow.parquet` raise ImportError
+    monkeypatch.setattr(stage_a_real, "load_rows", lambda p: pytest.fail("rows must not be read"))
+    with pytest.raises(sae.EvidenceError, match="pyarrow is not installed") as err:
+        sae.replay(summary, str(tmp_path))
+    assert "pip install pyarrow" in str(err.value) and "--no-replay" in str(err.value)
+
+
 _PARQUET = stage_a_real.default_parquet_path()
+_HAS_PYARROW = importlib.util.find_spec("pyarrow") is not None
 
 
 @pytest.mark.skipif(_PARQUET is None or not _PARQUET.is_file(), reason="weekly parquet not available")
+@pytest.mark.skipif(not _HAS_PYARROW, reason="pyarrow not installed; the replay needs it to read the parquet")
 def test_replay_reproduces_the_frozen_summary_without_sealed_years() -> None:
     info = sae.replay(SUMMARY, None)
     assert info["status"] == "reproduced" and info["sealed_years_read"] == []

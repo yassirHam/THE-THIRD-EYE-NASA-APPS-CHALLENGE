@@ -119,6 +119,17 @@ def _compare(a: Any, b: Any, path: str, worst: list[float]) -> None:
         raise EvidenceError(f"replay differs at {path}: {a!r} vs frozen {b!r}")
 
 
+def _require_pyarrow(parquet_name: str) -> None:
+    """Refuse a replay that cannot read the parquet; never report it as reproduced or fall back."""
+    try:
+        import pyarrow.parquet  # noqa: F401  (needed by stage_a_real.load_rows' filtered reader)
+    except ImportError as exc:
+        raise EvidenceError(
+            f"{parquet_name} is present but pyarrow is not installed, so the replay cannot run "
+            f"({exc}). Install pyarrow (python -m pip install pyarrow) and rerun, or pass --no-replay "
+            "to build without a replay (recorded as not_run).") from exc
+
+
 def replay(summary: Mapping[str, Any], data_dir: Optional[str]) -> dict:
     """Recompute the summary from the weekly parquet when it is available; never reads 2020-2021."""
     path = stage_a_real.default_parquet_path(data_dir)
@@ -133,6 +144,7 @@ def replay(summary: Mapping[str, Any], data_dir: Optional[str]) -> dict:
     if sha != source.get("sha256"):
         raise EvidenceError(f"{path.name} sha256 {sha} differs from the frozen summary's source "
                             f"{source.get('sha256')}; the summary does not describe this file")
+    _require_pyarrow(path.name)
     rows = stage_a_real.load_rows(path)  # pyarrow row filter excludes ISO 2020-2021; re-checked inside
     years_read = sorted({int(r["iso_year"]) for r in rows})
     if set(years_read) & set(SEALED_YEARS):
