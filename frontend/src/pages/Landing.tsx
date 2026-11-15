@@ -344,7 +344,7 @@ export default function Landing() {
                 <Link to="/story/third-eye" className="finale__skip" data-cursor="Skip" onClick={() => playSfx('skip')}>Skip to the story</Link>
               </div>
               <p className="finale__others">
-                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> (preliminary real data for California and British Columbia) and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link> (being built). <button type="button" onClick={backToModes}>See all modes</button>
+                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> (harmonized MODIS and VIIRS data for California and British Columbia) and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link> (being built). <button type="button" onClick={backToModes}>See all modes</button>
               </p>
               <aside className="headline">
                 <span className="headline__mark" aria-hidden="true" />

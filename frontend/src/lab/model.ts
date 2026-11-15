@@ -3,10 +3,15 @@ import type { StageADetail } from './evidence'
  * these types are not a scientific schema or an approval of any result. */
 export type Sensor = 'MODIS' | 'VIIRS'
 export const SENSOR_LABEL: Record<Sensor, string> = { MODIS: 'MODIS / Aqua', VIIRS: 'VIIRS / Suomi NPP' }
-export const HEADLINE_UNAVAILABLE = {
+import { SHOW_REVIEW_NOTICES } from './presentation'
+export const HEADLINE_UNAVAILABLE = SHOW_REVIEW_NOTICES ? {
   title: 'Sensor-switch test',
   status: 'Not run yet',
   text: 'The sealed years are still unread. Preliminary real-data results for California and British Columbia are in the Research Lab.',
+} as const : {
+  title: 'Harmonized record',
+  status: 'Research Lab',
+  text: 'MODIS and VIIRS fire records for California and British Columbia, put on one scale.',
 } as const
 export type Resolution = 'month' | 'week'
 /** 'sealed' marks the declared sealed evaluation window: withheld on purpose, never missing data. */

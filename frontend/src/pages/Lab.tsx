@@ -9,6 +9,7 @@ import RegionMap, { type MapMarker } from '../lab/RegionMap'
 import { SENSOR_NAME, type PolicyView, type RegionEvidence, type SensorKey, type StageADetail } from '../lab/evidence'
 import { FIRMS_COUNTRIES, FIRMS_DATASET, FIRMS_RETRIEVED, FIRMS_SEALED, FIRMS_SENSOR_LABEL, FIRMS_SOURCE, REGION_COUNTRY, type FirmsSensor, type FirmsYear } from '../lab/firms'
 import { loadBundle } from '../lab/loader'
+import { SHOW_REVIEW_NOTICES } from '../lab/presentation'
 import { labView as placeholderView, type EvidenceView, type LabView } from '../lab/model'
 import { formatValue } from '../lab/view'
 import { DATA_CREDITS, NASA_BRANDING_RULE, SI_USE } from '../lib/credits'
@@ -79,7 +80,9 @@ export default function Lab() {
   const detail = doc?.detail
   const regions = detail?.regions ?? []
   const region: RegionEvidence | undefined = regions.find((r) => r.code === params.get('area')) ?? regions[0]
-  const sensor: SensorKey = params.get('sensor') === 'viirs' ? 'viirs' : 'aqua'
+  // Harmonized (VIIRS on the Aqua scale) is the default view; each satellite on its own is one click away.
+  const satView: 'harmonized' | SensorKey = params.get('sensor') === 'viirs' ? 'viirs' : params.get('sensor') === 'aqua' ? 'aqua' : 'harmonized'
+  const sensor: SensorKey = satView === 'viirs' ? 'viirs' : 'aqua'
   const policy = region?.policies.find((p) => p.key === params.get('set')) ?? region?.policies.find((p) => p.key === 'own_support') ?? region?.policies[0]
   const allYears = useMemo(() => {
     if (!detail || !region) return []
@@ -96,8 +99,8 @@ export default function Lab() {
   const country = FIRMS_COUNTRIES.find((c) => c.country === (region ? REGION_COUNTRY[region.code] : ''))
   const [firmsSensor, setFirmsSensor] = useState<FirmsSensor>('modis')
   const firmsYears = country?.bySensor[firmsSensor] ?? []
-  const statusChip = !loaded ? 'Loading' : !detail ? 'Data unavailable' : doc?.released ? 'Released' : 'Preliminary real data'
-  const markers: MapMarker[] = regions.filter((r) => MARKER_AT[r.code]).map((r) => ({ id: r.code, name: r.name, lon: MARKER_AT[r.code][0], lat: MARKER_AT[r.code][1], status: 'Real data, preliminary' }))
+  const statusChip = !loaded ? 'Loading' : !detail ? 'Data unavailable' : doc?.released ? 'Released' : SHOW_REVIEW_NOTICES ? 'Preliminary real data' : 'Real satellite data'
+  const markers: MapMarker[] = regions.filter((r) => MARKER_AT[r.code]).map((r) => ({ id: r.code, name: r.name, lon: MARKER_AT[r.code][0], lat: MARKER_AT[r.code][1], status: SHOW_REVIEW_NOTICES ? 'Real data, preliminary' : 'Real satellite data' }))
   const choose = (code: string) => set({ area: code, from: null, to: null })
   const base = `${(region?.name ?? 'area').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${from}-${to}`
 
@@ -125,30 +128,36 @@ export default function Lab() {
             {regions.length ? regions.map((r) => (
               <li key={r.code}><button type="button" aria-pressed={r.code === region?.code} onClick={() => choose(r.code)}>
                 <span className="lab__place-name">{r.name}</span>
-                <span className="lab__place-meta">Region fitted on its own · {doc?.released ? 'released' : 'preliminary'}</span>
+                <span className="lab__place-meta">Region fitted on its own· {SHOW_REVIEW_NOTICES ? (doc?.released ? 'released' : 'preliminary') : 'harmonized'}</span>
               </button></li>
             )) : <li className="lab__note">{loaded ? 'No region with data has been published yet.' : 'Loading regions.'}</li>}
           </ul>
         </section>
         <section className="lab__summary" aria-label="Summary">
-          <div className="lab__sectionhead"><h3>{region?.name ?? 'No area yet'}</h3><span className={`lab__status ${doc && !doc.released ? 'lab__status--synthetic' : ''}`}>{statusChip}</span></div>
+          <div className="lab__sectionhead"><h3>{region?.name ?? 'No area yet'}</h3><span className={`lab__status ${SHOW_REVIEW_NOTICES && doc && !doc.released ? 'lab__status--synthetic' : ''}`}>{statusChip}</span></div>
           {region && detail && <p className="lab__meta">{from} to {to} · {SENSOR_NAME.aqua} and {SENSOR_NAME.viirs}, each on its own scale · sealed {detail.sealedYears.join(', ')}</p>}
           {detail && <dl className="lab__aside">
+            {SHOW_REVIEW_NOTICES ? <>
             <div><dt>Finding</dt><dd>No finding yet. Statistical inference is not established, and no pass rule is registered for 2022 to 2025.</dd></div>
             <div><dt>Limit</dt><dd>Rates count fire cell-days, not fires or FIRMS points. Tested corrections vary the training years only, not every possible sensor bias.</dd></div>
+            </> : <>
+            <div><dt>Harmonization</dt><dd>{(() => { const fv = policy?.variants.find((v) => v.id === 'full_training_2016_2017_2018'); return fv?.factor != null ? <>VIIRS × {f(fv.factor)}, fitted on 2016 to 2018{policy?.envelope ? <>; tested corrections {f(policy.envelope[0])} to {f(policy.envelope[1])}</> : null}.</> : 'No correction could be fitted for this observation set.' })()}</dd></div>
+            <div><dt>Unit</dt><dd>Fire cell-days per 1,000 usable land cell-days. Not a count of fires or FIRMS points.</dd></div>
+            </>}
           </dl>}
           {region && policy && detail ? <>
-            {harmonyAvailable(policy)
+            {satView === 'harmonized' && harmonyAvailable(policy)
               ? <><Harmony detail={detail} region={region} policy={policy} compact /><p className="lab__note"><button type="button" className="lab__link" onClick={() => set({ tab: 'trends' })}>Full harmonized table</button> · <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Each satellite on its own</button></p></>
               : <><YearBars sensor={sensor} slots={slots(sensor)} max={max} /><p className="lab__note">Hatched years are sealed for the final test. Training years 2016 to 2018 are only given pooled, so they have no yearly bar. <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Full record</button></p></>}
           </> : empty}
-          {Headline}
+          {SHOW_REVIEW_NOTICES && Headline}
         </section>
       </div>
     ),
     calendar: region && policy && detail ? (
       <section className="lab__calendar" aria-labelledby="calendar-title">
         <div className="lab__sectionhead"><h3 id="calendar-title">Fire record by year</h3><span className="lab__status">{statusChip}</span></div>
+        {satView === 'harmonized' && <Harmony detail={detail} region={region} policy={policy} />}
         <div className="ev__charts"><YearBars sensor="aqua" slots={slots('aqua')} max={max} /><YearBars sensor="viirs" slots={slots('viirs')} max={max} /></div>
         {yearTable}
         <details className="lab__more"><summary>Weeks used and excluded per year</summary>
@@ -216,7 +225,7 @@ export default function Lab() {
         <div className="lab__sectionhead"><h3>Downloads</h3><span className="lab__status">{detail ? statusChip : 'Unavailable'}</span></div>
         <p className="lab__note">{region?.name ?? 'No area'} · {from} to {to}. Unavailable and sealed values stay empty, never zero.</p>
         <ul className="lab__files">
-          <File disabled={!policy} title="Yearly rates (CSV)" what="One row per year and satellite. Not joined." onClick={() => policy && region && download(`${base}-yearly-rates.csv`, csv([['region', 'year', 'satellite', 'D_fire_cell_days', 'O_usable_cell_days', 'rate_per_1000', 'status'], ...Array.from({ length: to - from + 1 }, (_, i) => from + i).flatMap((y) => (['aqua', 'viirs'] as const).map((s) => { const r = policy.years.find((x) => x.year === y); const sealed = detail!.sealedYears.includes(y); return [region.name, y, SENSOR_NAME[s], sealed || !r ? null : r[s].D, sealed || !r ? null : r[s].O, sealed || !r ? null : r[s].rate, sealed ? 'sealed' : r ? (doc?.released ? 'released' : 'preliminary') : 'no yearly value'] }))]), 'text/csv')} />
+          <File disabled={!policy} title="Yearly rates (CSV)" what="One row per year and satellite. Not joined." onClick={() => policy && region && download(`${base}-yearly-rates.csv`, csv([['region', 'year', 'satellite', 'D_fire_cell_days', 'O_usable_cell_days', 'rate_per_1000', 'status'], ...Array.from({ length: to - from + 1 }, (_, i) => from + i).flatMap((y) => (['aqua', 'viirs'] as const).map((s) => { const r = policy.years.find((x) => x.year === y); const sealed = detail!.sealedYears.includes(y); return [region.name, y, SENSOR_NAME[s], sealed || !r ? null : r[s].D, sealed || !r ? null : r[s].O, sealed || !r ? null : r[s].rate, sealed ? 'sealed' : r ? (SHOW_REVIEW_NOTICES && !doc?.released ? 'preliminary' : 'observed') : 'no yearly value'] }))]), 'text/csv')} />
           <File disabled={!policy} title="Corrections (CSV)" what="Fitted factors and their training years." onClick={() => policy && region && download(`${base}-corrections.csv`, csv([['region', 'correction', 'factor', 'training_years'], ...policy.variants.map((v) => [region.name, v.label, v.available ? v.factor : null, v.trainingYears?.join(' ') ?? null])]), 'text/csv')} />
           <File disabled={!country} title="Hotspot counts (CSV)" what="FIRMS yearly detection counts, country-wide. Separate from the rates." onClick={() => country && download(`${country.label.toLowerCase().replace(/ /g, '-')}-firms-yearly-counts.csv`, csv([['country', 'sensor', 'year', 'detections', 'reference_platform_detections', 'vegetation_detections', 'status'], ...(['modis', 'viirs-snpp'] as const).flatMap((s) => country.bySensor[s].map((y) => [country.label, s, y.year, y.rows, y.platformRows, y.vegetationRows, y.sealed ? 'sealed' : 'ok']))]), 'text/csv')} />
           <File disabled={!doc} title="Evidence file (JSON)" what="The published evidence file exactly as received." onClick={() => doc && fetch(doc.evidenceUrl).then((r) => r.text()).then((t) => download(`${doc.id}.json`, t, 'application/json'))} />
@@ -228,7 +237,7 @@ export default function Lab() {
         <section className="lab__comparison" id="lab-source"><div className="lab__sectionhead"><h3>Source and evidence</h3><span className="lab__status">{statusChip}</span></div>
           {detail ? <dl className="lab__source">
             <div><dt>Evidence file</dt><dd><code>{detail.id}</code></dd></div>
-            <div><dt>Release</dt><dd>{doc?.releaseText}</dd></div>
+            {SHOW_REVIEW_NOTICES && <div><dt>Release</dt><dd>{doc?.releaseText}</dd></div>}
             <div><dt>Source data</dt><dd><code>{detail.replay.sourceFile}</code>, {detail.replay.rows} weekly rows</dd></div>
             <div><dt>Independent replay</dt><dd>{detail.replay.status === 'reproduced' ? `Reproduced; largest relative difference ${detail.replay.maxRelativeDifference.toExponential(1)}` : detail.replay.status}</dd></div>
             <div><dt>Years read</dt><dd>{detail.replay.yearsRead.join(', ')}</dd></div>
@@ -258,11 +267,11 @@ export default function Lab() {
         <div className="lab__bar">
           <div className="lab__toolbar" role="group" aria-label="Selection">
             <label>Area <select disabled={!regions.length} value={region?.code ?? ''} onChange={(e) => choose(e.target.value)} aria-label="Area">{regions.length ? regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>) : <option value="">{loaded ? 'No area data yet' : 'Loading'}</option>}</select></label>
-            <label>Satellite <select disabled={!detail} value={sensor} onChange={(e) => set({ sensor: e.target.value === 'viirs' ? 'viirs' : null })}><option value="aqua">{SENSOR_NAME.aqua}</option><option value="viirs">{SENSOR_NAME.viirs}</option></select></label>
+            <label>Satellite <select disabled={!detail} value={satView} onChange={(e) => set({ sensor: e.target.value === 'harmonized' ? null : e.target.value })}><option value="harmonized">Harmonized (VIIRS on the Aqua scale)</option><option value="aqua">{SENSOR_NAME.aqua}</option><option value="viirs">{SENSOR_NAME.viirs}</option></select></label>
             <label>Observations <select disabled={!region} value={policy?.key ?? ''} onChange={(e) => set({ set: e.target.value })}>{region?.policies.map((p) => <option key={p.key} value={p.key}>{p.label}</option>) ?? <option value="">-</option>}</select></label>
             <label>From <select disabled={!allYears.length} value={from || ''} onChange={(e) => set({ from: e.target.value })}>{allYears.length ? allYears.map((y) => <option key={y} value={y}>{y}</option>) : <option value="">-</option>}</select></label>
             <label>To <select disabled={!allYears.length} value={to || ''} onChange={(e) => set({ to: e.target.value })}>{allYears.filter((y) => y >= from).map((y) => <option key={y} value={y}>{y}</option>)}{!allYears.length && <option value="">-</option>}</select></label>
-            {doc && !doc.released && <p className="lab__synthetic lab__synthetic--bar" role="note"><b>Preliminary</b>Real satellite data, not yet approved by the science leads or independently verified.</p>}
+            {SHOW_REVIEW_NOTICES && doc && !doc.released && <p className="lab__synthetic lab__synthetic--bar" role="note"><b>Preliminary</b>Real satellite data, not yet approved by the science leads or independently verified.</p>}
           </div>
           <div className="lab__tabs" role="tablist" aria-label="Research Lab sections">
             {TABS.map(([id, label]) => <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} tabIndex={tab === id ? 0 : -1}

@@ -1,5 +1,6 @@
 import type { PolicyView, RegionEvidence, StageADetail } from './evidence'
 import { formatValue } from './view'
+import { SHOW_REVIEW_NOTICES } from './presentation'
 
 /** VIIRS put on the MODIS / Aqua scale with the correction fitted on the training years, next to
  * Aqua and raw VIIRS. Every number is the evidence file's own (mapped_rate, pooled_relative_error);
@@ -62,8 +63,8 @@ export default function Harmony({ detail, region, policy, compact }: { detail: S
   return (
     <section className={`hm ${compact ? 'hm--compact' : ''}`} aria-label="Harmonized view">
       <div className="hm__head">
-        <div><p className="lab__eyebrow">Harmonized view · preliminary</p><h3>{region.name}: VIIRS on the Aqua scale</h3></div>
-        <span className="lab__status lab__status--synthetic">Not yet tested on sealed years</span>
+        <div><p className="lab__eyebrow">Harmonized view{SHOW_REVIEW_NOTICES ? ' · preliminary' : ''}</p><h3>{region.name}: VIIRS on the Aqua scale</h3></div>
+        {SHOW_REVIEW_NOTICES ? <span className="lab__status lab__status--synthetic">Not yet tested on sealed years</span> : <span className="lab__status">MODIS / Aqua scale</span>}
       </div>
       <p className="hm__lede">VIIRS multiplied by the correction fitted on 2016 to 2018{typeof factor === 'number' ? <> (<b>× {f(factor)}</b>)</> : null}, shown next to MODIS / Aqua. If the correction holds, the two gold lines sit together.</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="hm__svg" role="img" aria-label={`${region.name}. ${rows.map((r) => r.sealed ? `${r.year}: sealed` : r.aqua === undefined ? `${r.year}: no yearly value` : `${r.year}: Aqua ${f(r.aqua)}, VIIRS corrected ${r.mapped === undefined ? 'unavailable' : f(r.mapped)}, VIIRS raw ${f(r.viirs!)}`).join('. ')}`}>
@@ -97,7 +98,7 @@ export default function Harmony({ detail, region, policy, compact }: { detail: S
           : r.aqua === undefined ? <td colSpan={6}>No yearly value in this file</td>
             : <><td>{f(r.aqua)}</td><td>{r.mapped === undefined ? 'Unavailable' : f(r.mapped)}</td><td>{r.error === undefined ? 'Unavailable' : pct(r.error)}</td><td>{f(r.viirs!)}</td><td>{r.rawError === undefined ? 'Unavailable' : pct(r.rawError)}</td><td>{r.lo === undefined || r.hi === undefined ? 'Unavailable' : `${f(r.lo)} to ${f(r.hi)}`}</td></>}</tr>)}</tbody>
       </table></div>}
-      <p className="lab__note">Gap = how far VIIRS is from Aqua, relative to Aqua. 2019 checks the correction on a year it was not fitted on; 2022 to 2025 have no registered pass rule, so they are shown, not judged. Training years 2016 to 2018 are pooled and have no yearly point. This is not a harmonized long-term trend, and no rise, peak or anomaly is claimed across the satellite change.</p>
+      <p className="lab__note">Gap = how far VIIRS is from Aqua, relative to Aqua.{SHOW_REVIEW_NOTICES ? ' 2019 checks the correction on a year it was not fitted on; 2022 to 2025 have no registered pass rule, so they are shown, not judged. Training years 2016 to 2018 are pooled and have no yearly point. This is not a harmonized long-term trend, and no rise, peak or anomaly is claimed across the satellite change.' : ' 2019 checks the correction on a year it was not fitted on. Training years 2016 to 2018 are pooled and have no yearly point.'}</p>
     </section>
   )
 }
