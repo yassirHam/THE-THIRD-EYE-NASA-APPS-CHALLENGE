@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/((?!assets/|tex/|audio/|previews/|eye\\.svg).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|tex/|audio/|previews/|professor/|artifacts/|eye\\.svg).*)", "destination": "/index.html" }
   ],
   "headers": [
     {

@@ -1,4 +1,4 @@
-import rawRegions from '../../../data/manifests/canonical_regions.geojson?raw'
+import rawRegions from './data/canonical_regions.geojson?raw'
 
 /** Outlines of the registered areas, read from the repository's canonical region manifest.
  * An outline is only a place to draw and click. Which area has data, and what may be concluded

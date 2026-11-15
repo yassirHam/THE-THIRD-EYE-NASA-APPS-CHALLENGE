@@ -1,4 +1,4 @@
-import rawManifest from '../../../data/manifests/firms_manifest.json?raw'
+import rawManifest from './data/firms_manifest.json?raw'
 
 /** NASA FIRMS country yearly files, as listed in the repository's download manifest.
  * A separate view: FIRMS detection points never enter the calendar, its baselines, the

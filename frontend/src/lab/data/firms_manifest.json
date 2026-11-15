@@ -1,0 +1,1551 @@
+{
+  "dataset": "NASA FIRMS Country Yearly Summary (Standard Processing)",
+  "source_page": "https://firms.modaps.eosdis.nasa.gov/country/",
+  "countries": [
+    "United_States",
+    "Canada"
+  ],
+  "sealed_years_for_P5": [
+    2020,
+    2021
+  ],
+  "created_utc": "2026-11-14T02:35:45+00:00",
+  "notes": [
+    "CSV d'origine intacts dans raw/",
+    "clean/ = copie typ\u00e9e, aucune ligne supprim\u00e9e",
+    "Filtrer \u00e0 l'analyse : is_vegetation_fire et is_reference_platform",
+    "Points de d\u00e9tection uniquement : pas de O (observabilit\u00e9), pas de nuages"
+  ],
+  "files": [
+    {
+      "sensor": "modis",
+      "year": 2002,
+      "country": "United_States",
+      "file": "modis_2002_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2002/modis_2002_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:11+00:00",
+      "bytes": 6322657,
+      "sha256": "f6eaf4b0e42d55f6cbde1bcea80e87197e7e889d3f722557e642aeed2a2441e9",
+      "rows": 79715,
+      "aqua_or_snpp_rows": 24199,
+      "vegetation_rows": 75368,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2002/modis_2002_United_States.parquet",
+      "clean_sha256": "b000f60d29ae51d0771dd05e00907fab606019c15561cb08eeb59c9a97e90ea5",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2002,
+      "country": "Canada",
+      "file": "modis_2002_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2002/modis_2002_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:17+00:00",
+      "bytes": 2307835,
+      "sha256": "1db6968eb0ce66d09c28557a6b382f7d5c9509812a677261474fbf0f20b57b58",
+      "rows": 29050,
+      "aqua_or_snpp_rows": 9986,
+      "vegetation_rows": 28974,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2002/modis_2002_Canada.parquet",
+      "clean_sha256": "8f32d1f47b403986b7a82011b9497b67774c67c6e94a83ce538d53637162ec64",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2003,
+      "country": "United_States",
+      "file": "modis_2003_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2003/modis_2003_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:19+00:00",
+      "bytes": 9028563,
+      "sha256": "69768c918f4f1b98506200f7f35fbd0953b2309990273a84b7e5559a4147f8c8",
+      "rows": 114471,
+      "aqua_or_snpp_rows": 62094,
+      "vegetation_rows": 108394,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2003/modis_2003_United_States.parquet",
+      "clean_sha256": "9129cd4fb5090835a7fe57623e73fc344c82129966e623bb3983399ef0389f1e",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2003,
+      "country": "Canada",
+      "file": "modis_2003_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2003/modis_2003_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:20+00:00",
+      "bytes": 4124770,
+      "sha256": "4af5cf66c3768115177996fe26c569b0855a267df28900884dfe3431d76b17ba",
+      "rows": 52083,
+      "aqua_or_snpp_rows": 26360,
+      "vegetation_rows": 52036,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2003/modis_2003_Canada.parquet",
+      "clean_sha256": "8c3b068ac1239c1a923b7601d8fe5eb50fa2e9f54bcbd36f8bd056859cb5e1c0",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2004,
+      "country": "United_States",
+      "file": "modis_2004_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2004/modis_2004_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:21+00:00",
+      "bytes": 12523541,
+      "sha256": "a27be492f0afde16cc6d66fe0287b904b0312a6c54ab548ec61b6ed4912ea3af",
+      "rows": 158385,
+      "aqua_or_snpp_rows": 78318,
+      "vegetation_rows": 153038,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2004/modis_2004_United_States.parquet",
+      "clean_sha256": "837d5773f72d410674acec268ad7679372ff7ef592acfd974055d4bf221b9abf",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2004,
+      "country": "Canada",
+      "file": "modis_2004_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2004/modis_2004_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:22+00:00",
+      "bytes": 6055037,
+      "sha256": "506816e4e0b863536617766caa03678087f7aa14d49543203013d4a41e5be64f",
+      "rows": 76092,
+      "aqua_or_snpp_rows": 34599,
+      "vegetation_rows": 76023,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2004/modis_2004_Canada.parquet",
+      "clean_sha256": "63bb2593e1e08623e4cf47eeb43eac8781dfc29df4ac0caef3f02ef5a43c8131",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2005,
+      "country": "United_States",
+      "file": "modis_2005_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2005/modis_2005_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:23+00:00",
+      "bytes": 13525387,
+      "sha256": "60eef7a5497c4e29b25f21655cbd56c722e4b03c7909318deed5bd51a688392c",
+      "rows": 171160,
+      "aqua_or_snpp_rows": 84501,
+      "vegetation_rows": 163401,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2005/modis_2005_United_States.parquet",
+      "clean_sha256": "027db967d8253f51b76613394fd99fa132bd1e466cdcd60f144ccd039853338f",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2005,
+      "country": "Canada",
+      "file": "modis_2005_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2005/modis_2005_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:24+00:00",
+      "bytes": 2617966,
+      "sha256": "c20f0310aaeaa998cfc05656fc0c191aec9bc2d6dadad82c6f041cb878af6ddc",
+      "rows": 33042,
+      "aqua_or_snpp_rows": 16054,
+      "vegetation_rows": 32985,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2005/modis_2005_Canada.parquet",
+      "clean_sha256": "44ac3f197d9e8c44253a7e9bc43c7e6e96b10a8fefa13f4267beaa7dc1b008a1",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2006,
+      "country": "United_States",
+      "file": "modis_2006_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2006/modis_2006_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:25+00:00",
+      "bytes": 9988649,
+      "sha256": "fdab9f3e3346c915191035c2afaf6b70d6249e4c9e84a374bbb3006de9277320",
+      "rows": 126737,
+      "aqua_or_snpp_rows": 68244,
+      "vegetation_rows": 121972,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2006/modis_2006_United_States.parquet",
+      "clean_sha256": "e1bd6db456dc3045e95778d85527491a13a7d3d5fcad7595e1cc98873c1a7872",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2006,
+      "country": "Canada",
+      "file": "modis_2006_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2006/modis_2006_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:26+00:00",
+      "bytes": 2860885,
+      "sha256": "f1c2435e58936d9a39291a69a89ac4468e08af707a0f560803e867c87ed78c0a",
+      "rows": 36040,
+      "aqua_or_snpp_rows": 17879,
+      "vegetation_rows": 36010,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2006/modis_2006_Canada.parquet",
+      "clean_sha256": "de9e110928e0a1f45cfdf95bc30a465a5fd08ef9c2702fa73b98df8c7a2ce27c",
+      "issues": [
+        "1 doublons exacts"
+      ]
+    },
+    {
+      "sensor": "modis",
+      "year": 2007,
+      "country": "United_States",
+      "file": "modis_2007_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2007/modis_2007_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:30+00:00",
+      "bytes": 11250103,
+      "sha256": "8e85f4ec10f1aa91598efce79c77bb5ca27181aa72556e00a5129c7f28864160",
+      "rows": 142420,
+      "aqua_or_snpp_rows": 75366,
+      "vegetation_rows": 136179,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2007/modis_2007_United_States.parquet",
+      "clean_sha256": "1ef19721985bc37187c04afc41f1f83a3487ce7771821910da002f66340532bf",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2007,
+      "country": "Canada",
+      "file": "modis_2007_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2007/modis_2007_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:30+00:00",
+      "bytes": 2708539,
+      "sha256": "bef4161970e8d32ad5cec672cdf782142eb14556d540d38c8950df35057b3498",
+      "rows": 34154,
+      "aqua_or_snpp_rows": 16953,
+      "vegetation_rows": 34117,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2007/modis_2007_Canada.parquet",
+      "clean_sha256": "f99535b2969fa7046f9db24a6b250f1c6dd301aa443719e228f16072909f7822",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2008,
+      "country": "United_States",
+      "file": "modis_2008_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2008/modis_2008_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:37+00:00",
+      "bytes": 9426378,
+      "sha256": "004596cff60e50d064149fff32c781ec51f14d9078787ba93a668fea7655cee3",
+      "rows": 119797,
+      "aqua_or_snpp_rows": 64532,
+      "vegetation_rows": 115573,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2008/modis_2008_United_States.parquet",
+      "clean_sha256": "a8d8fcbfe6f6d80515fc4eb6efbb582922ec33e108828b3def028b6bd2e58c66",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2008,
+      "country": "Canada",
+      "file": "modis_2008_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2008/modis_2008_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:38+00:00",
+      "bytes": 2597914,
+      "sha256": "c5fd6cc639041d01390199d90082a2b9b229df49ca449f7fe6cff42888204596",
+      "rows": 32748,
+      "aqua_or_snpp_rows": 16397,
+      "vegetation_rows": 32678,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2008/modis_2008_Canada.parquet",
+      "clean_sha256": "5901cb576ebb0c174cf8b84be6d2645ae5f247d33cf27a8183bf44d6abe92275",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2009,
+      "country": "United_States",
+      "file": "modis_2009_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2009/modis_2009_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:39+00:00",
+      "bytes": 9081301,
+      "sha256": "d8f3af0dd28182593d197ae0fea25a73e4189be2a4b50fe7eab03688cef05594",
+      "rows": 115174,
+      "aqua_or_snpp_rows": 61806,
+      "vegetation_rows": 112655,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2009/modis_2009_United_States.parquet",
+      "clean_sha256": "11ad83327d019c8986d8c3aa8aebcf550df47880883fe4026ea8e72e84c57891",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2009,
+      "country": "Canada",
+      "file": "modis_2009_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2009/modis_2009_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:40+00:00",
+      "bytes": 2273708,
+      "sha256": "24d96c5070d0b5fb50f00f94dae0391f3054a04f11aadce9e8993f4ba2deae43",
+      "rows": 28568,
+      "aqua_or_snpp_rows": 13967,
+      "vegetation_rows": 28568,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2009/modis_2009_Canada.parquet",
+      "clean_sha256": "2ef04b012316315335d21226411ca1198dc7f04d8f76d6cb859e6ed89c489050",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2010,
+      "country": "United_States",
+      "file": "modis_2010_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2010/modis_2010_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:41+00:00",
+      "bytes": 7719174,
+      "sha256": "daa9fe7565393da5520cdb13e07525916fd2a4522f0e03cc4de3dffef2b2c59f",
+      "rows": 98322,
+      "aqua_or_snpp_rows": 54252,
+      "vegetation_rows": 94062,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2010/modis_2010_United_States.parquet",
+      "clean_sha256": "39fb3e7dfda3d6cd0ad0fd89b546ccab989e539a9b7625184f143f9a759e44d2",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2010,
+      "country": "Canada",
+      "file": "modis_2010_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2010/modis_2010_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:42+00:00",
+      "bytes": 4188728,
+      "sha256": "eeb8b0a24326572a2f4945e338083eeb65c3270981cc638d181b7dbd26309c76",
+      "rows": 52704,
+      "aqua_or_snpp_rows": 25039,
+      "vegetation_rows": 52687,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2010/modis_2010_Canada.parquet",
+      "clean_sha256": "73065537fa590e3761a5984dcf69c4e8173c2bd9de630cdef121940eba660b4a",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2011,
+      "country": "United_States",
+      "file": "modis_2011_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2011/modis_2011_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:43+00:00",
+      "bytes": 9749666,
+      "sha256": "25a62ab00492c04ebf0a68c211cf5c2b78536b1616b5481bb1aa85fbee3df7d4",
+      "rows": 123867,
+      "aqua_or_snpp_rows": 67777,
+      "vegetation_rows": 119959,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2011/modis_2011_United_States.parquet",
+      "clean_sha256": "a8a4c398145016ad751e5a44fe4300c23de5c788a071de97eb09bb467838b963",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2011,
+      "country": "Canada",
+      "file": "modis_2011_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2011/modis_2011_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:45+00:00",
+      "bytes": 3100451,
+      "sha256": "a6c4032061d28244f632222bd9cb3a81e1a4eab7521e9786f89c0bd66880b43d",
+      "rows": 39047,
+      "aqua_or_snpp_rows": 18455,
+      "vegetation_rows": 39001,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2011/modis_2011_Canada.parquet",
+      "clean_sha256": "f98f80f28997bdb0ba339cc37c9a6ad7f43e5e263eab01777ff9d2267dbc5692",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2012,
+      "country": "United_States",
+      "file": "modis_2012_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2012/modis_2012_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:46+00:00",
+      "bytes": 10853454,
+      "sha256": "d11a4d7c204981f27d9d7020b7367be49f64976b8e25464271240602d144295f",
+      "rows": 137295,
+      "aqua_or_snpp_rows": 72061,
+      "vegetation_rows": 131606,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2012/modis_2012_United_States.parquet",
+      "clean_sha256": "b2bf30799f672afb6bdf6c131377263e0db2e921545f1c766aead0765d0fea5d",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2012,
+      "country": "Canada",
+      "file": "modis_2012_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2012/modis_2012_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:47+00:00",
+      "bytes": 3191026,
+      "sha256": "6f7a105ba5eb2ecfbd9c30df1f392730f1c1a87fbae38c844f3ca4a75de96cb8",
+      "rows": 40168,
+      "aqua_or_snpp_rows": 19203,
+      "vegetation_rows": 40112,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2012/modis_2012_Canada.parquet",
+      "clean_sha256": "c10ba9d401ff8e1a44c18f970befc0b3cc62ea0dad514bc350ba3a10acc7184e",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2013,
+      "country": "United_States",
+      "file": "modis_2013_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2013/modis_2013_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:48+00:00",
+      "bytes": 8074775,
+      "sha256": "2ce080c702a7381bba6a9d0b2926e608da8b37db8e1b5a1ce8b905499a8aecc7",
+      "rows": 102348,
+      "aqua_or_snpp_rows": 53242,
+      "vegetation_rows": 95938,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2013/modis_2013_United_States.parquet",
+      "clean_sha256": "2582279d165bba097b6b429f73074dab3a7011ba2608444beff9558a78da2984",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2013,
+      "country": "Canada",
+      "file": "modis_2013_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2013/modis_2013_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:50+00:00",
+      "bytes": 5370932,
+      "sha256": "34e60cce1398bcc868495101a63a561c70bbeb2c6bcf23c739764feaa86bb91b",
+      "rows": 67760,
+      "aqua_or_snpp_rows": 32369,
+      "vegetation_rows": 67760,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2013/modis_2013_Canada.parquet",
+      "clean_sha256": "4f5f45363822e054132db7e54078a130663dc4b0610a735826124d6e8c030008",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2014,
+      "country": "United_States",
+      "file": "modis_2014_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2014/modis_2014_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:51+00:00",
+      "bytes": 7774285,
+      "sha256": "655279188cce2caa6668f4c671fb5e6ae36259e01c4e9aaa6f0499621c8f96eb",
+      "rows": 98871,
+      "aqua_or_snpp_rows": 53774,
+      "vegetation_rows": 92394,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2014/modis_2014_United_States.parquet",
+      "clean_sha256": "1903a81f569050eca5888e750ee928f1b38899d9714aca1c37826c9cb421b5ed",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2014,
+      "country": "Canada",
+      "file": "modis_2014_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2014/modis_2014_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:52+00:00",
+      "bytes": 6289708,
+      "sha256": "0216eed22eca119524a02ae0c558204dc52f905ea26657fd48c52ac372400c7c",
+      "rows": 79188,
+      "aqua_or_snpp_rows": 35990,
+      "vegetation_rows": 79125,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2014/modis_2014_Canada.parquet",
+      "clean_sha256": "f57a28685b2c1f44c7c019deff7fa6161aea0b9ff21fc19291e892bcf8cc6c13",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2015,
+      "country": "United_States",
+      "file": "modis_2015_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2015/modis_2015_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:53+00:00",
+      "bytes": 11628581,
+      "sha256": "67d731cc9e42d4279421040c33f7d23a6458ae5196b0aa445fa3115866390b5b",
+      "rows": 146984,
+      "aqua_or_snpp_rows": 75266,
+      "vegetation_rows": 139536,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2015/modis_2015_United_States.parquet",
+      "clean_sha256": "927a5ec5acdb5658217e08524afb554bc38ebc6b1c93a1a740950c760c66a6ce",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2015,
+      "country": "Canada",
+      "file": "modis_2015_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2015/modis_2015_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:54+00:00",
+      "bytes": 5895144,
+      "sha256": "f2b49962fd036ac9449f1068f576de7f68245eeab973ca5a08fb8a067f7aa626",
+      "rows": 73912,
+      "aqua_or_snpp_rows": 35277,
+      "vegetation_rows": 73888,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2015/modis_2015_Canada.parquet",
+      "clean_sha256": "d3e59376f2bf13668f2d2470fee68d73462f8c2cdbf67ded3a7279af9b6bd0d9",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2016,
+      "country": "United_States",
+      "file": "modis_2016_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2016/modis_2016_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:57+00:00",
+      "bytes": 8879583,
+      "sha256": "55f87d1248deb753f3076633809004b136f5937aeab5bb39872b13aad2f03b3a",
+      "rows": 112736,
+      "aqua_or_snpp_rows": 61897,
+      "vegetation_rows": 106797,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2016/modis_2016_United_States.parquet",
+      "clean_sha256": "6b550543fde47ce241c377705666ed0083c45431c5149cc56c7f81c0c365bb6c",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2016,
+      "country": "Canada",
+      "file": "modis_2016_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2016/modis_2016_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:58+00:00",
+      "bytes": 2144357,
+      "sha256": "68b9318ef41c77fa7454132fc7e8d497befee680ceedbbac1ff4575a71476a19",
+      "rows": 26960,
+      "aqua_or_snpp_rows": 12922,
+      "vegetation_rows": 26928,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2016/modis_2016_Canada.parquet",
+      "clean_sha256": "fe1a6d6110f80cbf514e416caea60635f1673a43a57407e5cd537a79b2c12b9c",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2017,
+      "country": "United_States",
+      "file": "modis_2017_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2017/modis_2017_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:29:59+00:00",
+      "bytes": 12063842,
+      "sha256": "d5256d2c936c4cc0cf84fc8fdc4aedc3ed5e7bd00e6080e4c377da51fa6b7009",
+      "rows": 152702,
+      "aqua_or_snpp_rows": 79135,
+      "vegetation_rows": 145069,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2017/modis_2017_United_States.parquet",
+      "clean_sha256": "67f1f307b1f87ae29f88dd01df69d0b79f5c4a28348ba973e2e025a5c489fb8c",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2017,
+      "country": "Canada",
+      "file": "modis_2017_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2017/modis_2017_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:01+00:00",
+      "bytes": 7578235,
+      "sha256": "e8a06ea8e0888b990e8cc95f4a6f257ecff1d2a6170530588dee6a0710551415",
+      "rows": 95117,
+      "aqua_or_snpp_rows": 44131,
+      "vegetation_rows": 95064,
+      "versions": [
+        "6.2"
+      ],
+      "clean_path": "clean/modis/2017/modis_2017_Canada.parquet",
+      "clean_sha256": "210b8de4854ff607f8400281c4a8a40bfd9a4af88af7237836b6fde8b014ab0b",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2018,
+      "country": "United_States",
+      "file": "modis_2018_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2018/modis_2018_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:02+00:00",
+      "bytes": 10488759,
+      "sha256": "5e6bf58957d2735abde985f9bbc205973f2dd5cea8705968b70c6e60afe23855",
+      "rows": 130986,
+      "aqua_or_snpp_rows": 67895,
+      "vegetation_rows": 119196,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2018/modis_2018_United_States.parquet",
+      "clean_sha256": "3429f565891bf9165a6f08061034a5d2bbf2f71ce5a999c5ca742d259581d165",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2018,
+      "country": "Canada",
+      "file": "modis_2018_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2018/modis_2018_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:03+00:00",
+      "bytes": 5139248,
+      "sha256": "370edfecd99b6f0c8c5a02aa88b853ccdb5cd6936a27702e2f933de644fb4051",
+      "rows": 63707,
+      "aqua_or_snpp_rows": 30306,
+      "vegetation_rows": 63500,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2018/modis_2018_Canada.parquet",
+      "clean_sha256": "ac69942ce9eb7917ba45cc191faecfc32c5c88e6bbee378d6dc19d642aab2dad",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2019,
+      "country": "United_States",
+      "file": "modis_2019_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2019/modis_2019_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:04+00:00",
+      "bytes": 8554573,
+      "sha256": "a478e23cd205e1367aaa3d543da00f15036ee5e0d81071c530ee78cd1368555e",
+      "rows": 107213,
+      "aqua_or_snpp_rows": 53500,
+      "vegetation_rows": 101971,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2019/modis_2019_United_States.parquet",
+      "clean_sha256": "757d772f0660a8ca9caa33d8df6f31db90d321e603167923d5aac629edf58c2b",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2019,
+      "country": "Canada",
+      "file": "modis_2019_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2019/modis_2019_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:05+00:00",
+      "bytes": 3271204,
+      "sha256": "7d19031505dc8eb015814a928bcbf3c603a5d5e288762b5909e26cc7b76f0036",
+      "rows": 40577,
+      "aqua_or_snpp_rows": 18110,
+      "vegetation_rows": 40421,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2019/modis_2019_Canada.parquet",
+      "clean_sha256": "40ae4f29f5e0e1322f042b06b824f5d246dccaa360e6bf406d98330436a40072",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2020,
+      "country": "United_States",
+      "file": "modis_2020_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2020/modis_2020_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:06+00:00",
+      "bytes": 12343543,
+      "sha256": "466e2c7616fe1d813a7bfa66971160b64d6baf341fab22ffe8fac06dfbf7961a",
+      "rows": 153848,
+      "aqua_or_snpp_rows": 78606,
+      "vegetation_rows": 148412,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean_sealed_P5/modis/2020/modis_2020_United_States.parquet",
+      "clean_sha256": "8c8e75d23cf1c07d28e7957e858072ca84be66f2acd89a22812432dd21d46afd",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2020,
+      "country": "Canada",
+      "file": "modis_2020_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2020/modis_2020_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:07+00:00",
+      "bytes": 978642,
+      "sha256": "971cfd3704ec7790b2f674f2f8a9b84d1bd87d71f95e6a5207417071872a5434",
+      "rows": 12219,
+      "aqua_or_snpp_rows": 6268,
+      "vegetation_rows": 12100,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean_sealed_P5/modis/2020/modis_2020_Canada.parquet",
+      "clean_sha256": "cd4fc94a5d5e0ecd24ca31cb42afaf46193706f99910acff4c8efe96671ee193",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2021,
+      "country": "United_States",
+      "file": "modis_2021_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2021/modis_2021_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:08+00:00",
+      "bytes": 13123878,
+      "sha256": "bc227a3c85f03fe847d5b96da87cc67588774043c0efa4f0c85179c12187f897",
+      "rows": 163687,
+      "aqua_or_snpp_rows": 83689,
+      "vegetation_rows": 156655,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean_sealed_P5/modis/2021/modis_2021_United_States.parquet",
+      "clean_sha256": "27d8104eaf37a9f0d26c7676ca6b71f13936439d4fa792137eaeebc7e1404c26",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2021,
+      "country": "Canada",
+      "file": "modis_2021_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2021/modis_2021_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:10+00:00",
+      "bytes": 7813074,
+      "sha256": "f1d723112bd3029a1ef18d399819fcadd83f324bebf65cd7f0072799d96ca36a",
+      "rows": 97100,
+      "aqua_or_snpp_rows": 45013,
+      "vegetation_rows": 96858,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean_sealed_P5/modis/2021/modis_2021_Canada.parquet",
+      "clean_sha256": "228f7b51607e9a27c46ad1466f7c9f55b1ed8f7128bfd085915f0f081e1ac056",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2022,
+      "country": "United_States",
+      "file": "modis_2022_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2022/modis_2022_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:12+00:00",
+      "bytes": 10424099,
+      "sha256": "20710b0b6c1630ca44d39c537abb7c10f9c0050f66770b936edc412ef0e4be76",
+      "rows": 130358,
+      "aqua_or_snpp_rows": 67926,
+      "vegetation_rows": 121943,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2022/modis_2022_United_States.parquet",
+      "clean_sha256": "0f09877af5d91b883ee723bfc1d1ef6b55052b2af1a9ece813cc5fdc73034feb",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2022,
+      "country": "Canada",
+      "file": "modis_2022_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2022/modis_2022_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:13+00:00",
+      "bytes": 2827694,
+      "sha256": "57dbc5d8396b62a6212acbd5cbaf1ba4044eab9149b788bb5bf2aad44a058313",
+      "rows": 35106,
+      "aqua_or_snpp_rows": 17122,
+      "vegetation_rows": 34896,
+      "versions": [
+        "6.03"
+      ],
+      "clean_path": "clean/modis/2022/modis_2022_Canada.parquet",
+      "clean_sha256": "6b564533cf338965413a25ae2827d0dbae1f1e718ff3bdf5d366d92d90e3e3bb",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2023,
+      "country": "United_States",
+      "file": "modis_2023_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2023/modis_2023_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:15+00:00",
+      "bytes": 7572283,
+      "sha256": "8f693b80488414db0494deac1081f4c658769618100e402a830fb823f8f6ec1f",
+      "rows": 94000,
+      "aqua_or_snpp_rows": 51287,
+      "vegetation_rows": 87715,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2023/modis_2023_United_States.parquet",
+      "clean_sha256": "4c68cd747481211663822f64cec11ac07c795f8616a65b214df0a685ace078d8",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2023,
+      "country": "Canada",
+      "file": "modis_2023_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2023/modis_2023_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:16+00:00",
+      "bytes": 26472607,
+      "sha256": "5abc5b1a8962888b36e3cae22296a9a4d701fc1765ca0a833f9a2ac76e271137",
+      "rows": 324003,
+      "aqua_or_snpp_rows": 152533,
+      "vegetation_rows": 323767,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2023/modis_2023_Canada.parquet",
+      "clean_sha256": "c9dd261b827cac1249d2e119d6eed9ff1833661c25ab99cfe803655f2e700759",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2024,
+      "country": "United_States",
+      "file": "modis_2024_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2024/modis_2024_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:18+00:00",
+      "bytes": 10006305,
+      "sha256": "26c5f22e9d41bd8d5d22402eaf5293dc7a5bc7415d37da42cd2e0a3b78b95ca4",
+      "rows": 123712,
+      "aqua_or_snpp_rows": 67219,
+      "vegetation_rows": 118241,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2024/modis_2024_United_States.parquet",
+      "clean_sha256": "0ac61105ab9aae9adf43b20a51e096e45a87da6758a31420dd7697f9dfa6fadb",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2024,
+      "country": "Canada",
+      "file": "modis_2024_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2024/modis_2024_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:19+00:00",
+      "bytes": 12052143,
+      "sha256": "6b9a9202ba19f89ec089072dc08a09eca8a7ab0a4c27d8434e169e7fc589a079",
+      "rows": 147547,
+      "aqua_or_snpp_rows": 72805,
+      "vegetation_rows": 147303,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2024/modis_2024_Canada.parquet",
+      "clean_sha256": "62566e1849dd8af38929effef9222d45c8c8dcb777ae83df4d9d359ef74e83ba",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2025,
+      "country": "United_States",
+      "file": "modis_2025_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2025/modis_2025_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:20+00:00",
+      "bytes": 8874396,
+      "sha256": "2b66bf1932202eaa9ddbdf408e2ec590de2bd84abd6c634d68952d4d196c8730",
+      "rows": 109845,
+      "aqua_or_snpp_rows": 61805,
+      "vegetation_rows": 101782,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2025/modis_2025_United_States.parquet",
+      "clean_sha256": "1acec07f810ac1604acd508595cd0d8acafd386303976773a7f4f5526fa7e1f3",
+      "issues": []
+    },
+    {
+      "sensor": "modis",
+      "year": 2025,
+      "country": "Canada",
+      "file": "modis_2025_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/modis/2025/modis_2025_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:22+00:00",
+      "bytes": 12749281,
+      "sha256": "436a845a818fdfec02e7e70a8b01e0321ff8a906e3a7d45d585b9676343dff8c",
+      "rows": 156313,
+      "aqua_or_snpp_rows": 75739,
+      "vegetation_rows": 156111,
+      "versions": [
+        "61.03"
+      ],
+      "clean_path": "clean/modis/2025/modis_2025_Canada.parquet",
+      "clean_sha256": "1be1598e7110e5b58ec9f6b6484d8bb4110ec7606bc32f8fd69d1f2ff63b3c26",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2012,
+      "country": "United_States",
+      "file": "viirs-snpp_2012_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2012/viirs-snpp_2012_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:24+00:00",
+      "bytes": 42840430,
+      "sha256": "a53d3cd248de33920a6eac8bfcb7c6d67642ec4adbf2162427b2021ec4ea8a4d",
+      "rows": 536477,
+      "aqua_or_snpp_rows": 536477,
+      "vegetation_rows": 439689,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2012/viirs-snpp_2012_United_States.parquet",
+      "clean_sha256": "ce856099dd645bf9be724fd11ce5f556c1546cc5ae55f08334f1ab60da1dc4ef",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2012,
+      "country": "Canada",
+      "file": "viirs-snpp_2012_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2012/viirs-snpp_2012_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:26+00:00",
+      "bytes": 15231513,
+      "sha256": "091f6b5888c9abd6be145e62061bab03b197dfcd475144689bdbd03cb61b9cca",
+      "rows": 190200,
+      "aqua_or_snpp_rows": 190200,
+      "vegetation_rows": 177769,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2012/viirs-snpp_2012_Canada.parquet",
+      "clean_sha256": "07907b0d4bfbea1a23252c5c0d5cb0ab8a72117e73314e123193defaa663bd4c",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2013,
+      "country": "United_States",
+      "file": "viirs-snpp_2013_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2013/viirs-snpp_2013_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:27+00:00",
+      "bytes": 32294061,
+      "sha256": "04a0b6ee7238bf349a2383fcecfa7c07d6df53ae99c4d46d634508b352fe741f",
+      "rows": 404761,
+      "aqua_or_snpp_rows": 404761,
+      "vegetation_rows": 313027,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2013/viirs-snpp_2013_United_States.parquet",
+      "clean_sha256": "3eb711d7052b8b5779796880a2c9283808af58b4c592b4c409f26e7f82c49957",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2013,
+      "country": "Canada",
+      "file": "viirs-snpp_2013_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2013/viirs-snpp_2013_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:34+00:00",
+      "bytes": 27665154,
+      "sha256": "bdf805ff036b48096783dda9963a06f94b94bc544213cd167206852b1fd9d6bb",
+      "rows": 346361,
+      "aqua_or_snpp_rows": 346361,
+      "vegetation_rows": 329380,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2013/viirs-snpp_2013_Canada.parquet",
+      "clean_sha256": "63d75bdff96e6ef81bcd12148de77fdebee72226741131d7e415fe7461d9370a",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2014,
+      "country": "United_States",
+      "file": "viirs-snpp_2014_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2014/viirs-snpp_2014_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:36+00:00",
+      "bytes": 30061749,
+      "sha256": "f6689df5187d3965dd16483736487bc42f714e683684fdeebddd40733bc5ba18",
+      "rows": 377204,
+      "aqua_or_snpp_rows": 377204,
+      "vegetation_rows": 294820,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2014/viirs-snpp_2014_United_States.parquet",
+      "clean_sha256": "f3a14adb9c7d6f56c6881cc077357cbbf375c73ee30143ba88c5b58a5c3c5659",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2014,
+      "country": "Canada",
+      "file": "viirs-snpp_2014_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2014/viirs-snpp_2014_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:38+00:00",
+      "bytes": 42015486,
+      "sha256": "cba0b8d2c16724ed5efd26cf758214c9d2e106459b95440365200259aaaa7b00",
+      "rows": 523413,
+      "aqua_or_snpp_rows": 523413,
+      "vegetation_rows": 483995,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2014/viirs-snpp_2014_Canada.parquet",
+      "clean_sha256": "ac7420aafc30046ba41b58f467ff3b2e54e984ef507138ee9f6b7d7175b43355",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2015,
+      "country": "United_States",
+      "file": "viirs-snpp_2015_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2015/viirs-snpp_2015_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:45+00:00",
+      "bytes": 46447362,
+      "sha256": "40239627dbcd773dda85e80d4ded6c2ef747c40d9c413cc3755be266f30e08ae",
+      "rows": 581042,
+      "aqua_or_snpp_rows": 581042,
+      "vegetation_rows": 490975,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2015/viirs-snpp_2015_United_States.parquet",
+      "clean_sha256": "53aeecda449783ff24fc9e1b996809d6273d07d64f609eaaa4b09b3408dbb8a6",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2015,
+      "country": "Canada",
+      "file": "viirs-snpp_2015_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2015/viirs-snpp_2015_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:46+00:00",
+      "bytes": 26647955,
+      "sha256": "cdb8b6705effa0dc1de1a9a533ba601a0219cfcf85a4536c33adba3b1e7932e1",
+      "rows": 331862,
+      "aqua_or_snpp_rows": 331862,
+      "vegetation_rows": 316962,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2015/viirs-snpp_2015_Canada.parquet",
+      "clean_sha256": "38117532b986433a8dbf6ef572024cda297e7c32e5bf3530bb4e8870d89b321e",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2016,
+      "country": "United_States",
+      "file": "viirs-snpp_2016_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2016/viirs-snpp_2016_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:48+00:00",
+      "bytes": 34510507,
+      "sha256": "beb561086694f612700a97c093f551a83835c53ab534fe430ddcfd0b4f301820",
+      "rows": 432975,
+      "aqua_or_snpp_rows": 432975,
+      "vegetation_rows": 341845,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2016/viirs-snpp_2016_United_States.parquet",
+      "clean_sha256": "9b0474460b49a59ce61f760502e1bc1e8b96fb3c031792d3e4d18edcd97f12b6",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2016,
+      "country": "Canada",
+      "file": "viirs-snpp_2016_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2016/viirs-snpp_2016_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:49+00:00",
+      "bytes": 9532246,
+      "sha256": "36e71da138f9a7e404d9ce9bbfd760c83a3790d24a63632543d08d4a6cf70ce6",
+      "rows": 118847,
+      "aqua_or_snpp_rows": 118847,
+      "vegetation_rows": 107374,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2016/viirs-snpp_2016_Canada.parquet",
+      "clean_sha256": "4ba819b13cd15108288406cb1e228ecd59c078646e4ff014132526d95f22189e",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2017,
+      "country": "United_States",
+      "file": "viirs-snpp_2017_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2017/viirs-snpp_2017_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:52+00:00",
+      "bytes": 47618030,
+      "sha256": "72b71216f7d53afd8fd57384f2618e0805807208e9de88a76ea2e80c059ee7f4",
+      "rows": 596168,
+      "aqua_or_snpp_rows": 596168,
+      "vegetation_rows": 499471,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2017/viirs-snpp_2017_United_States.parquet",
+      "clean_sha256": "623eaca86ce50c5dad85aa09e8cc6134b283f00d1d2ac19e44e105f89eb820df",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2017,
+      "country": "Canada",
+      "file": "viirs-snpp_2017_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2017/viirs-snpp_2017_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:54+00:00",
+      "bytes": 37461017,
+      "sha256": "486e424309d1b76855fd5cb998c0290718002f06c63a59f25009c9639e63ee4c",
+      "rows": 466851,
+      "aqua_or_snpp_rows": 466851,
+      "vegetation_rows": 445190,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2017/viirs-snpp_2017_Canada.parquet",
+      "clean_sha256": "f4abd48e79d74c798b8e0be8afbfa3f4ea7403b03758cfe1a78f1f04fdfc9fde",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2018,
+      "country": "United_States",
+      "file": "viirs-snpp_2018_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2018/viirs-snpp_2018_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:30:58+00:00",
+      "bytes": 44442753,
+      "sha256": "38963a7315959b2d6db42246c88ba06735e280507e47a70b16ead0620f967b79",
+      "rows": 556244,
+      "aqua_or_snpp_rows": 556244,
+      "vegetation_rows": 471601,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2018/viirs-snpp_2018_United_States.parquet",
+      "clean_sha256": "a456f257aec6efa242e51a9e64b9e823b159349ab0f927cd9fb811b8ed2801b1",
+      "issues": [
+        "2 doublons exacts"
+      ]
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2018,
+      "country": "Canada",
+      "file": "viirs-snpp_2018_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2018/viirs-snpp_2018_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:00+00:00",
+      "bytes": 26089031,
+      "sha256": "4d6a163e45fb481aead4cdea2846b22f89cf17db42c8cb34803e898910eba6d0",
+      "rows": 325367,
+      "aqua_or_snpp_rows": 325367,
+      "vegetation_rows": 313615,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2018/viirs-snpp_2018_Canada.parquet",
+      "clean_sha256": "1be7e8e65af031c9e2e73991e64c95d0300deb19bb6d2db0133c07bae29b5ca4",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2019,
+      "country": "United_States",
+      "file": "viirs-snpp_2019_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2019/viirs-snpp_2019_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:07+00:00",
+      "bytes": 36202018,
+      "sha256": "368ddcfce96b63e6a61791809b959ea7e1d0322ff3de04bbd241a8fe75a43eef",
+      "rows": 453400,
+      "aqua_or_snpp_rows": 453400,
+      "vegetation_rows": 370646,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2019/viirs-snpp_2019_United_States.parquet",
+      "clean_sha256": "3cc7cf0c239155aaf55e12836395ed143b323b134e1c26b74ceca26c784653c0",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2019,
+      "country": "Canada",
+      "file": "viirs-snpp_2019_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2019/viirs-snpp_2019_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:08+00:00",
+      "bytes": 15125906,
+      "sha256": "9f6221b8e572dbb8f0488873dd0599401472c308cfd173bc32b61225f6672ae9",
+      "rows": 188692,
+      "aqua_or_snpp_rows": 188692,
+      "vegetation_rows": 178267,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2019/viirs-snpp_2019_Canada.parquet",
+      "clean_sha256": "6aa92932921a38f7839369caf00e034af097dfa555f902565a4b31fdeea41d64",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2020,
+      "country": "United_States",
+      "file": "viirs-snpp_2020_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2020/viirs-snpp_2020_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:10+00:00",
+      "bytes": 53815954,
+      "sha256": "309c1c97f0d81013a4ed28768c3078aafcf1cd49bc453b4591d66a5227dc8128",
+      "rows": 672822,
+      "aqua_or_snpp_rows": 672822,
+      "vegetation_rows": 595898,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean_sealed_P5/viirs-snpp/2020/viirs-snpp_2020_United_States.parquet",
+      "clean_sha256": "5fbacc4ed85d3c5592de3e12a12e929c31da59c94c9b99eb517d502ede4db4a0",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2020,
+      "country": "Canada",
+      "file": "viirs-snpp_2020_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2020/viirs-snpp_2020_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:13+00:00",
+      "bytes": 3762134,
+      "sha256": "ca08fdc9eba733cc9c851fa2bb1435ae7946f2c125cac341514ccc839d862185",
+      "rows": 47009,
+      "aqua_or_snpp_rows": 47009,
+      "vegetation_rows": 39100,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean_sealed_P5/viirs-snpp/2020/viirs-snpp_2020_Canada.parquet",
+      "clean_sha256": "3dcf3c9362c03d628314c83b6bc6c90586cc47301924f94815ae21eb466a2a6e",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2021,
+      "country": "United_States",
+      "file": "viirs-snpp_2021_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2021/viirs-snpp_2021_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:15+00:00",
+      "bytes": 53156381,
+      "sha256": "4130c8ce327424bb9b1a54e09667f56fbe52d20649a09dcdd8f64d5e5689b9a9",
+      "rows": 664995,
+      "aqua_or_snpp_rows": 664995,
+      "vegetation_rows": 582653,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean_sealed_P5/viirs-snpp/2021/viirs-snpp_2021_United_States.parquet",
+      "clean_sha256": "c51e86046a775e6c6f5d10578ed3920cec172df289bab4bce356849445801e8f",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2021,
+      "country": "Canada",
+      "file": "viirs-snpp_2021_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2021/viirs-snpp_2021_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:21+00:00",
+      "bytes": 37166522,
+      "sha256": "11b37dc84795530ba61e6a290df1c7c244578dfec522b7311a745357bb253819",
+      "rows": 464714,
+      "aqua_or_snpp_rows": 464714,
+      "vegetation_rows": 446806,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean_sealed_P5/viirs-snpp/2021/viirs-snpp_2021_Canada.parquet",
+      "clean_sha256": "1c847bd7acf36c65e70a8955a7ae0014c785cef2ccbfc03b15955d884523a944",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2022,
+      "country": "United_States",
+      "file": "viirs-snpp_2022_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2022/viirs-snpp_2022_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:27+00:00",
+      "bytes": 42396210,
+      "sha256": "ec3dad0560ac49ae6111bc6981af65cf0debe9379b03737489f6b1e3775ccf6c",
+      "rows": 531089,
+      "aqua_or_snpp_rows": 531089,
+      "vegetation_rows": 448706,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2022/viirs-snpp_2022_United_States.parquet",
+      "clean_sha256": "ad12f17a633d0c1f76c5e5bf6e37c674709d9a4bbc96cba2cebbb2cbfb7cea05",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2022,
+      "country": "Canada",
+      "file": "viirs-snpp_2022_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2022/viirs-snpp_2022_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:29+00:00",
+      "bytes": 13606146,
+      "sha256": "f8c5e06a450a6d28f1c9a0ea44bb90ad426c1a629de439d0333fc83ebdcfaf60",
+      "rows": 169522,
+      "aqua_or_snpp_rows": 169522,
+      "vegetation_rows": 158119,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2022/viirs-snpp_2022_Canada.parquet",
+      "clean_sha256": "fadafc9c5211531760c834db912173aca4f64ab4a91d1485cec79e0967f10449",
+      "issues": [
+        "1 doublons exacts"
+      ]
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2023,
+      "country": "United_States",
+      "file": "viirs-snpp_2023_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2023/viirs-snpp_2023_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:30+00:00",
+      "bytes": 30962191,
+      "sha256": "d419abfb7d39d8040fd4487aee7e8003b1940ae5eb0cd95aa244cd7e303d4b4d",
+      "rows": 388672,
+      "aqua_or_snpp_rows": 388672,
+      "vegetation_rows": 303347,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2023/viirs-snpp_2023_United_States.parquet",
+      "clean_sha256": "1718bf91aee807b71661547597d71f60a33734989c70e5992e2b920fe740884c",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2023,
+      "country": "Canada",
+      "file": "viirs-snpp_2023_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2023/viirs-snpp_2023_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:35+00:00",
+      "bytes": 140649416,
+      "sha256": "ea259492be7563c74ab0afe06934316f33a5a323ca270d0182f30722dc9d2166",
+      "rows": 1754727,
+      "aqua_or_snpp_rows": 1754727,
+      "vegetation_rows": 1712287,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2023/viirs-snpp_2023_Canada.parquet",
+      "clean_sha256": "a454d9cddf632cb6f32120693f53a178505f7992d6a0c9def0b055d77154fb97",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2024,
+      "country": "United_States",
+      "file": "viirs-snpp_2024_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2024/viirs-snpp_2024_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:38+00:00",
+      "bytes": 38675162,
+      "sha256": "b282c996b6929facc1d5726045e2ad14235a8ac10900daff08edaee9a8f2b200",
+      "rows": 484736,
+      "aqua_or_snpp_rows": 484736,
+      "vegetation_rows": 406794,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2024/viirs-snpp_2024_United_States.parquet",
+      "clean_sha256": "1dea65d3c3cdedec64af6f15527fd64deec54a4eb8ae87a70556e955215fe16a",
+      "issues": [
+        "1 doublons exacts"
+      ]
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2024,
+      "country": "Canada",
+      "file": "viirs-snpp_2024_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2024/viirs-snpp_2024_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:42+00:00",
+      "bytes": 58265064,
+      "sha256": "7a7131bcba610fe485e9c4353f7dfe5316b93289275e16952069e21cfb5301f8",
+      "rows": 726118,
+      "aqua_or_snpp_rows": 726118,
+      "vegetation_rows": 700301,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2024/viirs-snpp_2024_Canada.parquet",
+      "clean_sha256": "e31365100afe1e805fa2d4c34871c380c4e404f0623f696734c5bc4675289299",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2025,
+      "country": "United_States",
+      "file": "viirs-snpp_2025_United_States.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2025/viirs-snpp_2025_United_States.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:45+00:00",
+      "bytes": 37453338,
+      "sha256": "e7df11c2739bf4dbec98d15dcc6cd7d5d19c1fc6edfc51750a5e3a1a6dd3102d",
+      "rows": 469809,
+      "aqua_or_snpp_rows": 469809,
+      "vegetation_rows": 376029,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2025/viirs-snpp_2025_United_States.parquet",
+      "clean_sha256": "16044564f48bd1610747d194d80fc903e40cd01ed533f027c29b0c11ea48d124",
+      "issues": []
+    },
+    {
+      "sensor": "viirs-snpp",
+      "year": 2025,
+      "country": "Canada",
+      "file": "viirs-snpp_2025_Canada.csv",
+      "url": "https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2025/viirs-snpp_2025_Canada.csv",
+      "status": "ok",
+      "retrieved_utc": "2026-11-14T02:31:48+00:00",
+      "bytes": 73405312,
+      "sha256": "d3277e9340a56b224c295655abd08b3fd7cfbae683b2cf1f23d54093f1139a1d",
+      "rows": 916099,
+      "aqua_or_snpp_rows": 916099,
+      "vegetation_rows": 876331,
+      "versions": [
+        "2"
+      ],
+      "clean_path": "clean/viirs-snpp/2025/viirs-snpp_2025_Canada.parquet",
+      "clean_sha256": "84149efd3dec8bf376813d6422f2376440ccc684e238b211285120c85e9ba15e",
+      "issues": [
+        "1 doublons exacts"
+      ]
+    }
+  ]
+}
