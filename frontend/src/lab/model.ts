@@ -17,6 +17,9 @@ export type CalendarEntry = {
   unusualLabel?: string
   criticalLabel?: string
   comparisonEligible?: boolean
+  /** Contract 1.6.0: true when the period falls inside the artifact's declared sealed evaluation
+   * window. Sealed periods are withheld from public evaluation, not missing data. */
+  sealedPeriod?: boolean
 }
 
 /** Contract 1.4.0 five-field compound identity. A cached factor, baseline or result may be reused
@@ -83,6 +86,9 @@ export type ComparisonView = {
   inference: string
   practicalChange: PracticalChangeView
   evidenceUrl: string
+  /** Contract 1.6.0 geographic composition counterexamples from the claim audit record.
+   * Each entry is preserved verbatim from the artifact; never recomputed or zero-filled. */
+  counterexampleInterpretations?: Array<Record<string, unknown>>
 }
 export type LabView = { areas: AreaView[]; headline?: { text: string; denominator: string; evidenceUrl: string } }
 

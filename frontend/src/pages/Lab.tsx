@@ -6,16 +6,30 @@ import Calendar from '../lab/Calendar'
 import Chart from '../lab/Chart'
 import Comparison from '../lab/Comparison'
 import { findingVisible } from '../lab/adapter'
-import { labView, type Sensor } from '../lab/model'
+import { loadBundle } from '../lab/loader'
+import { labView as placeholderView, type LabView, type Sensor } from '../lab/model'
 import './lab.css'
 
 export default function Lab() {
   const [view, setView] = useState<'month' | 'week'>('month')
-  const [areaId, setAreaId] = useState(labView.areas[0]?.id ?? '')
+  const [areaId, setAreaId] = useState(placeholderView.areas[0]?.id ?? '')
   const [sensor, setSensor] = useState<Sensor>('MODIS')
   const [display, setDisplay] = useState<'chart' | 'table'>('chart')
-  const area = labView.areas.find((item) => item.id === areaId)
+  const [liveView, setLiveView] = useState<LabView>(placeholderView)
+  const area = liveView.areas.find((item) => item.id === areaId)
   const entries = area?.entries.filter((entry) => entry.sensor === sensor && entry.resolution === view) ?? []
+
+  // Wire static artifact bundle if present in public/artifacts/; falls back to placeholder silently.
+  useEffect(() => {
+    const base = `${import.meta.env.BASE_URL}artifacts/`
+    loadBundle(base).then((loaded) => {
+      if (loaded.areas.length > 0) {
+        setLiveView(loaded)
+        setAreaId(loaded.areas[0]?.id ?? '')
+      }
+    }).catch(() => { /* bundle absent or fetch error: stay on placeholder */ })
+  }, [])
+
   useEffect(() => { document.title = 'Research Lab - THE THIRD EYE' }, [])
 
   return (
@@ -32,7 +46,7 @@ export default function Lab() {
           <section className="lab__calendar" aria-labelledby="calendar-title">
             <div className="lab__sectionhead"><div><p className="lab__eyebrow">Observation record</p><h3 id="calendar-title">Fire calendar</h3></div><span className="lab__status">{entries.some((entry) => entry.availability === 'available' && entry.value !== null && Number.isFinite(entry.value)) ? 'Observations available' : 'Data unavailable'}</span></div>
             <div className="lab__controls">
-              <label>Area <select disabled={!labView.areas.length} value={areaId} onChange={(event) => setAreaId(event.target.value)} aria-label="Area">{labView.areas.length ? labView.areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>) : <option value="">Awaiting area data</option>}</select></label>
+              <label>Area <select disabled={!liveView.areas.length} value={areaId} onChange={(event) => setAreaId(event.target.value)} aria-label="Area">{liveView.areas.length ? liveView.areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>) : <option value="">Awaiting area data</option>}</select></label>
               <label>Satellite <select value={sensor} onChange={(event) => setSensor(event.target.value as Sensor)}><option value="MODIS">MODIS / Aqua</option><option value="VIIRS">VIIRS / Suomi NPP</option></select></label>
               <div className="lab__switch" role="group" aria-label="Calendar view"><button className="chip" aria-pressed={view === 'month'} onClick={() => setView('month')}>Monthly</button><button className="chip" aria-pressed={view === 'week'} onClick={() => setView('week')}>Weekly</button></div>
             </div>
@@ -46,7 +60,7 @@ export default function Lab() {
             <section><p className="lab__eyebrow">Finding</p>{area?.finding && findingVisible(area) ? <><h3>{area.finding.text}</h3><a href={area.finding.evidenceUrl}>Inspect evidence</a></> : <><h3>No finding available yet.</h3><p>An evidence-backed finding will appear when the selected area and comparison have been evaluated.</p></>}</section>
             <section><p className="lab__eyebrow">Limit</p><p>{area?.limitation ?? 'Satellite observations do not count individual fires. Missing observations and failed checks must remain visible.'}</p></section>
             <section><p className="lab__eyebrow">Normal season</p>{area?.normalSeason ? <><p>{area.normalSeason.text}</p><a href={area.normalSeason.evidenceUrl}>Inspect seasonal evidence</a></> : <p>Unavailable until enough eligible observations are present.</p>}</section>
-            <section><p className="lab__eyebrow">Sensor-switch test</p>{labView.headline ? <><strong>{labView.headline.text}</strong><p>{labView.headline.denominator}</p><a href={labView.headline.evidenceUrl}>Inspect evidence</a></> : <><strong>Unavailable</strong><p>Result and number of evaluated cases are not available yet.</p></>}</section>
+            <section><p className="lab__eyebrow">Sensor-switch test</p>{liveView.headline ? <><strong>{liveView.headline.text}</strong><p>{liveView.headline.denominator}</p><a href={liveView.headline.evidenceUrl}>Inspect evidence</a></> : <><strong>Unavailable</strong><p>Result and number of evaluated cases are not available yet.</p></>}</section>
           </aside>
         </div>
         <Comparison area={area} />
