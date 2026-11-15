@@ -478,20 +478,22 @@ function Process-IncomingFixedForTesting {
     Write-Host "[2/4] Executing acceptance suite against $TargetSHA..." -ForegroundColor Cyan
     $TestResults = ""
     $TestExitCode = 0
+    $PytestBaseTemp = Join-Path $TestSandbox ".pytest_tmp"
+    if (Test-Path $PytestBaseTemp) { Remove-Item -Recurse -Force $PytestBaseTemp -ErrorAction SilentlyContinue }
     Push-Location $TestSandbox
     try {
         if ($OwnerRole -eq "P4") {
             if ($TaskId -like "P4-C*") {
-                $TestResults = (python -m pytest deploy -q -p no:cacheprovider 2>&1) -join "`n"
+                $TestResults = (python -m pytest deploy -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             } else {
-                $TestResults = (python -m pytest contracts artifact_pipeline -q -p no:cacheprovider 2>&1) -join "`n"
+                $TestResults = (python -m pytest contracts artifact_pipeline -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             }
             $TestExitCode = $LASTEXITCODE
         } elseif ($OwnerRole -eq "P1") {
-            $TestResults = (python -m pytest tests/science -q -p no:cacheprovider 2>&1) -join "`n"
+            $TestResults = (python -m pytest tests/science -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
         } elseif ($OwnerRole -eq "P2") {
-            $TestResults = (python -m pytest tests/unit -q -p no:cacheprovider 2>&1) -join "`n"
+            $TestResults = (python -m pytest tests/unit -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
         } elseif ($OwnerRole -eq "P3") {
             Push-Location "$TestSandbox\frontend"
@@ -514,21 +516,22 @@ function Process-IncomingFixedForTesting {
             }
         } elseif ($OwnerRole -eq "P5") {
             if ($TaskId -like "P5-A*") {
-                $TestResults = (python -m pytest eval -q -p no:cacheprovider 2>&1) -join "`n"
+                $TestResults = (python -m pytest eval -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             } elseif ($TaskId -like "P5-B*") {
-                $TestResults = (python -m pytest tests/e2e -q -p no:cacheprovider 2>&1) -join "`n"
+                $TestResults = (python -m pytest tests/e2e -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             } elseif ($TaskId -like "P5-C*") {
                 $TestResults = (python docs/submission/check_submission_readiness.py 2>&1) -join "`n"
             } else {
-                $TestResults = (python -m pytest eval tests/e2e -q -p no:cacheprovider 2>&1) -join "`n"
+                $TestResults = (python -m pytest eval tests/e2e -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             }
             $TestExitCode = $LASTEXITCODE
         } else {
-            $TestResults = (python -m pytest -q -p no:cacheprovider 2>&1) -join "`n"
+            $TestResults = (python -m pytest -q -p no:cacheprovider --basetemp="$PytestBaseTemp" 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
         }
     } finally {
         Pop-Location
+        if (Test-Path $PytestBaseTemp) { Remove-Item -Recurse -Force $PytestBaseTemp -ErrorAction SilentlyContinue }
     }
 
     Write-Host "  -> Suite finished with exit code $TestExitCode" -ForegroundColor $(if ($TestExitCode -eq 0) {"Green"} else {"Yellow"})
