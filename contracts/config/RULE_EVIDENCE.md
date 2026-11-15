@@ -6,8 +6,11 @@ contract 1.4.0, Round 10) on `task/P4-B-001`. Plan file
 `84B012E26B808AB98BE6B66232ADBC22DC03AC3F1D4423304C38EBD21A521DDC` (matches the hash cited in
 P5 records). Handoff references are commits on `origin/handoff`.
 
-Nothing in this file is registered or frozen. Values live in `pending_registrations.json`
-with `registered: false`. No date is backdated. All tests use fabricated data marked
+Registration state lives in `pending_registrations.json`. Registered there, from the
+P1 decision record `handoff/escalations/P1/P1-decision-week-definition-and-week53.md` (`origin/handoff` `bb1bf4c`, 2026-11-14 23:19:58 UTC): the UTC ISO week definition, the sealed window 2020-01-01..2021-12-31, the sealed
+partial reason and the week-53 minimum (3). Everything else stays `registered: false`. No date is
+backdated; the decision date is the one in P1's record. Sections 1-3 below keep their original
+evidence; their status lines were corrected 2026-11-15 to match the config. All tests use fabricated data marked
 `[SYNTHETIC DEV FIXTURE]`; no sealed observation is read or derived from.
 
 ## External-registry check
@@ -24,8 +27,8 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
 
 ## 1. Week definition: UTC ISO weeks
 
-- Status: P4's stated choice. Unfrozen: no P1 written approval with date/time and reference
-  exists in any ref.
+- Status: registered (P1 decision A in the P1 decision record `handoff/escalations/P1/P1-decision-week-definition-and-week53.md` (`origin/handoff` `bb1bf4c`, 2026-11-14 23:19:58 UTC)). Earlier rounds held it unregistered
+  because no written P1 approval existed then.
 - Evidence: plan L322-323 requires freezing "UTC ISO weeks or fixed 7-day bins". P1's
   escalation `handoff/escalations/P1/P1-B-001-r3.md` (`f9ab606`, 2026-11-14T18:10:57Z) says
   registration of ISO 8601 UTC weeks "is still needed". No conflicting registration exists.
@@ -38,9 +41,10 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
 - Agreed rule (P1, relayed by P4): three complete, supported, eligible prior ISO week-53
   observations from the same sensor and policy; otherwise `insufficient_baseline` and no
   unusual label.
-- Status: config value `3`, unregistered. Open: external-registry check; P1 written
-  approval with actual date/time and reference. Cleared: P5 holdout-policy decision
-  (`d0b8c90`).
+- Status: minimum 3 registered (P1 decision B in the P1 decision record `handoff/escalations/P1/P1-decision-week-definition-and-week53.md` (`origin/handoff` `bb1bf4c`, 2026-11-14 23:19:58 UTC)). Since contract 1.6.0 an
+  insufficient week-53 baseline carries a null unusual label (P1 decision B3), and week 53 is
+  unranked for critical weeks (`critical_status` null; P1 open item 1). The text below is the
+  original round-9 evidence.
 - Evidence: plan L325-328 ("With few same-sensor years, show 'insufficient baseline'
   instead of a flag"); P1 escalation `f9ab606` item 3 (week 53 rejected for 52-week years).
 - Contract: `Week53Baseline` lives inside one weekly series (same sensor and policy). Prior
@@ -64,7 +68,9 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
 - Rule: a period straddling the sealed window is partial and comparison-ineligible, with null
   unusual/critical labels, and uses only its permitted (outside-window) days.
 - Status: window `2020-01-01..2021-12-31` and reason `crosses_sealed_evaluation_boundary` are
-  proposed and unregistered. The window is artifact data, not a schema constant.
+  registered (P1 decision C in the P1 decision record `handoff/escalations/P1/P1-decision-week-definition-and-week53.md` (`origin/handoff` `bb1bf4c`, 2026-11-14 23:19:58 UTC)). The window is artifact data, not a schema constant.
+- A period wholly inside the window is rejected: it is excluded from artifacts, never represented
+  (section 8).
 - Evidence: plan L46 (2020-2021 sealed evaluation), L53 ("never reuse holdouts"), L71
   (holdouts sealed until methods freeze); P5 decision
   `handoff/escalations/P4/P4-holdout-baselines-decision.md` (`d0b8c90`); P5 governance
@@ -145,11 +151,16 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
 
 ## 8. Sealed window: periods wholly inside
 
-- A month or week wholly inside the declared sealed window may exist only as an unavailable,
-  undecided placeholder with no file days, so no sealed observation enters an artifact.
-- Evidence: P5 `d0b8c90` and `a111487`; P5 reconciliation `0a49cbb` (strict default: 2020-2021
-  excluded from all baselines; PA-001 not approved).
-- Test: `test_available_period_wholly_inside_window_is_rejected_but_placeholder_is_allowed`.
+- Rule (contract 1.6.0): a month or week lying wholly inside the declared sealed window is
+  rejected. Such periods are excluded from artifacts: no record at all, so they are never shown as
+  missing data, as unavailable / `no_file`, or with `partition_boundary`. An unavailable,
+  undecided placeholder is rejected too (`contracts/schemas/calendar.py`, `validate_calendar`).
+- Earlier text here described an unavailable placeholder; that path was removed in 1.6.0 and is
+  not allowed.
+- Evidence: P2 r11 section 3 (`origin/handoff` `8f67011`); P2 r12 condition 1 (`93820f0`); P5
+  `d0b8c90` and `a111487`; P5 reconciliation `0a49cbb` (strict default: 2020-2021 excluded from all
+  baselines; PA-001 not approved).
+- Test: `test_period_wholly_inside_window_is_excluded_even_as_a_placeholder`.
 
 ## 9. Coverage states and reasons (P2 r9 required changes 1 and 3; contract 1.4.0)
 
@@ -166,8 +177,9 @@ with `registered: false`. No date is backdated. All tests use fabricated data ma
   `crosses_sealed_evaluation_boundary` -> `partition_boundary`; the new partial reasons
   `missing_days_or_tiles` and `low_processed_coverage` map to themselves. Unavailable reason
   `source_not_available` with no file day -> `no_file`; new unavailable reason
-  `sensor_not_operating` -> `sensor_not_operating`. A period wholly inside the sealed window
-  (placeholder) lists `partition_boundary`; P2 to confirm that use of the term.
+  `sensor_not_operating` -> `sensor_not_operating`. `partition_boundary` applies only to periods
+  that cross a sealed-window edge. A period wholly inside the window is not represented at all
+  (section 8), so it lists no reason.
 - Mid-record missing files: partial (`missing_days_or_tiles`) when at least one permitted day has a
   file, otherwise unavailable (`no_file`). Partial periods are comparison-ineligible with null
   labels and null thresholds. D and O cover only days with a file; missing days are never zero.
@@ -276,7 +288,8 @@ rule. All coverage rules, and all committed calendar fixtures, are validated raw
 - P1: year-validity rule for baseline years (P2 proposal >= 9 of 12 months and O floor;
   unregistered; contract currently requires every day to have a file).
 - P1/P2: register C_MIN (0.99 or 1.0). Contract treats any shortfall as low until then.
-- P2: confirm `partition_boundary` for wholly sealed placeholder periods.
+- Resolved (P2 r11 section 3, `8f67011`): wholly sealed periods are excluded, not placeholders,
+  so `partition_boundary` never applies to them.
 - P1: paired-only scope of the both-sensors-complete rule (P2 r9 section 2 answered paired-only;
   implemented as `paired_comparison_eligible`).
 - Week 53: P1 proposal r1 (`3727f8f`, Section 5) says week 53 is never ranked for critical weeks. The
@@ -284,8 +297,9 @@ rule. All coverage rules, and all committed calendar fixtures, are validated raw
   cannot happen in the current phase. P1 to confirm whether week 53 may ever carry a critical label.
 - P1 proposal r1 items still unfrozen: strata and incomplete-month rule, support fraction f and
   D_min, ranked weeks, `n_busiest_weeks`, tie rule, excluded years.
-- UTC ISO week, sealed window, sealed reason and week-53 minimum: still unregistered (no P1 written
-  approval with date/time and reference; no external registry record found).
+- UTC ISO week, sealed window, sealed reason and week-53 minimum: registered from the P1 decision record `handoff/escalations/P1/P1-decision-week-definition-and-week53.md` (`origin/handoff` `bb1bf4c`, 2026-11-14 23:19:58 UTC).
+  The in-repo registry searches (19:32Z, 21:38Z) found no external registry record; none outside the
+  repository was checked.
 - P1-A vocabulary mapping: proposed only (section 13).
 - P5 gates held open (`0a49cbb`): footprint attestation (P2 r9 now says unverified), unregistered
   settings, P1-A mapping.
