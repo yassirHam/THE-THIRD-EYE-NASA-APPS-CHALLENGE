@@ -57,22 +57,52 @@ export function missionPolicy(region: RegionEvidence): PolicyView | null {
   return region.policies.find((p) => p.key === 'own_support' && has(p)) ?? region.policies.find(has) ?? null
 }
 
+export type CaseOptions = {
+  /** Observation set to read. Default: the mission's choice (see missionPolicy). */
+  policyKey?: string
+  /** Inclusive year range. Years outside it are left out of every value and sentence. */
+  from?: number
+  to?: number
+}
+
+const inRange = (y: number, o: CaseOptions) => (o.from === undefined || y >= o.from) && (o.to === undefined || y <= o.to)
+
+/** The equality-boundary reading restricted to the years in range. The per-year values are the
+ * file's; only the years are counted. With the full range this equals the file's own counts. */
+export function boundaryInRange(b: Boundary | undefined, o: CaseOptions = {}): Boundary | undefined {
+  if (!b) return undefined
+  if (!b.available) return b
+  const periods = b.periods.filter((p) => Number.isFinite(Number(p.period)) && inRange(Number(p.period), o))
+  if (periods.length === b.periods.length) return b
+  return {
+    ...b, periods,
+    counts: {
+      periods: periods.length,
+      a_break_outside_envelope: periods.filter((p) => p.inside === false).length,
+      variants_above: periods.filter((p) => p.side === 'mapped_above_aqua').length,
+      variants_below: periods.filter((p) => p.side === 'mapped_below_aqua').length,
+    },
+  }
+}
+
 function boundaryCounts(b: Boundary | undefined): MissionCase['boundary'] {
   if (!b || !b.available) return null
   const { a_break_outside_envelope: outside, periods, variants_above: above, variants_below: below } = b.counts
-  if ([outside, periods, above, below].some((n) => typeof n !== 'number')) return null
+  if ([outside, periods, above, below].some((n) => typeof n !== 'number') || periods === 0) return null
   return { outside, periods, above, below }
 }
 
-export function missionCase(detail: StageADetail, code: string): MissionCase | null {
+const years1 = (n: number) => `${n} year${n === 1 ? '' : 's'}`
+
+export function missionCase(detail: StageADetail, code: string, o: CaseOptions = {}): MissionCase | null {
   const region = detail.regions.find((r) => r.code === code)
   if (!region) return null
-  const policy = missionPolicy(region)
+  const policy = o.policyKey ? region.policies.find((p) => p.key === o.policyKey) ?? null : missionPolicy(region)
   if (!policy) return null
   const sealed = new Set(detail.sealedYears)
   const full = policy.variants.find((v) => v.id === FULL_TRAINING)
   const factor = full?.available && full.factor !== null ? full.factor : null
-  const years: MissionYear[] = policy.years.filter((y) => !sealed.has(y.year)).map((y) => {
+  const years: MissionYear[] = policy.years.filter((y) => !sealed.has(y.year) && inRange(y.year, o)).map((y) => {
     const m = y.variants.find((v) => v.id === FULL_TRAINING)
     const raw = y.variants.find((v) => v.id === 'raw')
     return { year: y.year, role: y.role, aqua: y.aqua.rate, viirs: y.viirs.rate, mapped: m?.mappedRate, gap: m?.pooledRelativeError, rawGap: raw?.pooledRelativeError }
@@ -82,27 +112,39 @@ export function missionCase(detail: StageADetail, code: string): MissionCase | n
   const rawGapRange = range(rawGaps)
   const gapRange = range(gaps)
   const rawAlwaysBelow = rawGaps.length === years.length && rawGaps.length > 0 && rawGaps.every((g) => g < 0)
-  const boundary = boundaryCounts(region.boundaries.find((b) => b.policyKey === policy.key))
+  const boundary = boundaryCounts(boundaryInRange(region.boundaries.find((b) => b.policyKey === policy.key), o))
   const composition = detail.composition.find((c) => c.bySensor.aqua.length > 0)
   const listed = years.map((y) => y.year)
   const shown = listed.length > 1 ? `${listed.slice(0, -1).join(', ')} and ${listed[listed.length - 1]}` : listed.join('')
   const training = yearsText(detail.trainingYears)
+  const when = listed.length === 1 ? `in ${shown}` : `in every year shown (${shown})`
+  const span = o.from !== undefined && o.to !== undefined ? (o.from === o.to ? String(o.from) : `${o.from} to ${o.to}`) : 'this record'
 
-  const finding = rawGapRange && rawAlwaysBelow
-    ? `In ${region.name}, VIIRS records a fire activity rate ${mag(rawGapRange[1])} to ${mag(rawGapRange[0])} lower than MODIS / Aqua in every year shown (${shown}), over the same weeks and land.`
-    : rawGapRange
-      ? `In ${region.name}, VIIRS and MODIS / Aqua differ by ${pct(rawGapRange[0])} to ${pct(rawGapRange[1])} over the same weeks and land (${shown}).`
-      : `In ${region.name}, the evidence file gives no year-by-year gap between the two satellites.`
-  const correction = factor !== null && gapRange
-    ? `Put on the Aqua scale (VIIRS \u00d7 ${f(factor)}, fitted on ${training}), the gap is ${pct(gapRange[0])} to ${pct(gapRange[1])}.`
-    : 'No correction could be fitted for this area, so VIIRS is not put on the Aqua scale. Nothing is substituted.'
+  const finding = !years.length
+    ? `In ${region.name}, no year in ${span} has a yearly value for both satellites.`
+    : rawGapRange && rawAlwaysBelow
+      ? `In ${region.name}, VIIRS records a fire activity rate ${rawGapRange[0] === rawGapRange[1] ? mag(rawGapRange[0]) : `${mag(rawGapRange[1])} to ${mag(rawGapRange[0])}`} lower than MODIS / Aqua ${when}, over the same weeks and land.`
+      : rawGapRange
+        ? `In ${region.name}, VIIRS and MODIS / Aqua differ by ${pct(rawGapRange[0])} to ${pct(rawGapRange[1])} over the same weeks and land (${shown}).`
+        : `In ${region.name}, the evidence file gives no year-by-year gap between the two satellites ${listed.length ? `for ${shown}` : ''}.`.replace(' .', '.')
+  const correction = factor === null
+    ? `No correction could be fitted for ${policy.label.toLowerCase()} in ${region.name}, so VIIRS is not put on the Aqua scale. Nothing is substituted.`
+    : !gapRange
+      ? `The correction (VIIRS \u00d7 ${f(factor)}, fitted on ${training}) has no yearly check in ${span}.`
+      : `Put on the Aqua scale (VIIRS \u00d7 ${f(factor)}, fitted on ${training}), the gap is ${gapRange[0] === gapRange[1] ? pct(gapRange[0]) : `${pct(gapRange[0])} to ${pct(gapRange[1])}`}.`
   const boundaryText = !boundary
-    ? 'The file gives no reading of which correction would make the two satellites agree.'
-    : `The correction that would make corrected VIIRS equal Aqua falls outside the tested range in ${boundary.outside} of ${boundary.periods} years. `
-      + (boundary.above === boundary.periods ? `Every tested correction puts VIIRS above Aqua in all ${boundary.periods} years.`
-        : boundary.below === boundary.periods ? `Every tested correction puts VIIRS below Aqua in all ${boundary.periods} years.`
-          : `Every tested correction puts VIIRS above Aqua in ${boundary.above} years and below in ${boundary.below}, so the direction of the remaining gap changes from year to year.`)
-  const limit = 'These rates count grid cell-days with detected fire, not fires or FIRMS points, and the tested corrections vary only the training years, not every possible sensor difference.'
+    ? `The file gives no reading for ${span} of which correction would make the two satellites agree.`
+    : `The correction that would make corrected VIIRS equal Aqua falls outside the tested range in ${boundary.outside} of ${years1(boundary.periods)}. `
+      + (boundary.above === boundary.periods ? `Every tested correction puts VIIRS above Aqua in ${boundary.periods === 1 ? 'that year' : `all ${boundary.periods} years`}.`
+        : boundary.below === boundary.periods ? `Every tested correction puts VIIRS below Aqua in ${boundary.periods === 1 ? 'that year' : `all ${boundary.periods} years`}.`
+          : `Every tested correction puts VIIRS above Aqua in ${years1(boundary.above)} and below in ${boundary.below}, so the direction of the remaining gap changes from year to year.`)
+  const notes: string[] = []
+  const covered = (ys: number[]) => ys.filter((y) => inRange(y, o))
+  const sealedHere = covered(detail.sealedYears), trainingHere = covered(detail.trainingYears)
+  if (sealedHere.length) notes.push(`${sealedHere.join(' and ')} ${sealedHere.length === 1 ? 'is' : 'are'} sealed for the sensor-switch test and not read.`)
+  if (trainingHere.length) notes.push(`Training ${trainingHere.length === 1 ? 'year' : 'years'} ${trainingHere.join(', ')} ${trainingHere.length === 1 ? 'is' : 'are'} only given pooled, with no yearly value.`)
+  if (policy.key === 'common_support') notes.push('Paired common observations are a diagnostic set; they have no fitted correction.')
+  const limit = ['These rates count grid cell-days with detected fire, not fires or FIRMS points, and the tested corrections vary only the training years, not every possible sensor difference.', ...notes].join(' ')
 
   return { region, policy, years, sealedYears: detail.sealedYears, trainingYears: detail.trainingYears, factor, envelope: policy.envelope, rawGapRange, gapRange, rawAlwaysBelow, boundary, composition, finding, correction, boundaryText, limit }
 }

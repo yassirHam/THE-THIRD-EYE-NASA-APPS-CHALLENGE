@@ -12,10 +12,10 @@ const pct = (n: number) => `${n > 0 ? '+' : n < 0 ? '\u2212' : ''}${Math.abs(n *
 
 type Row = { year: number; sealed: boolean; aqua?: number; viirs?: number; mapped?: number; lo?: number; hi?: number; error?: number; rawError?: number; role?: string }
 
-function rowsFor(detail: StageADetail, policy: PolicyView): Row[] {
+function rowsFor(detail: StageADetail, policy: PolicyView, from?: number, to?: number): Row[] {
   const years = policy.years.map((y) => y.year)
   if (!years.length) return []
-  const first = Math.min(...years), last = Math.max(...years)
+  const first = Math.max(Math.min(...years), from ?? -Infinity), last = Math.min(Math.max(...years), to ?? Infinity)
   const out: Row[] = []
   for (let y = first; y <= last; y += 1) {
     if (detail.sealedYears.includes(y)) { out.push({ year: y, sealed: true }); continue }
@@ -37,12 +37,18 @@ export function harmonyAvailable(policy: PolicyView | undefined): boolean {
   return !!policy?.years.some((y) => y.variants.some((v) => v.id === FULL && v.mappedRate !== undefined))
 }
 
-export default function Harmony({ detail, region, policy, compact }: { detail: StageADetail; region: RegionEvidence; policy: PolicyView; compact?: boolean }) {
-  const rows = rowsFor(detail, policy)
+export default function Harmony({ detail, region, policy, compact, from, to }: { detail: StageADetail; region: RegionEvidence; policy: PolicyView; compact?: boolean; from?: number; to?: number }) {
+  const rows = rowsFor(detail, policy, from, to)
   if (!harmonyAvailable(policy)) return (
     <section className="hm hm--none" aria-label="Harmonized view">
       <h3>Harmonized view unavailable for this observation set</h3>
       <p className="lab__note">None of the corrections could be fitted for {policy.label.toLowerCase()}, so VIIRS cannot be put on the Aqua scale here. Nothing is substituted. Choose own-area observations.</p>
+    </section>
+  )
+  if (!rows.some((r) => r.aqua !== undefined)) return (
+    <section className="hm hm--none" aria-label="Harmonized view">
+      <h3>No harmonized years in {from === to ? from : `${from} to ${to}`}</h3>
+      <p className="lab__note">{region.name} has yearly values for {policy.years.filter((y) => !detail.sealedYears.includes(y.year)).map((y) => y.year).join(', ')}. Training years 2016 to 2018 are pooled only and {detail.sealedYears.join(' and ')} are sealed, so nothing is drawn for this range. Widen the From and To years.</p>
     </section>
   )
   const W = compact ? 620 : 900, H = compact ? 230 : 320, m = { l: 56, r: 16, t: 18, b: 32 }

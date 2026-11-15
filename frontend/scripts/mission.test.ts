@@ -85,3 +85,40 @@ test('a missing yearly gap stays unavailable, never zero', () => {
   assert.equal(c.years.find((x) => x.year === 2024)!.gap, undefined)
   assert.ok(!c.years.some((x) => x.gap === 0))
 })
+
+test('Lab reading follows the year range: values, counts and sentences change with it', () => {
+  const d = detail()
+  const all = missionCase(d, '826', { policyKey: 'own_support' })!
+  const late = missionCase(d, '826', { policyKey: 'own_support', from: 2023, to: 2025 })!
+  assert.deepEqual(late.years.map((y) => y.year), [2023, 2024, 2025])
+  assert.deepEqual(late.boundary, { outside: 3, periods: 3, above: 0, below: 3 })
+  assert.match(late.boundaryText, /below Aqua in all 3 years/)
+  assert.notEqual(late.finding, all.finding)
+  assert.notEqual(late.correction, all.correction)
+  const gaps = late.years.map((y) => y.gap!)
+  assert.deepEqual(late.gapRange, [Math.min(...gaps), Math.max(...gaps)])
+})
+
+test('a single-year range reads as that year', () => {
+  const c = missionCase(detail(), '3218', { policyKey: 'own_support', from: 2022, to: 2022 })!
+  assert.match(c.finding, / in 2022,/)
+  assert.match(c.boundaryText, /in 1 of 1 year\./)
+})
+
+test('a range with no yearly values says so, and notes training and sealed years', () => {
+  const c = missionCase(detail(), '826', { policyKey: 'own_support', from: 2015, to: 2018 })!
+  assert.equal(c.years.length, 0)
+  assert.match(c.finding, /no year in 2015 to 2018 has a yearly value/)
+  assert.equal(c.gapRange, null)
+  assert.match(c.limit, /Training years 2016, 2017, 2018 are only given pooled/)
+  const s = missionCase(detail(), '826', { policyKey: 'own_support', from: 2019, to: 2022 })!
+  assert.match(s.limit, /2020 and 2021 are sealed/)
+})
+
+test('paired common observations: no correction is borrowed from own-area observations', () => {
+  const c = missionCase(detail(), '826', { policyKey: 'common_support' })!
+  assert.equal(c.factor, null)
+  assert.equal(c.gapRange, null)
+  assert.match(c.correction, /No correction could be fitted/)
+  assert.ok(!c.correction.includes('1.555'))
+})

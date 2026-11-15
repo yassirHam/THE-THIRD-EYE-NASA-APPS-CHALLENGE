@@ -12,6 +12,7 @@ import { loadBundle } from '../lab/loader'
 import { PLACEHOLDER_REGIONS, SHOW_PLACEHOLDER_REGIONS, SHOW_REVIEW_NOTICES } from '../lab/presentation'
 import { labView as placeholderView, type EvidenceView, type LabView } from '../lab/model'
 import { formatValue } from '../lab/view'
+import { boundaryInRange, missionCase } from '../lab/mission'
 import { DATA_CREDITS, NASA_BRANDING_RULE, SI_USE } from '../lib/credits'
 import './lab.css'
 import './workbench.css'
@@ -97,7 +98,9 @@ export default function Lab() {
   const rows = policy?.years.filter((y) => y.year >= from && y.year <= to) ?? []
   const slots = (s: SensorKey) => (detail ? yearSlots(detail, policy, s, from, to) : [])
   const max = Math.max(0, ...rows.flatMap((y) => [y.aqua.rate, y.viirs.rate])) * 1.15 || 1
-  const boundaries = region?.boundaries.filter((b) => b.policyKey === policy?.key) ?? []
+  const boundaries = (region?.boundaries.filter((b) => b.policyKey === policy?.key) ?? []).map((b) => boundaryInRange(b, { from, to })!)
+  // Finding and limit for exactly this area, observation set and year range, from the same templates as the Quick Mission.
+  const reading = detail && region && policy ? missionCase(detail, region.code, { policyKey: policy.key, from, to }) : null
   const country = FIRMS_COUNTRIES.find((c) => c.country === (region ? REGION_COUNTRY[region.code] : ''))
   const [firmsSensor, setFirmsSensor] = useState<FirmsSensor>('modis')
   const firmsYears = country?.bySensor[firmsSensor] ?? []
@@ -140,17 +143,21 @@ export default function Lab() {
           <div className="lab__sectionhead"><h3>{region?.name ?? 'No area yet'}</h3><span className={`lab__status ${SHOW_REVIEW_NOTICES && doc && !doc.released ? 'lab__status--synthetic' : ''}`}>{statusChip}</span></div>
           {region && detail && <p className="lab__meta">{from} to {to} · {satView === 'harmonized' ? <>VIIRS harmonized to the {SENSOR_NAME.aqua} scale</> : <>{SENSOR_NAME.aqua} and {SENSOR_NAME.viirs}, each on its own scale</>} · sealed {detail.sealedYears.join(', ')}</p>}
           {detail && <dl className="lab__aside">
-            {SHOW_REVIEW_NOTICES ? <>
-            <div><dt>Finding</dt><dd>No finding yet. Statistical inference is not established, and no pass rule is registered for 2022 to 2025.</dd></div>
-            <div><dt>Limit</dt><dd>Rates count fire cell-days, not fires or FIRMS points. Tested corrections vary the training years only, not every possible sensor bias.</dd></div>
-            </> : <>
-            <div><dt>Harmonization</dt><dd>{(() => { const fv = policy?.variants.find((v) => v.id === 'full_training_2016_2017_2018'); return fv?.factor != null ? <>VIIRS × {f(fv.factor)}, fitted on 2016 to 2018{policy?.envelope ? <>; tested corrections {f(policy.envelope[0])} to {f(policy.envelope[1])}</> : null}.</> : 'No correction could be fitted for this observation set.' })()}</dd></div>
-            <div><dt>Unit</dt><dd>Fire cell-days per 1,000 usable land cell-days. Not a count of fires or FIRMS points.</dd></div>
-            </>}
+            {reading ? <>
+            <div><dt>Finding</dt><dd>{satView === 'harmonized' ? <>{reading.finding} {reading.correction}</> : (() => {
+              const vals = reading.years.map((y) => ({ year: y.year, v: y[sensor] }))
+              if (!vals.length) return reading.finding
+              const lo = vals.reduce((a, b) => (b.v < a.v ? b : a)), hi = vals.reduce((a, b) => (b.v > a.v ? b : a))
+              return <>{SENSOR_NAME[sensor]} on its own: from {f(lo.v)} ({lo.year}) to {f(hi.v)} ({hi.year}) in the years shown. {reading.finding}</>
+            })()}</dd></div>
+            {satView === 'harmonized' && reading.factor !== null && <div><dt>Check</dt><dd>{reading.boundaryText}</dd></div>}
+            <div><dt>Limit</dt><dd>{reading.limit}</dd></div>
+            {SHOW_REVIEW_NOTICES && <div><dt>Status</dt><dd>Preliminary. Statistical inference is not established, and no pass rule is registered for 2022 to 2025.</dd></div>}
+            </> : <div><dt>Finding</dt><dd>No reading for this selection.</dd></div>}
           </dl>}
           {region && policy && detail ? <>
             {satView === 'harmonized' && harmonyAvailable(policy)
-              ? <><Harmony detail={detail} region={region} policy={policy} compact /><p className="lab__note"><button type="button" className="lab__link" onClick={() => set({ tab: 'trends' })}>Full harmonized table</button> · <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Each satellite on its own</button></p></>
+              ? <><Harmony detail={detail} region={region} policy={policy} from={from} to={to} compact /><p className="lab__note"><button type="button" className="lab__link" onClick={() => set({ tab: 'trends' })}>Full harmonized table</button> · <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Each satellite on its own</button></p></>
               : <><YearBars sensor={sensor} slots={slots(sensor)} max={max} /><p className="lab__note">Hatched years are sealed for the final test. Training years 2016 to 2018 are only given pooled, so they have no yearly bar. <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Full record</button></p></>}
           </> : empty}
           {SHOW_REVIEW_NOTICES && Headline}
@@ -160,7 +167,7 @@ export default function Lab() {
     calendar: region && policy && detail ? (
       <section className="lab__calendar" aria-labelledby="calendar-title">
         <div className="lab__sectionhead"><h3 id="calendar-title">Fire record by year</h3><span className="lab__status">{statusChip}</span></div>
-        {satView === 'harmonized' && <Harmony detail={detail} region={region} policy={policy} />}
+        {satView === 'harmonized' && <Harmony detail={detail} region={region} policy={policy} from={from} to={to} />}
         <div className="ev__charts"><YearBars sensor="aqua" slots={slots('aqua')} max={max} /><YearBars sensor="viirs" slots={slots('viirs')} max={max} /></div>
         {yearTable}
         <details className="lab__more"><summary>Weeks used and excluded per year</summary>
@@ -172,7 +179,7 @@ export default function Lab() {
     ) : empty,
     trends: region && policy && detail ? (
       <div className="lab__trends">
-        <Harmony detail={detail} region={region} policy={policy} />
+        <Harmony detail={detail} region={region} policy={policy} from={from} to={to} />
         <section aria-label="Aqua to VIIRS ratio">
           <h3>Aqua ÷ VIIRS, year by year</h3>
           <p className="lab__note">How much higher the MODIS / Aqua rate is than the VIIRS rate in each year, over the same eligible weeks. As given in the evidence file.</p>
@@ -192,7 +199,7 @@ export default function Lab() {
           </table></div>
           <p className="lab__note">{policy.envelope ? <>Tested corrections span {f(policy.envelope[0])} to {f(policy.envelope[1])}. {policy.envelopeNote}</> : 'No range of tested corrections: none of them could be fitted. Nothing is substituted.'}</p>
         </section>
-        {boundaries.length > 0 ? <div className="ev__grid">{boundaries.map((b) => <BoundaryCard key={b.id} b={b} region={region.name} />)}</div> : <p className="lab__note">No equality reading for this observation set.</p>}
+        {boundaries.length > 0 && boundaries.every((b) => b.available && !b.periods.length) ? <p className="lab__note">No year in {from} to {to} has an equality reading. Readings exist for {region.boundaries.find((b) => b.policyKey === policy.key)?.periods.map((p) => p.period).join(', ')}.</p> : boundaries.length > 0 ? <div className="ev__grid">{boundaries.map((b) => <BoundaryCard key={b.id} b={b} region={region.name} />)}</div> : <p className="lab__note">No equality reading for this observation set.</p>}
       </div>
     ) : empty,
     claims: (
