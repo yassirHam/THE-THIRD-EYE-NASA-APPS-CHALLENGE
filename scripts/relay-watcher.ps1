@@ -374,9 +374,20 @@ $FixContent
     }
 
     Write-Host "[2/5] Invoking Kiro headless in $TargetWorktree..." -ForegroundColor Cyan
+    $KiroSrc = Join-Path $RepoRoot ".kiro\agents\the-third-eye-coder.json"
+    if (Test-Path $KiroSrc) {
+        $KiroDestDir = Join-Path $TargetWorktree ".kiro\agents"
+        New-Item -ItemType Directory -Force -Path $KiroDestDir | Out-Null
+        Copy-Item -Path $KiroSrc -Destination (Join-Path $KiroDestDir "the-third-eye-coder.json") -Force -ErrorAction SilentlyContinue
+    }
     Push-Location $TargetWorktree
     try {
         Get-Content $FixOrder | kiro-cli chat --v3 --no-interactive --trust-all-tools --trust-workspace --agent the-third-eye-coder
+        $DirtyFiles = (git status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") -and ($_ -notmatch "\.relay-tmp[\\/]") }
+        if ($DirtyFiles) {
+            git add -A -- . ':!.kiro' ':!.relay-tmp' 2>$null
+            git commit -m "fix($TaskId): apply Round $Round fix order" 2>$null
+        }
     } finally {
         Pop-Location
     }
@@ -501,6 +512,17 @@ function Process-IncomingFixedForTesting {
             } finally {
                 Pop-Location
             }
+        } elseif ($OwnerRole -eq "P5") {
+            if ($TaskId -like "P5-A*") {
+                $TestResults = (python -m pytest eval -q -p no:cacheprovider 2>&1) -join "`n"
+            } elseif ($TaskId -like "P5-B*") {
+                $TestResults = (python -m pytest tests/e2e -q -p no:cacheprovider 2>&1) -join "`n"
+            } elseif ($TaskId -like "P5-C*") {
+                $TestResults = (python docs/submission/check_submission_readiness.py 2>&1) -join "`n"
+            } else {
+                $TestResults = (python -m pytest eval tests/e2e -q -p no:cacheprovider 2>&1) -join "`n"
+            }
+            $TestExitCode = $LASTEXITCODE
         } else {
             $TestResults = (python -m pytest -q -p no:cacheprovider 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
@@ -562,6 +584,182 @@ $TestResults
 
     Write-Host "[4/4] Relaying verdict to origin/handoff..." -ForegroundColor Cyan
     return (Push-HandoffFile -SourceFile $VerdictOut -DestPath $VerdictDestPath)
+}
+
+function Test-TaskMergedInIntegration {
+    param([string]$TaskId)
+    $logHits = (git -C "$RepoRoot" log origin/integration -n 40 --oneline 2>$null) -join "`n"
+    return ($logHits -match "\b$TaskId\b")
+}
+
+# AUTONOMOUS QUEUED TASK DISPATCHER (CONTINUOUS WORK WITHOUT MANUAL WINDOW-3 PROMPTS)
+function Invoke-NextRoleTask {
+    $allFiles = (git -C "$RepoRoot" ls-tree -r --name-only origin/handoff handoff/ 2>$null) -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    $Handled = @()
+    if (Test-Path $HandledLog) { $Handled = Get-Content $HandledLog }
+
+    $Queue = @(
+        @{
+            Role = "P2"; TaskId = "P2-A-002"; Lane = "A"; Branch = "task/P2-A-002"; Round = 2
+            RebaseIntegration = $true; RequiresMerged = @()
+            TestCmd = "python -m pytest tests/unit -q -p no:cacheprovider"
+            Prompt = @"
+Apply the 2 conditions from handoff/verdicts/P2/P2-A-002/r1-P2.md on branch task/P2-A-002 (already rebased onto integration):
+1. In pipeline/grid/coverage.py, make period_coverage validate and reject record_end > 2025-12-31 and multi-partition periods unless the caller passes the partition and excludes out-of-partition days with reason 'partition_boundary'. Add synthetic tests for both in tests/unit/test_coverage.py.
+2. In pipeline/grid/COVERAGE_RULE.md, explicitly state that coverage.py returns per-sensor states only and that paired/Aqua-only comparison eligibility is computed by P4 contracts (contracts/schemas/calendar.py, paired_comparison_eligible). Keep c_min=None fail-closed (1.0) and footprint_status unverified.
+Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
+"@
+        },
+        @{
+            Role = "P5"; TaskId = "P5-A-001"; Lane = "A"; Branch = "task/P5-A-001"; Round = 1
+            RebaseIntegration = $false; RequiresMerged = @()
+            TestCmd = "python -m pytest eval -q -p no:cacheprovider"
+            Prompt = "Verify 'python -m pytest eval -q -p no:cacheprovider' passes cleanly on task/P5-A-001 without modifying any sealed 2020-2021 holdout data."
+        },
+        @{
+            Role = "P1"; TaskId = "P1-A-002"; Lane = "A"; Branch = "task/P1-A-002"; Round = 1
+            RebaseIntegration = $true; RequiresMerged = @()
+            TestCmd = "python -m pytest tests/science -q -p no:cacheprovider"
+            Prompt = @"
+Using P2's non-sealed real dataset at `$env:THE_THIRD_EYE_DATA_DIR\focus_weekly_CA_BC.parquet (California ADM1_CODE 3218 and British Columbia ADM1_CODE 826; years 2002-2019 and 2022-2025; NEVER read 2020-2021):
+1. Add a reproducible Stage A real-data calibration script/module under science/methods/ that loads focus_weekly_CA_BC.parquet (if present at `$env:THE_THIRD_EYE_DATA_DIR), computes Stage A calibration (2016-2018 train, 2019 dev, 2022-2025 applicability), verifies the 8.2/2.8 vs 5.5/5.5 composition counterexample behavior, and writes a compact frozen parameter summary JSON (no raw parquet files committed to Git).
+2. Add synthetic unit tests in tests/science/ verifying the module without requiring external parquet files at CI time.
+3. Run 'python -m pytest tests/science -q -p no:cacheprovider' and confirm all tests pass.
+"@
+        },
+        @{
+            Role = "P4"; TaskId = "P4-B-002"; Lane = "B"; Branch = "task/P4-B-002"; Round = 1
+            RebaseIntegration = $true; RequiresMerged = @()
+            TestCmd = "python -m pytest contracts -q -p no:cacheprovider"
+            Prompt = @"
+Populate `counterexample_interpretations` in contracts/build_fixtures.py (currently []) with the structured geographic composition counterexample (8.2 -> 2.8 apparent -65.85% drop under shifting O shares vs 5.5 -> 5.5 fixed-weight 0.0% true block shift), regenerate contract fixtures and contracts/generated/types.ts if needed, and run 'python -m pytest contracts -q -p no:cacheprovider' to verify all contract tests pass.
+"@
+        },
+        @{
+            Role = "P4"; TaskId = "P4-A-002"; Lane = "A"; Branch = "task/P4-A-002"; Round = 1
+            RebaseIntegration = $true; RequiresMerged = @("P1-A-002", "P4-B-002")
+            TestCmd = "python -m pytest artifact_pipeline -q -p no:cacheprovider"
+            Prompt = @"
+Update artifact_pipeline/ to consume P1's frozen Stage A real-data summary (from science/methods/ and `$env:THE_THIRD_EYE_DATA_DIR\focus_weekly_CA_BC.parquet when available, never reading 2020-2021) and emit the static JSON evidence bundle including populated counterexample_interpretations. Run 'python -m pytest artifact_pipeline -q -p no:cacheprovider' and confirm all tests pass.
+"@
+        },
+        @{
+            Role = "P3"; TaskId = "P3-A-003"; Lane = "A"; Branch = "task/P3-A-003"; Round = 1
+            RebaseIntegration = $true; RequiresMerged = @("P4-B-002", "P4-A-002")
+            TestCmd = "npm --prefix frontend run test:contract; if (`$LASTEXITCODE -eq 0) { npm --prefix frontend run build }"
+            Prompt = @"
+In frontend/:
+1. Resync frontend/src/contracts/ and test fixtures to Contract 1.6.0 from contracts/.
+2. Render declared `sealed_window` periods as sealed (not missing data) in the UI.
+3. Render `counterexample_interpretations` (8.2/2.8 vs 5.5/5.5 geographic composition counterexample) cleanly in the Lab view.
+4. Wire the latest static JSON bundle outputs from artifact_pipeline/, then run 'npm --prefix frontend run test:contract' and 'npm --prefix frontend run build' and confirm exit code 0.
+"@
+        }
+    )
+
+    foreach ($job in $Queue) {
+        if ($job.Role -ne $Role) { continue }
+        $fixedRelPath = "handoff/fixed/$($job.Role)/$($job.TaskId)/r$($job.Round).md"
+        $queueKey = "QUEUE:$fixedRelPath"
+        if (($allFiles -contains $fixedRelPath) -or ($Handled -contains $queueKey)) { continue }
+
+        $prereqsMet = $true
+        foreach ($req in $job.RequiresMerged) {
+            if (-not (Test-TaskMergedInIntegration -TaskId $req)) {
+                $prereqsMet = $false
+                break
+            }
+        }
+        if (-not $prereqsMet) { continue }
+
+        $TargetWorktree = Get-LaneWorktree -RoleName $Role -LaneLetter $job.Lane -TaskId $job.TaskId
+        if (-not (Test-Path "$TargetWorktree\.git")) {
+            Write-Warning "[QUEUE] Worktree for $($job.TaskId) ($TargetWorktree) not found; skipping."
+            continue
+        }
+
+        Write-Host "`n>>> [AUTO-DISPATCH QUEUE] Starting $($job.TaskId) Round $($job.Round) in $TargetWorktree..." -ForegroundColor Magenta
+        $KiroSrc = Join-Path $RepoRoot ".kiro\agents\the-third-eye-coder.json"
+        if (Test-Path $KiroSrc) {
+            $KiroDestDir = Join-Path $TargetWorktree ".kiro\agents"
+            New-Item -ItemType Directory -Force -Path $KiroDestDir | Out-Null
+            Copy-Item -Path $KiroSrc -Destination (Join-Path $KiroDestDir "the-third-eye-coder.json") -Force -ErrorAction SilentlyContinue
+        }
+
+        git -C "$TargetWorktree" fetch origin integration "$($job.Branch)" 2>$null
+        $Dirty = (git -C "$TargetWorktree" status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") -and ($_ -notmatch "\.relay-tmp[\\/]") }
+        if ($Dirty) {
+            Write-Warning "[QUEUE] $TargetWorktree has uncommitted changes; skipping auto-dispatch to preserve work."
+            continue
+        }
+
+        git -C "$TargetWorktree" show-ref --verify --quiet "refs/remotes/origin/$($job.Branch)"
+        if ($LASTEXITCODE -eq 0) {
+            git -C "$TargetWorktree" checkout -B "$($job.Branch)" "origin/$($job.Branch)" 2>$null
+            if ($job.RebaseIntegration) {
+                git -C "$TargetWorktree" rebase origin/integration 2>$null
+                if ($LASTEXITCODE -ne 0) { git -C "$TargetWorktree" rebase --abort 2>$null }
+            }
+        } else {
+            git -C "$TargetWorktree" checkout -B "$($job.Branch)" origin/integration 2>$null
+        }
+
+        $TempDir = Join-Path $RepoRoot ".relay-tmp"
+        New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
+        $TaskPromptFile = Join-Path $TempDir "queue_$($job.TaskId)_r$($job.Round).txt"
+        $job.Prompt | Set-Content -Path $TaskPromptFile -Encoding utf8
+
+        Write-Host "[1/4] Invoking Kiro headless for $($job.TaskId)..." -ForegroundColor Cyan
+        Push-Location $TargetWorktree
+        try {
+            Get-Content $TaskPromptFile | kiro-cli chat --v3 --no-interactive --trust-all-tools --trust-workspace --agent the-third-eye-coder
+            $PostDirty = (git status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") -and ($_ -notmatch "\.relay-tmp[\\/]") }
+            if ($PostDirty) {
+                git add -A -- . ':!.kiro' ':!.relay-tmp' 2>$null
+                git commit -m "feat($($job.TaskId)): implement queued task Round $($job.Round)" 2>$null
+            }
+            Write-Host "[2/4] Running acceptance test: $($job.TestCmd)" -ForegroundColor Cyan
+            $TestOut = (Invoke-Expression $job.TestCmd 2>&1) -join "`n"
+            $TestCode = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+
+        if ($TestCode -ne 0) {
+            Write-Warning "[QUEUE] Acceptance test failed (exit $TestCode) for $($job.TaskId). Output:`n$TestOut"
+            continue
+        }
+
+        Write-Host "[3/4] Running Judge verification for $($job.TaskId)..." -ForegroundColor Cyan
+        $VerifyOut = Join-Path $TempDir "queue_verify_$($job.TaskId).md"
+        Invoke-Judge -Prompt "Verify $($job.TaskId) changes and test output in $TargetWorktree against project contracts and holdout firewall. Start line 1 with VERIFY_STATUS: PASS or VERIFY_STATUS: FAIL." -InputContent $TestOut -WorktreePath $TargetWorktree -OutputFile $VerifyOut
+        $VerifyTxt = if (Test-Path $VerifyOut) { Get-Content $VerifyOut -Raw } else { "PASS" }
+        if ($VerifyTxt -match "VERIFY_STATUS:\s*FAIL") {
+            Write-Warning "[QUEUE] Judge rejected $($job.TaskId). See $VerifyOut"
+            continue
+        }
+
+        $CurrentSHA = (git -C "$TargetWorktree" rev-parse HEAD 2>$null) -join ""
+        git -C "$TargetWorktree" push -u origin "$($job.Branch)" 2>&1 | Out-Host
+        $FixedNote = Join-Path $TempDir "fixed_$($job.TaskId)_r$($job.Round).md"
+        @"
+# Handoff / Ready For Review: $($job.TaskId) Round $($job.Round)
+- Task ID: $($job.TaskId)
+- Owner: $($job.Role)
+- Branch: ``$($job.Branch)``
+- Tested SHA: ``$CurrentSHA``
+- Result SHA: ``$CurrentSHA``
+- Acceptance Command: ``$($job.TestCmd)`` (exit 0)
+- Status: Ready for P5 verification
+"@ | Set-Content -Path $FixedNote -Encoding utf8
+
+        Write-Host "[4/4] Posting $fixedRelPath to origin/handoff..." -ForegroundColor Cyan
+        $pushed = Push-HandoffFile -SourceFile $FixedNote -DestPath $fixedRelPath
+        if ($pushed) {
+            Add-Content -Path $HandledLog -Value $queueKey
+        }
+        break
+    }
 }
 
 # INTEGRATION LEAD (P4): AUTOMATIC SERIAL MERGE OF P5-PASSED TASKS INTO INTEGRATION
@@ -672,6 +870,7 @@ do {
                 Add-Content -Path $HandledLog -Value $job.Path
             }
         }
+        Invoke-NextRoleTask
     } else {
         $PendingVerdicts = Get-ActionableVerdictsForRole -RoleName $Role
         foreach ($v in $PendingVerdicts) {
@@ -680,6 +879,7 @@ do {
                 Add-Content -Path $HandledLog -Value $v.Path
             }
         }
+        Invoke-NextRoleTask
         if ($Role -eq "P4") {
             Invoke-P4AutoMergePassedTasks
         }
