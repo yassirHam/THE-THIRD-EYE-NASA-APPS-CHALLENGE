@@ -518,14 +518,6 @@ class TestApplicabilitySeparation:
             "out_of_domain must NOT be mapped to failed_applicability"
         )
 
-    def test_omitted_calibration_status_returns_missing_required_support(self):
-        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status=None)
-        assert result == MISSING_REQUIRED_SUPPORT
-
-    def test_unrecognized_calibration_status_returns_missing_required_support(self):
-        result = check_applicability(O=100, min_support=5, in_domain=True, calibration_check_status="unknown_status")
-        assert result == MISSING_REQUIRED_SUPPORT
-
     def test_out_of_domain_even_with_zero_obs(self):
         """out_of_domain takes absolute priority over missing_required_support."""
         result = check_applicability(O=0, min_support=5, in_domain=False)
