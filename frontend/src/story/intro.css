@@ -1,0 +1,154 @@
+.intro { position: fixed; inset: 0; background: #030405; overflow: hidden; }
+
+.intro__panel { position: absolute; z-index: 10; visibility: hidden; pointer-events: none; }
+.intro__panel button { pointer-events: auto; }
+
+.intro__line {
+  margin: 0 0 14px;
+  font-family: var(--prose);
+  font-weight: 500;
+  font-size: clamp(22px, 2vw, 32px);
+  line-height: 1.32;
+  color: var(--ivory);
+  max-width: 28ch;
+  text-wrap: pretty;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.9);
+}
+.intro__line--big {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(40px, 5vw, 88px);
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+  max-width: 14ch;
+  margin-bottom: 26px;
+}
+.ch { white-space: pre; }
+.word { white-space: nowrap; }
+
+/* the park is bright, so the narration sits on a solid dark card, to the right of the child */
+.intro__panel--p1 {
+  right: 5vw;
+  top: 34vh;
+  width: min(30ch, 40vw);
+  padding: 22px 28px 10px;
+  background: rgba(6, 8, 10, 0.8);
+  border-left: 2px solid var(--amber);
+}
+.intro__panel--p1 .intro__line { font-size: clamp(20px, 1.7vw, 28px); }
+.intro__panel--p1 .intro__line--big { font-size: clamp(30px, 3vw, 52px); }
+.intro__panel--l { left: 0; width: 50%; top: 0; bottom: 0; display: grid; align-content: center; padding: 0 6vw; }
+.intro__panel--r { right: 0; width: 50%; top: 0; bottom: 0; display: grid; align-content: center; padding: 0 6vw; }
+.intro__panel--b {
+  left: 50%; bottom: 4vh; translate: -50% 0;
+  width: min(620px, 90vw);
+  padding: 26px 34px;
+  background: linear-gradient(180deg, rgba(3, 4, 5, 0.55), rgba(3, 4, 5, 0.9));
+  border-top: 1px solid var(--rule);
+  backdrop-filter: blur(4px);
+}
+.intro__panel--b .intro__line--big { max-width: none; font-size: clamp(28px, 2.6vw, 44px); margin-bottom: 10px; }
+.intro__panel--b .intro__line { font-size: clamp(18px, 1.5vw, 24px); margin-bottom: 6px; }
+.intro__seam { display: block; width: min(100%, 440px); height: auto; margin: 0 auto 10px; }
+
+.intro__panel--t { inset: 0; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; text-align: center; padding: 6vh 6vw 5vh; }
+.intro__panel--t .intro__line { max-width: 40ch; margin-inline: auto; }
+.intro__panel--t .intro__line--big { max-width: none; }
+.intro__t-bottom { grid-row: 3; display: grid; justify-items: center; align-items: end; padding: 4vh 6vw 0; background: radial-gradient(60% 70% at 50% 70%, rgba(3, 4, 5, 0.82), transparent 75%); }
+.intro__t-copy, .intro__t-end { grid-area: 1 / 1; display: grid; justify-items: center; }
+.intro__t-copy { align-self: center; padding-bottom: 6vh; }
+.intro__title {
+  margin: 1vh 0 2.4vh;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: clamp(56px, 10vw, 180px);
+  letter-spacing: 0.04em;
+  line-height: 0.85;
+  color: var(--ivory);
+  text-shadow: 0 0 50px rgba(229, 164, 59, 0.35);
+}
+.intro__title .ch { display: inline-block; }
+.intro__begin {
+  position: relative;
+  padding: 14px 34px;
+  border: 1px solid var(--amber);
+  font-family: var(--ui);
+  font-size: 13px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ivory);
+  overflow: hidden;
+}
+.intro__begin::before { content: ''; position: absolute; inset: 0; background: var(--amber); transform: scaleX(0); transform-origin: right; transition: transform 500ms var(--ease-out); z-index: -1; }
+.intro__begin:hover::before, .intro__begin:focus-visible::before { transform: scaleX(1); transform-origin: left; }
+.intro__begin:hover, .intro__begin:focus-visible { color: var(--void); }
+
+.intro__tag { margin: 18px 0 0; font-family: var(--ui); font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; }
+.intro__tag span { display: block; margin-top: 6px; font-size: 12px; letter-spacing: 0.04em; text-transform: none; color: var(--ivory-dim); }
+.intro__tag--modis { color: var(--amber); }
+.intro__tag--viirs { color: var(--teal); }
+
+/* shown over the dark screen before the eyes open */
+.intro__phones {
+  position: absolute; z-index: 15; left: 50%; top: 50%; translate: -50% -50%;
+  display: grid; justify-items: center; gap: 10px;
+  width: min(420px, 86vw);
+  text-align: center;
+  color: var(--ivory);
+  visibility: hidden;
+  pointer-events: none;
+}
+.intro__phones svg { margin-bottom: 6px; }
+.intro__phones-title { margin: 0; font-family: var(--ui); font-size: 13px; letter-spacing: 0.24em; text-transform: uppercase; }
+.intro__phones-text { margin: 0; font-family: var(--prose); font-size: clamp(19px, 1.6vw, 24px); color: var(--ivory-dim); }
+
+.intro__eyes { position: absolute; z-index: 10; top: 6vh; left: 7vw; display: flex; gap: 12px; padding: 8px 12px; background: rgba(6, 8, 10, 0.8); visibility: hidden; }
+.intro__eye { transition: opacity 120ms; }
+.intro__eyes .eye__lids { transform-origin: 50% 50%; transform-box: fill-box; transition: transform 120ms; }
+.intro__eyes[data-open='left'] .intro__eye--r .eye__lids,
+.intro__eyes[data-open='right'] .intro__eye--l .eye__lids { transform: scaleY(0.06); }
+.intro__eyes[data-open='left'] .intro__eye--r,
+.intro__eyes[data-open='right'] .intro__eye--l { opacity: 0.4; }
+
+.intro__controls { position: absolute; z-index: 20; right: 28px; bottom: 24px; display: flex; gap: 8px; align-items: center; padding: 8px; background: rgba(6, 8, 10, 0.8); }
+.intro__controls button {
+  display: inline-flex; gap: 8px; align-items: center;
+  padding: 6px 12px;
+  font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--ivory);
+  border: 1px solid var(--ivory-faint);
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.intro__controls button:hover, .intro__controls button:focus-visible { background: var(--ivory); color: var(--void); border-color: var(--ivory); }
+.intro__controls .is-strong { border-color: var(--ivory-dim); }
+.intro__controls button[aria-pressed='true'] { border-color: var(--ivory); }
+.intro__controls button:hover kbd, .intro__controls button:focus-visible kbd { color: var(--void); border-color: var(--void); }
+.intro__voice { margin: 0 6px 0 4px; font-size: 11px; letter-spacing: 0.04em; color: var(--ivory-dim); }
+.intro__sound.is-blocked { color: var(--void); background: var(--amber); border-color: var(--amber); }
+
+@media (max-width: 860px) {
+  .intro__panel--l, .intro__panel--r { width: 100%; height: 50%; top: auto; bottom: 0; }
+  .intro__panel--l { top: 0; bottom: auto; }
+  /* keep the right-eye text clear of the playback controls */
+  .intro__panel--r { bottom: 72px; height: calc(50% - 72px); }
+  .intro__panel--p1 { left: 4vw; right: 4vw; width: auto; top: auto; bottom: 84px; padding: 16px 18px 6px; }
+  .intro__controls { left: 12px; right: 12px; justify-content: center; flex-wrap: wrap; }
+  .intro__voice { display: none; }
+  .intro__panel--t { padding-bottom: 84px; }
+  .intro__title { font-size: 11.5vw; letter-spacing: 0.02em; white-space: nowrap; }
+}
+
+@media (max-width: 400px) {
+  .intro__line { font-size: 19px; margin-bottom: 10px; }
+  .intro__line--big { font-size: 34px; margin-bottom: 16px; }
+  /* "Skip intro" reads as "Skip" on the narrowest phones so the controls keep one row */
+  .intro__skip-more { display: none; }
+}
+@media (max-width: 520px) {
+  /* one row of controls on phones, so they never cover the narration */
+  .intro__controls { flex-wrap: nowrap; gap: 6px; padding: 6px; }
+  .intro__controls button { padding: 7px 8px; font-size: 11px; letter-spacing: 0.08em; white-space: nowrap; }
+  .intro__controls kbd { display: none; }
+  .intro__sound:not(.is-blocked) .intro__sound-text { display: none; }
+  .intro__voice { display: block; position: absolute; right: 0; bottom: calc(100% + 4px); margin: 0; padding: 2px 6px; background: rgba(6, 8, 10, 0.8); }
+}

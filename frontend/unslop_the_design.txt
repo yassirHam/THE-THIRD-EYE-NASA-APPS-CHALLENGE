@@ -1,0 +1,21 @@
+#	Principle	What it means
+1	Delete filler badges	Remove unnecessary tags such as “AI-Powered,” “Next-Gen,” or “Premium” that add no useful information.
+2	Drop redundant labels	Avoid repeating information already communicated by headings, icons, or surrounding elements.
+3	Unitalicize random words	Stop applying italics to arbitrary words purely for decoration. Use typography intentionally.
+4	Mono only where needed	Reserve monospace fonts for code, technical values, identifiers, and appropriate data displays.
+5	Use a design system	Establish consistent typography, colors, spacing, border radii, and reusable components.
+6	Show the actual product	Replace vague illustrations and generic graphics with real product screenshots or functional previews.
+7	Enlarge the main feature	Make the most important product feature visually dominant rather than giving every element equal weight.
+8	Group with spacing	Use proximity and whitespace to establish relationships between elements instead of excessive borders or containers.
+9	Make headlines specific	Replace generic marketing language with concrete descriptions of what the product does or delivers.
+10	Emphasize the CTA	Make the primary call-to-action visually prominent, clearly worded, and easy to identify.
+11	Add an accent colour	Introduce a deliberate accent color to guide attention and establish visual identity.
+12	Keep icons consistent	Use one coherent icon family with consistent stroke widths, sizes, and visual styles.
+13	Remove embellishments	Eliminate unnecessary gradients, glowing effects, decorative blobs, shadows, and visual ornaments.
+14	Inner radius = outer − padding	For nested rounded containers, use geometrically consistent corner radii. For uniform padding, a useful approximation is inner radius = outer radius − padding.
+15	Improve text contrast	Ensure text is readable against its background, especially secondary labels and body text.
+16	Wrap headlines properly	Control line breaks to produce balanced, readable headlines rather than awkward word wrapping.
+17	Align by eye, not pixels	Use optical alignment when mathematically perfect positioning still looks visually unbalanced.
+18	Use tabular nums	Enable tabular numerals for dashboards, counters, tables, and financial values so numbers maintain consistent widths.
+19	Add loading states	Show meaningful progress indicators, skeleton screens, or loading feedback during asynchronous operations.
+20	Animate useful feedback	Use subtle motion to communicate changes, confirmations, transitions, or interaction states rather than decorative animation.
