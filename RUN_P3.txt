@@ -1,0 +1,44 @@
+======================================================================
+THE THIRD EYE — P3 (FRONTEND LEAD & PRESENTATION) PLUG-AND-PLAY
+======================================================================
+Tools on laptop: agy (git/relay) | codex (read-only judge) | kiro-cli (coder)
+Worktrees: ..\the-third-eye-P3-A | ..\the-third-eye-P3-B | ..\the-third-eye-P3-C
+Ports: P3-A: 5173 | P3-B: 5174 | P3-C: 5175
+
+----------------------------------------------------------------------
+STEP 1: OPEN POWERSHELL & UPDATE CODE / PERMISSIONS
+----------------------------------------------------------------------
+Set-Location "$HOME\projects\the-third-eye"
+git fetch origin
+git pull origin p3/frontend 2>$null
+
+# Sync Kiro agent permissions across your worktrees
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P3-A\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P3-B\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P3-C\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+
+----------------------------------------------------------------------
+STEP 2: START THE AUTOMATED RELAY (RUN THIS AND LEAVE IT RUNNING)
+----------------------------------------------------------------------
+# This automatically watches for verdicts, runs Codex, fixes via Kiro,
+# and pushes to origin without you copying text between windows!
+powershell -ExecutionPolicy Bypass -File .\scripts\launch-coordinator.ps1 -Role P3
+
+----------------------------------------------------------------------
+STEP 3: TO START OR SWITCH TO A NEW LANE (A, B, OR C)
+----------------------------------------------------------------------
+# For Lane A (frontend/calendar/ + package.json + shell):
+Set-Location "$HOME\projects\the-third-eye-P3-A"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane B (frontend/comparison/):
+Set-Location "$HOME\projects\the-third-eye-P3-B"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane C (frontend/evidence/):
+Set-Location "$HOME\projects\the-third-eye-P3-C"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+======================================================================

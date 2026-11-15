@@ -1,0 +1,43 @@
+======================================================================
+THE THIRD EYE — P2 (NASA DATA, GEOGRAPHY & SOURCE QUALITY) PLUG-AND-PLAY
+======================================================================
+Tools on laptop: agy (git/relay) | codex (read-only judge) | kiro-cli (coder)
+Worktrees: ..\the-third-eye-P2-A | ..\the-third-eye-P2-B | ..\the-third-eye-P2-C
+
+----------------------------------------------------------------------
+STEP 1: OPEN POWERSHELL & UPDATE CODE / PERMISSIONS
+----------------------------------------------------------------------
+Set-Location "$HOME\projects\the-third-eye"
+git fetch origin
+git pull origin p2/data 2>$null
+
+# Sync Kiro agent permissions across your worktrees
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P2-A\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P2-B\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P2-C\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+
+----------------------------------------------------------------------
+STEP 2: START THE AUTOMATED RELAY (RUN THIS AND LEAVE IT RUNNING)
+----------------------------------------------------------------------
+# This automatically watches for verdicts, runs Codex, fixes via Kiro,
+# and pushes to origin without you copying text between windows!
+powershell -ExecutionPolicy Bypass -File .\scripts\launch-coordinator.ps1 -Role P2
+
+----------------------------------------------------------------------
+STEP 3: TO START OR SWITCH TO A NEW LANE (A, B, OR C)
+----------------------------------------------------------------------
+# For Lane A (pipeline/masks/, pipeline/grid/):
+Set-Location "$HOME\projects\the-third-eye-P2-A"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane B (pipeline/acquisition/, pipeline/exports/):
+Set-Location "$HOME\projects\the-third-eye-P2-B"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane C (data/manifests/):
+Set-Location "$HOME\projects\the-third-eye-P2-C"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+======================================================================

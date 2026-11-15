@@ -1,0 +1,44 @@
+======================================================================
+THE THIRD EYE — P5 (INDEPENDENT QA, EVALUATION & SUBMISSION) PLUG-AND-PLAY
+======================================================================
+Tools on laptop: agy #1 (relay) | agy #2 (acts as Codex judge) | kiro-cli (test writer)
+Worktrees: ..\the-third-eye-P5-A | ..\the-third-eye-P5-B | ..\the-third-eye-P5-C
+
+----------------------------------------------------------------------
+STEP 1: OPEN POWERSHELL & UPDATE CODE / PERMISSIONS
+----------------------------------------------------------------------
+Set-Location "$HOME\projects\the-third-eye"
+git fetch origin
+git pull origin p5/eval 2>$null
+
+# Sync Kiro agent permissions across your worktrees
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P5-A\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P5-B\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+Copy-Item .kiro\agents\the-third-eye-coder.json ..\the-third-eye-P5-C\.kiro\agents\the-third-eye-coder.json -Force -ErrorAction SilentlyContinue
+
+----------------------------------------------------------------------
+STEP 2: START THE AUTOMATED QA TESTER (RUN THIS AND LEAVE IT RUNNING)
+----------------------------------------------------------------------
+# This automatically watches for fixed tasks from P1, P2, P3, P4,
+# runs the test suites, judges with your second agy CLI instance,
+# and writes PASS/FAIL verdicts to origin/handoff automatically!
+powershell -ExecutionPolicy Bypass -File .\scripts\launch-coordinator.ps1 -Role P5 -UseAgyForJudge
+
+----------------------------------------------------------------------
+STEP 3: TO START OR SWITCH TO A NEW LANE (A, B, OR C)
+----------------------------------------------------------------------
+# For Lane A (eval/):
+Set-Location "$HOME\projects\the-third-eye-P5-A"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane B (tests/e2e/):
+Set-Location "$HOME\projects\the-third-eye-P5-B"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+
+# For Lane C (docs/submission/, challenge/):
+Set-Location "$HOME\projects\the-third-eye-P5-C"
+git pull --rebase origin integration
+kiro-cli chat --v3 --agent the-third-eye-coder
+======================================================================
