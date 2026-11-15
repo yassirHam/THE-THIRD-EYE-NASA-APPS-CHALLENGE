@@ -1,23 +1,30 @@
-# THE THIRD EYE - current project packet
+﻿# THE THIRD EYE
 
-NASA Space Apps 2026, challenge "Harmonization of MODIS and VIIRS Hot Spots".
-Start with [the authoritative plan](THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt)
-and its Weekend Build Brief. No empirical result is implied; project code is
-built during the event.
+THE THIRD EYE explores how changes between satellite sensors can affect the interpretation of historical fire observations. It brings a fire calendar, sensor comparison and evidence together in a browser interface for the NASA Space Apps challenge “Harmonization of MODIS and VIIRS Hot Spots”.
 
-| File | Purpose |
-|---|---|
-| [PLAN_REVIEW.md](PLAN_REVIEW.md) | Review history and enhancements |
-| [AGENTS.md](AGENTS.md) | Every agent's entry point |
-| [Execution specification](THE_THIRD_EYE_EXECUTION_SPEC.md) | Current checkpoints |
-| [Frontend contract](THE_THIRD_EYE_FRONTEND_CONTRACT.md) | Parallax / Third Eye, three modes and scientific parity |
-| [Agent playbook](THE_THIRD_EYE_AI_AGENTS_PLAYBOOK.md) | Human ownership, isolated tasks and handoffs |
-| [Teammate setup](THE_THIRD_EYE_TEAMMATE_SETUP.md) | What to share and how to verify each PC |
-| [Five-person assignments](THE_THIRD_EYE_FIVE_PERSON_ASSIGNMENTS.txt) | Three agent lanes per person, deliverables, handoffs and timeboxes |
-| [Team missions PDF](THE_THIRD_EYE_TEAM_MISSIONS.pdf) | Printable missions, tiers and milestones (source: `.tex`) |
-| [team-kit/](team-kit/) | Agent startup prompt, optional InstaBox and Boxes.dev guides, frontend skills list |
-| [prompts/](prompts/) | 12:00 AM GitHub branch workflow and per-person (P1--P5) Kiro, Codex, and Antigravity prompts |
-| [.kiro/agents/the-third-eye-coder.md](.kiro/agents/the-third-eye-coder.md) | Custom Kiro sub-agent config pinned to `claude-sonnet-4.6` (`plan_f.txt`) |
-| External visual references (not inside this planning repo) | Frontend visual references only, not data |
+## Current status
 
-Send this packet at one agreed Git commit.
+This repository contains a prototype and its scientific and data-processing work. The held-out evaluation and independent replay are recorded as pending in the [results summary](docs/submission/ONE_PAGE_RESULTS.md); the project should not be treated as a validated fire assessment. Missing observations are not zero, and a satellite observation is not a count of fires. FIRMS hotspot points are a separate view and do not enter the grid-based rates or verdicts.
+
+## Explore the project
+
+- [Frontend](frontend/): browser interface and local setup.
+- [Scientific methods](science/) and [data pipeline](pipeline/): methods and preparation of satellite observations.
+- [Contracts](contracts/) and [artifact pipeline](artifact_pipeline/): versioned interfaces and publication artifacts.
+- [Evaluation](eval/) and [results summary](docs/submission/ONE_PAGE_RESULTS.md): evaluation work, pending results and limitations.
+- [Scientific plan](THE_THIRD_EYE_FINAL_PLAN_GEOGRAPHIC_ACCESS_UPDATED.txt): registered scope, interpretation and safeguards.
+
+## Run the frontend
+
+With Node.js installed, run from the `frontend` directory:
+
+```sh
+npm ci
+npm run dev
+```
+
+The interface may show unavailable or fixture-backed content when published data and evaluation artifacts are absent; see the results summary before interpreting a display as a measured result.
+
+## Data and limitations
+
+The planned comparison uses Aqua MODIS MYD14A1 and Suomi NPP VIIRS VNP14A1 daily grids. Rates describe detected fire cell-days per usable land cell-day, not individual fires. Factors and evaluated status do not automatically transfer to other areas or satellites. Suomi NPP is a closed archive; NOAA-20 is a separate platform. See the [results summary](docs/submission/ONE_PAGE_RESULTS.md) for further limitations and outstanding evidence.
