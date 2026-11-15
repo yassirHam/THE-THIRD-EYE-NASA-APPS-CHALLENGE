@@ -712,7 +712,68 @@ def claim_audit(comp: dict | None = None, suffix: str = "") -> dict:
         "missing_evidence_reasons": comp["missing_evidence_reasons"],
         "conclusion_eligible": comp["conclusion_eligible"],
         "reviewed_summary": comp["reviewed_summary"],
-        "counterexample_interpretations": [],
+        "counterexample_interpretations": [
+            {
+                # Section 4B mandatory geographic-composition counterexample.
+                # Block rates are fixed at r_A=10, r_B=1 in both periods.
+                # Shifting usable-observation shares (0.8/0.2 -> 0.2/0.8) produces an
+                # apparent R change of 8.2 -> 2.8 (-65.85%) with NO true block-rate change.
+                # Fixed equal weights q_A=q_B=0.5 give R_std=5.5 in both periods (0.0% shift).
+                "counterexample_id": "geo_composition_shift_section_4b",
+                "label": "Geographic composition shift: apparent -65.85% with zero true block-rate change",
+                "description": (
+                    "[SYNTHETIC DEV FIXTURE] "
+                    "Block rates r_A=10 and r_B=1 are identical in both periods. "
+                    "Usable-observation shares shift from 0.8/0.2 to 0.2/0.8, "
+                    "driving the observed regional index from R_1=8.2 to R_2=2.8 "
+                    "(an apparent -65.85% decrease). "
+                    "Fixed equal weights q_A=q_B=0.5 yield R_std=5.5 in both periods (0.0% change). "
+                    "This demonstrates geographic composition as a confound in aggregation "
+                    "(related to Simpson's paradox); it is not necessarily a strict "
+                    "direction-reversal example of that paradox. "
+                    "Assert: weighted-sum identity holds and block D/O totals reconcile with "
+                    "regional counts. Missing required blocks must never be silently zero-filled "
+                    "or cause remaining fixed weights to be renormalized."
+                ),
+                "fixture_source": "plan Section 4B mandatory hand-computed fixture",
+                "blocks": [
+                    {"block_id": "A", "block_rate_r": 10.0},
+                    {"block_id": "B", "block_rate_r": 1.0},
+                ],
+                "period_1": {
+                    "observation_shares": {"A": 0.8, "B": 0.2},
+                    "regional_index_R": 8.2,
+                    "weighted_sum_check": "0.8*10 + 0.2*1 = 8.0 + 0.2 = 8.2",
+                },
+                "period_2": {
+                    "observation_shares": {"A": 0.2, "B": 0.8},
+                    "regional_index_R": 2.8,
+                    "weighted_sum_check": "0.2*10 + 0.8*1 = 2.0 + 0.8 = 2.8",
+                },
+                "apparent_change_percent": -65.85,
+                "apparent_change_formula": "(2.8 - 8.2) / 8.2 * 100 = -65.85%",
+                "true_block_rate_change_percent": 0.0,
+                "fixed_weight_standardization": {
+                    "fixed_weights": {"A": 0.5, "B": 0.5},
+                    "R_std_period_1": 5.5,
+                    "R_std_period_2": 5.5,
+                    "standardized_change_percent": 0.0,
+                    "check_period_1": "0.5*10 + 0.5*1 = 5.0 + 0.5 = 5.5",
+                    "check_period_2": "0.5*10 + 0.5*1 = 5.0 + 0.5 = 5.5",
+                    "note": (
+                        "Equal weights are illustrative, not a universal default. "
+                        "R_std is a different estimand: fixed-geography aggregation of "
+                        "observed block rates. It does not recover missing fire activity."
+                    ),
+                },
+                "missing_block_rule": (
+                    "If a required block lacks prespecified support, omit the result or "
+                    "use a separately registered restricted target. Never substitute zero "
+                    "or silently renormalize remaining fixed weights."
+                ),
+                "data_classification": "synthetic_dev_fixture",
+            }
+        ],
         "reproducibility_sha256": hashlib.sha256(b"synthetic-claim").hexdigest(),
         "verification_steps": ["Check O > 0.", "Check all registered variants."],
         "evidence_artifact_versions": ["synthetic-v1"],
