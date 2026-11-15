@@ -4,6 +4,7 @@ import Hud from '../components/Hud'
 import { Name } from '../components/Keep'
 import Counterexamples from '../lab/Counterexamples'
 import { BoundaryCard, CompositionCard, YearBars, type Slot } from '../lab/EvidencePanel'
+import Harmony, { harmonyAvailable } from '../lab/Harmony'
 import RegionMap, { type MapMarker } from '../lab/RegionMap'
 import { SENSOR_NAME, type PolicyView, type RegionEvidence, type SensorKey, type StageADetail } from '../lab/evidence'
 import { FIRMS_COUNTRIES, FIRMS_DATASET, FIRMS_RETRIEVED, FIRMS_SEALED, FIRMS_SENSOR_LABEL, FIRMS_SOURCE, REGION_COUNTRY, type FirmsSensor, type FirmsYear } from '../lab/firms'
@@ -136,9 +137,10 @@ export default function Lab() {
             <div><dt>Finding</dt><dd>No finding yet. Statistical inference is not established, and no pass rule is registered for 2022 to 2025.</dd></div>
             <div><dt>Limit</dt><dd>Rates count fire cell-days, not fires or FIRMS points. Tested corrections vary the training years only, not every possible sensor bias.</dd></div>
           </dl>}
-          {region && policy ? <>
-            <YearBars sensor={sensor} slots={slots(sensor)} max={max} />
-            <p className="lab__note">Hatched years are sealed for the final test. Training years 2016 to 2018 are only given pooled, so they have no yearly bar. <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Full record</button></p>
+          {region && policy && detail ? <>
+            {harmonyAvailable(policy)
+              ? <><Harmony detail={detail} region={region} policy={policy} compact /><p className="lab__note"><button type="button" className="lab__link" onClick={() => set({ tab: 'trends' })}>Full harmonized table</button> · <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Each satellite on its own</button></p></>
+              : <><YearBars sensor={sensor} slots={slots(sensor)} max={max} /><p className="lab__note">Hatched years are sealed for the final test. Training years 2016 to 2018 are only given pooled, so they have no yearly bar. <button type="button" className="lab__link" onClick={() => set({ tab: 'calendar' })}>Full record</button></p></>}
           </> : empty}
           {Headline}
         </section>
@@ -158,10 +160,7 @@ export default function Lab() {
     ) : empty,
     trends: region && policy && detail ? (
       <div className="lab__trends">
-        <section className="lab__harmony" aria-label="Harmonized record">
-          <h3>Harmonized series: not available yet</h3>
-          <p>It appears only after the held-out sensor-switch test passes for this area. Until then each satellite keeps its own scale.</p>
-        </section>
+        <Harmony detail={detail} region={region} policy={policy} />
         <section aria-label="Aqua to VIIRS ratio">
           <h3>Aqua ÷ VIIRS, year by year</h3>
           <p className="lab__note">How much higher the MODIS / Aqua rate is than the VIIRS rate in each year, over the same eligible weeks. As given in the evidence file.</p>

@@ -105,3 +105,28 @@
 .rm__label { fill: var(--ivory); font-family: var(--ui); paint-order: stroke; stroke: rgba(8, 11, 13, .85); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .rm__marker.is-selected .rm__halo { fill: rgba(229, 164, 59, .32); stroke: var(--ivory); stroke-width: 2.5px; }
 .rm__marker:hover .rm__halo { fill: rgba(229, 164, 59, .3); }
+
+/* harmonized view */
+.hm { padding: clamp(16px, 2.4vw, 28px); border: 1px solid var(--amber); background: linear-gradient(180deg, rgba(229, 164, 59, .07), transparent 240px), var(--void-2); }
+.hm--compact { padding: 16px; margin-top: 16px; }
+.hm--none { border-style: dashed; border-color: var(--ivory-faint); }
+.hm__head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; }
+.hm__head h3 { font-size: clamp(24px, 2.6vw, 36px); }
+.hm--compact .hm__head h3 { font-size: 22px; }
+.hm__lede { margin: 10px 0 0; font: 500 17px/1.5 var(--prose); color: var(--ivory); max-width: 70ch; }
+.hm__lede b { color: var(--amber); font-weight: 600; }
+.hm__svg { display: block; width: 100%; height: auto; margin-top: 14px; }
+.hm__line { fill: none; stroke-width: 2.5; stroke-linejoin: round; }
+.hm__line--aqua { stroke: var(--amber); }
+.hm__line--mapped { stroke: var(--amber); stroke-dasharray: 7 4; opacity: .9; }
+.hm__line--raw { stroke: var(--teal); stroke-width: 1.5; opacity: .75; }
+.hm__pt--aqua { fill: var(--amber); stroke: var(--void); stroke-width: 1.5; }
+.hm__pt--mapped { fill: var(--void); stroke: var(--amber); stroke-width: 2; }
+.hm__pt--raw { fill: var(--teal); }
+.hm__band { fill: rgba(229, 217, 188, .18); stroke: var(--ivory-dim); stroke-width: .8; }
+.hm__sealtext { fill: var(--ivory-dim); font: 500 10px var(--ui); letter-spacing: .12em; text-transform: uppercase; }
+.hm__key { display: inline-block; width: 18px; height: 3px; }
+.hm__key--aqua { background: var(--amber); }
+.hm__key--mapped { background: repeating-linear-gradient(90deg, var(--amber) 0 6px, transparent 6px 9px); }
+.hm__key--raw { background: var(--teal); }
+.hm__key--band { height: 10px; width: 10px; background: rgba(229, 217, 188, .25); border: 1px solid var(--ivory-dim); }
