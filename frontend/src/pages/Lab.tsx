@@ -42,7 +42,7 @@ const GLOSSARY: [string, string][] = [
 /** Rough marker positions for the map only. Not boundaries; nothing is computed from them. */
 const MARKER_AT: Record<string, [number, number]> = { '3218': [-119.4, 37.2], '826': [-125.0, 54.0] }
 const NORTH_AMERICA = { cx: -112, cy: 46, w: 70 }
-const WORLD = { cx: 10, cy: 12, w: 230 }
+const WORLD = { cx: -15, cy: 14, w: 290 }
 const PLACEHOLDERS = SHOW_PLACEHOLDER_REGIONS ? PLACEHOLDER_REGIONS : []
 
 const f = (n: number) => formatValue(n)
