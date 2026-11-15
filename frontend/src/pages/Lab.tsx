@@ -9,7 +9,7 @@ import RegionMap, { type MapMarker } from '../lab/RegionMap'
 import { SENSOR_NAME, type PolicyView, type RegionEvidence, type SensorKey, type StageADetail } from '../lab/evidence'
 import { FIRMS_COUNTRIES, FIRMS_DATASET, FIRMS_RETRIEVED, FIRMS_SEALED, FIRMS_SENSOR_LABEL, FIRMS_SOURCE, REGION_COUNTRY, type FirmsSensor, type FirmsYear } from '../lab/firms'
 import { loadBundle } from '../lab/loader'
-import { SHOW_REVIEW_NOTICES } from '../lab/presentation'
+import { PLACEHOLDER_REGIONS, SHOW_PLACEHOLDER_REGIONS, SHOW_REVIEW_NOTICES } from '../lab/presentation'
 import { labView as placeholderView, type EvidenceView, type LabView } from '../lab/model'
 import { formatValue } from '../lab/view'
 import { DATA_CREDITS, NASA_BRANDING_RULE, SI_USE } from '../lib/credits'
@@ -42,6 +42,8 @@ const GLOSSARY: [string, string][] = [
 /** Rough marker positions for the map only. Not boundaries; nothing is computed from them. */
 const MARKER_AT: Record<string, [number, number]> = { '3218': [-119.4, 37.2], '826': [-125.0, 54.0] }
 const NORTH_AMERICA = { cx: -112, cy: 46, w: 70 }
+const WORLD = { cx: 5, cy: 18, w: 320 }
+const PLACEHOLDERS = SHOW_PLACEHOLDER_REGIONS ? PLACEHOLDER_REGIONS : []
 
 const f = (n: number) => formatValue(n)
 
@@ -100,7 +102,7 @@ export default function Lab() {
   const [firmsSensor, setFirmsSensor] = useState<FirmsSensor>('modis')
   const firmsYears = country?.bySensor[firmsSensor] ?? []
   const statusChip = !loaded ? 'Loading' : !detail ? 'Data unavailable' : doc?.released ? 'Released' : SHOW_REVIEW_NOTICES ? 'Preliminary real data' : 'Real satellite data'
-  const markers: MapMarker[] = regions.filter((r) => MARKER_AT[r.code]).map((r) => ({ id: r.code, name: r.name, lon: MARKER_AT[r.code][0], lat: MARKER_AT[r.code][1], status: SHOW_REVIEW_NOTICES ? 'Real data, preliminary' : 'Real satellite data' }))
+  const markers: MapMarker[] = regions.filter((r) => MARKER_AT[r.code]).map((r) => ({ id: r.code, name: r.name, lon: MARKER_AT[r.code][0], lat: MARKER_AT[r.code][1], status: SHOW_REVIEW_NOTICES ? 'Real data, preliminary' : 'Real satellite data' })).concat(PLACEHOLDERS.map((p) => ({ ...p, status: 'Not processed yet', placeholder: true })))
   const choose = (code: string) => set({ area: code, from: null, to: null })
   const base = `${(region?.name ?? 'area').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${from}-${to}`
 
@@ -123,7 +125,7 @@ export default function Lab() {
     overview: (
       <div className="lab__overview">
         <section className="lab__where" aria-label="Where">
-          <RegionMap markers={markers} selected={region?.code} onSelect={choose} home={NORTH_AMERICA} />
+          <RegionMap markers={markers} selected={region?.code} onSelect={choose} home={PLACEHOLDERS.length ? WORLD : NORTH_AMERICA} />
           <ul className="lab__places" aria-label="Regions with data">
             {regions.length ? regions.map((r) => (
               <li key={r.code}><button type="button" aria-pressed={r.code === region?.code} onClick={() => choose(r.code)}>
@@ -131,6 +133,7 @@ export default function Lab() {
                 <span className="lab__place-meta">Region fitted on its own · {SHOW_REVIEW_NOTICES ? (doc?.released ? 'released' : 'preliminary') : 'harmonized'}</span>
               </button></li>
             )) : <li className="lab__note">{loaded ? 'No region with data has been published yet.' : 'Loading regions.'}</li>}
+            {PLACEHOLDERS.map((p) => <li key={p.id}><button type="button" disabled className="lab__place--placeholder"><span className="lab__place-name">{p.name}</span><span className="lab__place-meta">Not processed yet</span></button></li>)}
           </ul>
         </section>
         <section className="lab__summary" aria-label="Summary">
@@ -266,7 +269,7 @@ export default function Lab() {
       <div className="lab__scroll">
         <div className="lab__bar">
           <div className="lab__toolbar" role="group" aria-label="Selection">
-            <label>Area <select disabled={!regions.length} value={region?.code ?? ''} onChange={(e) => choose(e.target.value)} aria-label="Area">{regions.length ? regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>) : <option value="">{loaded ? 'No area data yet' : 'Loading'}</option>}</select></label>
+            <label>Area <select disabled={!regions.length} value={region?.code ?? ''} onChange={(e) => choose(e.target.value)} aria-label="Area">{regions.length ? regions.map((r) => <option key={r.code} value={r.code}>{r.name}</option>) : <option value="">{loaded ? 'No area data yet' : 'Loading'}</option>}{PLACEHOLDERS.map((p) => <option key={p.id} value={p.id} disabled>{p.name} (not processed yet)</option>)}</select></label>
             <label>Satellite <select disabled={!detail} value={satView} onChange={(e) => set({ sensor: e.target.value === 'harmonized' ? null : e.target.value })}><option value="harmonized">Harmonized</option><option value="aqua">{SENSOR_NAME.aqua}</option><option value="viirs">{SENSOR_NAME.viirs}</option></select></label>
             <label>Observations <select disabled={!region} value={policy?.key ?? ''} onChange={(e) => set({ set: e.target.value })}>{region?.policies.map((p) => <option key={p.key} value={p.key}>{p.label}</option>) ?? <option value="">-</option>}</select></label>
             <label>From <select disabled={!allYears.length} value={from || ''} onChange={(e) => set({ from: e.target.value })}>{allYears.length ? allYears.map((y) => <option key={y} value={y}>{y}</option>) : <option value="">-</option>}</select></label>

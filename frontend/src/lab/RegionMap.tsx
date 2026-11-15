@@ -3,11 +3,18 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 /** Pan and zoom map on NASA Blue Marble with one marker per region.
  * The evidence file gives no boundary for these regions, so a marker shows roughly where the region
  * is. It is not the analysed outline, and nothing is computed from its position. */
-export type MapMarker = { id: string; name: string; lon: number; lat: number; status: string }
+export type MapMarker = { id: string; name: string; lon: number; lat: number; status: string; placeholder?: boolean }
 const ASPECT = 0.62
 
 export default function RegionMap({ markers, selected, onSelect, home, compact }: { markers: MapMarker[]; selected?: string; onSelect?: (id: string) => void; home: { cx: number; cy: number; w: number }; compact?: boolean }) {
   const [view, setView] = useState(home)
+  // Zoom to a region when the selection changes after the first render (map click, list or menu).
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) { first.current = false; return }
+    const m = markers.find((x) => x.id === selected && !x.placeholder)
+    if (m) setView({ cx: m.lon, cy: m.lat, w: 40 })
+  }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
   const frame = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null)
   const [hover, setHover] = useState<string | undefined>()
@@ -73,8 +80,8 @@ export default function RegionMap({ markers, selected, onSelect, home, compact }
           </g>
           {markers.map((m) => {
             const on = m.id === selected
-            return <g key={m.id} className={`rm__marker ${on ? 'is-selected' : ''}`} transform={`translate(${m.lon},${-m.lat})`}
-              onPointerEnter={() => setHover(m.id)} onPointerLeave={() => setHover(undefined)} onClick={() => onSelect?.(m.id)}>
+            return <g key={m.id} className={`rm__marker ${on ? 'is-selected' : ''} ${m.placeholder ? 'is-placeholder' : ''}`} transform={`translate(${m.lon},${-m.lat})`}
+              onPointerEnter={() => setHover(m.id)} onPointerLeave={() => setHover(undefined)} onClick={() => { if (!m.placeholder) onSelect?.(m.id) }}>
               <circle r={u * (on ? 4.2 : 3.2)} className="rm__halo" />
               <circle r={u * 1.4} className="rm__dot" />
               <text x={u * 4.5} y={u * 1.4} style={{ fontSize: u * 3.6 }} className="rm__label">{m.name}</text>

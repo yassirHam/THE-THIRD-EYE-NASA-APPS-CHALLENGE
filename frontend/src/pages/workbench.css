@@ -130,3 +130,10 @@
 .hm__key--mapped { background: repeating-linear-gradient(90deg, var(--amber) 0 6px, transparent 6px 9px); }
 .hm__key--raw { background: var(--teal); }
 .hm__key--band { height: 10px; width: 10px; background: rgba(229, 217, 188, .25); border: 1px solid var(--ivory-dim); }
+
+/* display-only regions (demo) */
+.rm__marker.is-placeholder { cursor: default; }
+.rm__marker.is-placeholder .rm__halo { fill: rgba(229, 217, 188, .08); stroke: var(--ivory-dim); stroke-dasharray: 3 2; }
+.rm__marker.is-placeholder .rm__dot { fill: var(--ivory-dim); }
+.rm__marker.is-placeholder .rm__label { fill: var(--ivory-dim); }
+.lab__places .lab__place--placeholder { opacity: .55; cursor: default; }
