@@ -41,19 +41,47 @@ def record_coverage_fields(p2: Mapping[str, object]) -> dict:
     }
 
 
-def footprint_certification(geometry_id: str, p2: Mapping[str, object]) -> dict:
-    """Footprint certification from P2's period evidence: unverified unless P2 certified it.
+def _coverage_fraction(p2: Mapping[str, object]) -> float | None:
+    """P2's documented coverage fraction, from `coverage_fraction` or `coverage` (must agree)."""
+    values = [p2[k] for k in ("coverage_fraction", "coverage") if p2.get(k) is not None]
+    if not values:
+        return None
+    if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in values):
+        raise ValueError(f"coverage fraction must be a number, got {values!r}")
+    if len(values) == 2 and values[0] != values[1]:
+        raise ValueError(f"coverage_fraction and coverage disagree: {values[0]!r} vs {values[1]!r}")
+    return float(values[0])
 
-    `p2` must carry footprint_evidence and certifiable_complete, and for a complete status
-    P2's certification_ref and certified_at (UTC). Anything else is unverified.
+
+def footprint_certification(geometry_id: str, p2: Mapping[str, object]) -> dict:
+    """Footprint certification from P2's footprint evidence (P1 r3 F-01, handoff 8f33ce4).
+
+    - complete: cell-level evidence, P2 reference and UTC timestamp, certifiable_complete true,
+      and no coverage fraction below 1.
+    - partial: cell-level evidence, P2 reference and UTC timestamp, certifiable_complete false and
+      a documented coverage fraction in (0, 1). The fraction is kept; partial is never complete.
+    - unverified: no P2 documentation, or day-level / no evidence. Day-level file presence and
+      available data never certify footprint coverage.
+    Contradictory documented input raises instead of being reported as complete or unverified, so
+    a documented adverse finding is never lost.
     """
     evidence = p2.get("footprint_evidence")
     if evidence not in ("cell_level", "day_level", "none"):
         raise ValueError(f"unknown footprint evidence {evidence!r}")
-    if p2.get("certifiable_complete") and evidence == "cell_level" and p2.get("certification_ref") \
-            and p2.get("certified_at"):
-        return {"geometry_id": geometry_id, "status": "complete", "footprint_evidence": "cell_level",
-                "certification_ref": p2["certification_ref"], "certified_at": p2["certified_at"],
-                "coverage_fraction": None}
+    fraction = _coverage_fraction(p2)
+    documented = bool(p2.get("certification_ref")) and bool(p2.get("certified_at"))
+    if evidence == "cell_level" and documented:
+        base = {"geometry_id": geometry_id, "footprint_evidence": "cell_level",
+                "certification_ref": p2["certification_ref"], "certified_at": p2["certified_at"]}
+        if p2.get("certifiable_complete"):
+            if fraction is not None and fraction != 1.0:
+                raise ValueError(f"P2 marked the footprint complete but documented coverage {fraction!r}")
+            return {**base, "status": "complete", "coverage_fraction": None}
+        if fraction is None:
+            raise ValueError("documented cell-level footprint is neither complete nor carries a coverage "
+                             "fraction; cannot be reported as partial or unverified without losing the finding")
+        if not 0.0 < fraction < 1.0:
+            raise ValueError(f"documented partial footprint needs a coverage fraction in (0, 1), got {fraction!r}")
+        return {**base, "status": "partial", "coverage_fraction": fraction}
     return {"geometry_id": geometry_id, "status": "unverified", "footprint_evidence": evidence,
             "certification_ref": None, "certified_at": None, "coverage_fraction": None}
