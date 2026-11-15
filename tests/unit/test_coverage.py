@@ -97,6 +97,83 @@ def test_sealed_day_reported_present_is_refused():
         cov(s, e, present=present, sealed_window=SEALED)
 
 
+def test_holdout_years_are_excluded_without_a_sealed_window():
+    s, e = date(2019, 12, 30), date(2020, 1, 5)
+    present = {date(2019, 12, 30): True, date(2019, 12, 31): True}
+    r = cov(s, e, present=present)  # no caller window: 2020-2021 still sealed
+    assert r.state == "partial" and r.reasons == ("partition_boundary",)
+    assert r.expected_days == 2
+
+
+def test_caller_window_is_a_union_with_the_holdout_not_a_span():
+    # Caller window 2018-01-01..2018-01-07 and holdout 2020-2021: 2019 stays permitted.
+    caller = (date(2018, 1, 1), date(2018, 1, 7))
+    r = cov(date(2019, 7, 1), date(2019, 7, 7), sealed_window=caller)
+    assert (r.state, r.reasons, r.expected_days) == ("complete", (), 7)
+    r2 = cov(date(2018, 1, 1), date(2018, 1, 7), present={}, sealed_window=caller)
+    assert r2.state == "unavailable" and r2.reasons == ("partition_boundary",)
+    assert cov(date(2017, 12, 25), date(2017, 12, 31), sealed_window=caller).state == "complete"
+
+
+def test_caller_window_start_after_end_is_refused():
+    with pytest.raises(ValueError, match="sealed_window"):
+        cov(date(2023, 7, 3), date(2023, 7, 9), sealed_window=(date(2018, 2, 1), date(2018, 1, 1)))
+
+
+def test_any_truthy_holdout_day_in_day_present_is_refused():
+    s, e = date(2023, 7, 3), date(2023, 7, 9)
+    present = all_present(s, e)
+    present[date(2021, 6, 1)] = True  # outside the period, still sealed
+    with pytest.raises(ValueError, match="sealed"):
+        cov(s, e, present=present)
+    present[date(2021, 6, 1)] = False  # a false sealed key is only a date
+    assert cov(s, e, present=present).state == "complete"
+
+
+def test_wholly_sealed_period_is_unavailable_partition_boundary_only():
+    s, e = date(2020, 7, 6), date(2020, 7, 12)
+    r = cov(s, e, present={d: False for d in days(s, e)})
+    assert r.state == "unavailable" and r.reasons == ("partition_boundary",)
+    assert "no_file" not in r.reasons and r.expected_days == r.days_with_file == 0
+    assert cov(s, e, present={}).reasons == ("partition_boundary",)
+
+
+def test_partly_sealed_period_with_no_permitted_file_is_no_file_and_partition_boundary():
+    s, e = date(2019, 12, 30), date(2020, 1, 5)
+    r = cov(s, e, present={date(2019, 12, 30): False, date(2019, 12, 31): False})
+    assert r.state == "unavailable" and r.reasons == ("no_file", "partition_boundary")
+
+
+def test_non_sealed_year_crossing_has_no_partition_boundary():
+    s, e = date(2024, 12, 30), date(2025, 1, 5)  # 2025-W01
+    r = cov(s, e)
+    assert (r.state, r.reasons, r.expected_days) == ("complete", (), 7)
+
+
+def test_record_end_after_2025_is_refused():
+    with pytest.raises(ValueError, match="record_end"):
+        period_coverage(period_start=date(2023, 7, 3), period_end=date(2023, 7, 9), record_start=VIIRS_START,
+                        record_end=date(2026, 1, 1), day_present=all_present(date(2023, 7, 3), date(2023, 7, 9)),
+                        c_min=None)
+
+
+def test_2026_w01_clips_at_record_end():
+    s, e = date(2025, 12, 29), date(2026, 1, 4)
+    present = {d: True for d in days(s, RECORD_END)}
+    r = cov(s, e, present=present)
+    assert r.state == "partial" and r.reasons == ("period_clipped",)
+    assert "partition_boundary" not in r.reasons and r.expected_days == 3
+
+
+@pytest.mark.parametrize("value", [1, 0, "yes", None, np.bool_(True)])
+def test_non_bool_day_present_values_are_refused(value):
+    s, e = date(2023, 7, 3), date(2023, 7, 9)
+    present = all_present(s, e)
+    present[date(2023, 7, 4)] = value
+    with pytest.raises(ValueError, match="bool"):
+        cov(s, e, present=present)
+
+
 def test_unknown_day_is_not_treated_as_absent():
     s, e = date(2023, 7, 3), date(2023, 7, 9)
     present = all_present(s, e)
@@ -105,13 +182,18 @@ def test_unknown_day_is_not_treated_as_absent():
         cov(s, e, present=present)
 
 
-@pytest.mark.parametrize("c_min,expect_low", [(None, True), (1.0, True), (0.99, False)])
-def test_low_processed_coverage_against_c_min(c_min, expect_low):
+@pytest.mark.parametrize("c_min", [None, 1.0])
+def test_low_processed_coverage_against_c_min(c_min):
     s, e = date(2023, 7, 3), date(2023, 7, 9)
     r = cov(s, e, processed_cell_days=695, footprint_cells=100, c_min=c_min)  # 695/700 = 0.9929
-    assert ("low_processed_coverage" in r.reasons) is expect_low
-    assert r.state == ("partial" if expect_low else "complete")
-    assert r.certifiable_complete is (not expect_low)
+    assert "low_processed_coverage" in r.reasons
+    assert r.state == "partial" and not r.certifiable_complete
+
+
+@pytest.mark.parametrize("c_min", [0.99, 0.5, 0.999999])
+def test_c_min_below_one_is_refused(c_min):
+    with pytest.raises(ValueError, match="c_min"):
+        cov(date(2023, 7, 3), date(2023, 7, 9), processed_cell_days=695, footprint_cells=100, c_min=c_min)
 
 
 def test_unregistered_c_min_never_relaxes():
@@ -192,3 +274,22 @@ def test_summary_with_a_shortfall_supports_partial_with_fraction():
 def test_one_day_level_period_makes_the_whole_summary_unverified():
     s = footprint_evidence_summary("g", [_week(processed=700, fp=100), _week()])
     assert s["supports_status"] == "unverified"
+
+
+def test_summary_never_reports_partial_with_none_or_zero_fraction():
+    sealed = cov(date(2020, 7, 6), date(2020, 7, 12), present={}, processed_cell_days=0, footprint_cells=100)
+    s = footprint_evidence_summary("g", [sealed])  # no expected days: fraction None
+    assert s["supports_status"] == "unverified" and s["coverage_fraction"] is None
+    zero = _week(processed=0, fp=100)  # cell level, nothing processed: fraction 0.0
+    s = footprint_evidence_summary("g", [zero])
+    assert s["supports_status"] == "unverified" and s["coverage_fraction"] is None
+
+
+def test_summary_partial_fraction_is_strictly_between_zero_and_one():
+    clipped = cov(date(2025, 12, 29), date(2026, 1, 4), present={d: True for d in days(date(2025, 12, 29), RECORD_END)},
+                  processed_cell_days=300, footprint_cells=100)  # not certifiable, fraction 1.0
+    s = footprint_evidence_summary("g", [clipped])
+    assert s["supports_status"] == "unverified" and s["coverage_fraction"] is None
+    for results in ([_week(processed=700, fp=100), _week(processed=350, fp=100)], [_week(processed=1, fp=100)]):
+        s = footprint_evidence_summary("g", results)
+        assert s["supports_status"] == "partial" and 0.0 < s["coverage_fraction"] < 1.0
