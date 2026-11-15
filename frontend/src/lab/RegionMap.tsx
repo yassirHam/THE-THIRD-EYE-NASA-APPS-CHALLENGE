@@ -8,10 +8,13 @@ const ASPECT = 0.62
 
 export default function RegionMap({ markers, selected, onSelect, home, compact }: { markers: MapMarker[]; selected?: string; onSelect?: (id: string) => void; home: { cx: number; cy: number; w: number }; compact?: boolean }) {
   const [view, setView] = useState(home)
-  // Zoom to a region when the selection changes after the first render (map click, list or menu).
-  const first = useRef(true)
+  // Zoom to a region only when the reader changes the selection (map click, list or menu).
+  // The first region that arrives with the data does not zoom, so the opening view stays wide.
+  const prev = useRef<string | undefined>(selected)
   useEffect(() => {
-    if (first.current) { first.current = false; return }
+    const before = prev.current
+    prev.current = selected
+    if (before === undefined || before === selected) return
     const m = markers.find((x) => x.id === selected && !x.placeholder)
     if (m) setView({ cx: m.lon, cy: m.lat, w: 40 })
   }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
