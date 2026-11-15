@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { prefersReducedMotion } from '../lib/random'
 
 /* Previews for the three mode cards. Story Mode exists, so its card shows real frames from it.
-   The Lab and the mission are still being built, so their cards show a line drawing of the
-   planned screen, labelled as such, with no numbers that could pass for data. */
+   The Lab and mission cards show a line drawing of the screen, labelled as a sketch,
+   with no numbers that could pass for data. */
 
 // WebP encodes (quality 0.82) of the masters in frontend/source-textures/previews/
 const FRAMES = [
@@ -59,7 +59,7 @@ export function LabPreview() {
           <rect className="plan__scan" x="-2" y="11" width="16" height="96" />
         </g>
       </svg>
-      <span className="preview__tag">Planned layout</span>
+      <span className="preview__tag">Sketch</span>
     </span>
   )
 }
@@ -85,7 +85,7 @@ export function MissionPreview() {
           <text className="plan__label" textAnchor="middle" y="3">60–90 s</text>
         </g>
       </svg>
-      <span className="preview__tag">Planned layout</span>
+      <span className="preview__tag">Sketch</span>
     </span>
   )
 }

@@ -43,11 +43,11 @@ const MODES: Mode[] = [
   },
   {
     key: 'lab', to: '/lab', hotkey: '2', name: 'Research Lab',
-    what: 'Read the fire calendar of a supported area.', action: 'Preview the Lab', state: 'Being built',
+    what: 'Read the fire calendar of a supported area.', action: 'Open the Lab',
   },
   {
     key: 'mission', to: '/mission', hotkey: '3', name: 'Quick Mission',
-    what: 'One real case, start to finish, in about 90 seconds.', action: 'Preview the mission', state: 'Being built',
+    what: 'One real case, start to finish, in about 90 seconds.', action: 'Start the mission',
   },
 ]
 
@@ -240,8 +240,8 @@ export default function Landing() {
         </Link>
         <nav className="topbar__nav" aria-label="Modes">
           <Link to="/?mode=story" aria-current={chosen ? 'page' : undefined} data-cursor="Story" onClick={() => playSfx('mode')}>Story</Link>
-          <Link to="/lab" data-cursor="Soon" onClick={() => playSfx('mode')}>Lab</Link>
-          <Link to="/mission" data-cursor="Soon" onClick={() => playSfx('mode')}>Mission</Link>
+          <Link to="/lab" data-cursor="Lab" onClick={() => playSfx('mode')}>Lab</Link>
+          <Link to="/mission" data-cursor="Mission" onClick={() => playSfx('mode')}>Mission</Link>
           <button type="button" className="topbar__sound" aria-pressed={sound} onClick={toggleSound} data-cursor={sound ? 'Mute' : 'Unmute'}>
             <span className="topbar__bars" aria-hidden="true"><i /><i /><i /></span>
             Sound {sound ? 'on' : 'off'}
@@ -344,7 +344,7 @@ export default function Landing() {
                 <Link to="/story/third-eye" className="finale__skip" data-cursor="Skip" onClick={() => playSfx('skip')}>Skip to the story</Link>
               </div>
               <p className="finale__others">
-                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> (harmonized MODIS and VIIRS data for California and British Columbia) and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link> (being built). <button type="button" onClick={backToModes}>See all modes</button>
+                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> (harmonized MODIS and VIIRS data for California and British Columbia) and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link> (one real case in seven short steps). <button type="button" onClick={backToModes}>See all modes</button>
               </p>
               <aside className="headline">
                 <span className="headline__mark" aria-hidden="true" />

@@ -1,0 +1,43 @@
+/* Quick Mission. Builds on the Lab styles (lab.css, workbench.css, evidence.css). */
+.mi__scroll { display: flex; flex-direction: column; gap: 28px; }
+.mi__steps ol { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.mi__steps button { display: inline-flex; gap: 8px; align-items: baseline; padding: 7px 11px; border: 1px solid var(--ivory-faint); background: transparent; color: var(--ivory-dim); font: 500 12px var(--ui); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.mi__steps button span { color: var(--amber); font-variant-numeric: tabular-nums; }
+.mi__steps button:hover:not(:disabled) { border-color: var(--ivory); color: var(--ivory); }
+.mi__steps button[aria-current='step'] { background: var(--ivory); color: var(--void); border-color: var(--ivory); }
+.mi__steps button[aria-current='step'] span { color: var(--void); }
+.mi__steps button:disabled { opacity: .4; cursor: default; }
+
+.mi__beat { display: grid; gap: 18px; max-width: 1100px; animation: mi-in .35s var(--ease-out) both; }
+.mi__beat > .lab__eyebrow { margin: 0; }
+.mi .mi__title { margin: 0; font: 500 clamp(30px, 3.6vw, 52px)/1.02 var(--display); letter-spacing: -.01em; outline: none; }
+.mi .mi__lede { margin: 0; max-width: 68ch; font: 500 clamp(18px, 1.5vw, 22px)/1.45 var(--prose); color: var(--ivory); }
+.mi__headline { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0; font: 500 20px/1.4 var(--prose); }
+.mi__findhead { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.mi__finding { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--rule); }
+.mi__finding div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--ivory-faint); }
+.mi__finding dt { color: var(--amber); font: 500 12px var(--ui); letter-spacing: .14em; text-transform: uppercase; padding-top: 6px; }
+.mi__finding dd { margin: 0; max-width: 64ch; font: 500 clamp(19px, 1.6vw, 24px)/1.4 var(--prose); }
+.mi__lablink { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
+.mi__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.mi__area { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1.4fr); gap: clamp(24px, 4vw, 60px); align-items: start; animation: mi-in .35s var(--ease-out) both; }
+.mi__area .mi__lede { margin: 14px 0 22px; }
+.mi__choices { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.mi__choice { width: 100%; display: grid; gap: 4px; text-align: left; padding: 16px 18px; border: 1px solid var(--ivory-faint); background: var(--void-2, rgba(255, 255, 255, .02)); color: var(--ivory); cursor: pointer; }
+.mi__choice b { font: 500 24px/1.1 var(--display); }
+.mi__choice span { color: var(--ivory-dim); font: 400 13px var(--sans); }
+.mi__choice:hover:not(:disabled), .mi__choice[aria-pressed='true'] { border-color: var(--amber); }
+.mi__choice:disabled { opacity: .5; cursor: default; }
+
+.mi__nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 18px; border-top: 1px solid var(--ivory-faint); max-width: 1100px; }
+.mi__keys { color: var(--ivory-faint); font: 500 11px var(--ui); letter-spacing: .14em; text-transform: uppercase; }
+.mi__nav .chip:disabled { opacity: .35; pointer-events: none; }
+
+@keyframes mi-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mi__beat, .mi__area { animation: none; } }
+@media (max-width: 800px) {
+  .mi__area { grid-template-columns: 1fr; }
+  .mi__finding div { grid-template-columns: 1fr; gap: 6px; }
+  .mi__keys { display: none; }
+}

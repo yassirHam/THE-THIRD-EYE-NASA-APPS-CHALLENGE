@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test:audio": "node scripts/audio-routing.mjs",
-    "test:contract": "node --experimental-strip-types --test scripts/contract-adapter.test.ts",
+    "test:contract": "node --experimental-strip-types --test scripts/contract-adapter.test.ts scripts/mission.test.ts",
     "contract:check": "node scripts/sync-contract.mjs --check",
     "dev": "vite",
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",

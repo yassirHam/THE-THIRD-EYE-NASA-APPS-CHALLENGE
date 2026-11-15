@@ -15,7 +15,7 @@ import '@fontsource/ibm-plex-sans/500.css'
 import './styles/global.css'
 
 import Landing from './pages/Landing'
-import { Intro, Lab, Pending, StoryShell } from './routes'
+import { Intro, Lab, Mission, StoryShell } from './routes'
 
 gsap.registerPlugin(useGSAP)
 
@@ -34,7 +34,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/story" element={<Intro />} />
           <Route path="/story/:chapter" element={<StoryShell />} />
           <Route path="/lab" element={<Lab />} />
-          <Route path="/mission" element={<Pending mode="mission" />} />
+          <Route path="/mission" element={<Mission />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
