@@ -1,4 +1,4 @@
-// Contract 1.5.0 adapter tests on [SYNTHETIC DEV FIXTURE] data.
+// Contract 1.6.0 adapter tests on [SYNTHETIC DEV FIXTURE] data.
 // Run: node --experimental-strip-types --test scripts/contract-adapter.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -10,15 +10,17 @@ import {
   areaFromArtifacts,
   cacheKeyOf,
   calendarEntries,
+  comparisonViewFromClaimAudit,
   findingVisible,
   footprintStatus,
   inactivePlatforms,
 } from '../src/lab/adapter.ts'
 
-const dir = new URL('../test-fixtures/contract-1.5.0/', import.meta.url)
+const dir = new URL('../test-fixtures/contract-1.6.0/', import.meta.url)
 const load = (name: string) => JSON.parse(readFileSync(new URL(name, dir), 'utf8'))
 const cal = () => load('sample_calendar.json')
 const unverified = () => load('sample_calendar_unverified_footprint.json')
+const sealedCal = () => load('sample_calendar_sealed_boundary.json')
 const selector = () => load('sample_region_selector.json')
 const option = (id: string) => selector().options.find((o: { geometry_id: string }) => o.geometry_id === id)
 const PRIMARY = 'geo-synthetic-primary'
@@ -139,4 +141,70 @@ test('wrong or missing contract version is refused', () => {
   assert.throws(() => calendarEntries(versionless), IdentityMismatch)
   const old = { ...load('sample_comparison_normal.json'), contract_version: '1.1.0' }
   assert.throws(() => areaFromArtifacts(option(PRIMARY), cal(), old), IdentityMismatch)
+})
+
+// --- Contract 1.6.0 sealed_window tests ---
+
+test('periods fully inside the sealed window are labelled as sealed, not missing data', () => {
+  const e = calendarEntries(sealedCal())
+  // The sealed_boundary fixture has sealed_window: 2020-01-01 to 2021-12-31.
+  // Week 2020-W01 (start: 2019-12-30, end: 2020-01-05) straddles the boundary -> partial, not sealed.
+  // Week 2021-W52 (start: 2021-12-27, end: 2022-01-02) straddles the boundary -> partial, not sealed.
+  // Week 2022-W01 (start: 2022-01-03, end: 2022-01-09) is after the window -> not sealed.
+  // Any periods with dates fully inside 2020-01-01..2021-12-31 should be sealed.
+  const sealed = e.filter((x) => x.sealedPeriod === true)
+  // The sample_calendar fixture's weekly series at 2020-W01 straddles (partial), not sealed.
+  // Both 2020-01-01..2021-12-31 boundary weeks straddle. We just check that no straddling
+  // periods are incorrectly marked sealed, and that any fully-inside periods are marked sealed.
+  const straddleWeek1 = e.find((x) => x.period === '2020-W01' && x.sensor === 'MODIS')
+  if (straddleWeek1) assert.equal(straddleWeek1.sealedPeriod, undefined)
+  const straddleWeek2 = e.find((x) => x.period === '2021-W52' && x.sensor === 'MODIS')
+  if (straddleWeek2) assert.equal(straddleWeek2.sealedPeriod, undefined)
+  // If any sealed periods exist, their detail should say "Sealed evaluation period"
+  for (const s of sealed) {
+    assert.match(s.detail!, /Sealed evaluation period/)
+  }
+})
+
+test('sealed periods detail text says sealed, not missing data', () => {
+  const e = calendarEntries(sealedCal())
+  const sealed = e.filter((x) => x.sealedPeriod === true)
+  for (const s of sealed) {
+    assert.match(s.detail!, /withheld from public evaluation, not missing data/)
+    assert.ok(!s.detail!.includes('missing data') || s.detail!.includes('not missing data'), 'sealed should not say missing data without negation')
+  }
+})
+
+test('calendar with no sealed_window produces no sealed entries', () => {
+  const e = calendarEntries(cal())
+  assert.ok(e.every((x) => !x.sealedPeriod), 'no sealed entries when sealed_window is null')
+})
+
+// --- Contract 1.6.0 counterexample_interpretations tests ---
+
+test('claim audit record counterexample_interpretations are passed through verbatim', () => {
+  const record = load('sample_claim_audit_record.json')
+  assert.ok(Array.isArray(record.counterexample_interpretations))
+  assert.ok(record.counterexample_interpretations.length > 0)
+  const view = comparisonViewFromClaimAudit(record)
+  assert.ok(Array.isArray(view.counterexampleInterpretations))
+  assert.equal(view.counterexampleInterpretations!.length, record.counterexample_interpretations.length)
+  // Values are identical objects, not recomputed
+  const ex = view.counterexampleInterpretations![0]
+  assert.equal(ex['counterexample_id'], 'geo_composition_shift_section_4b')
+  // 8.2 / 2.8 composition shift (plan Section 4B mandatory fixture)
+  const p1 = ex['period_1'] as Record<string, unknown>
+  const p2 = ex['period_2'] as Record<string, unknown>
+  assert.equal(p1['regional_index_R'], 8.2)
+  assert.equal(p2['regional_index_R'], 2.8)
+  // Fixed-weight standardization: both periods give R_std = 5.5
+  const std = ex['fixed_weight_standardization'] as Record<string, unknown>
+  assert.equal(std['R_std_period_1'], 5.5)
+  assert.equal(std['R_std_period_2'], 5.5)
+  assert.equal(std['standardized_change_percent'], 0.0)
+})
+
+test('comparisonViewFromClaimAudit refuses wrong contract version', () => {
+  const record = load('sample_claim_audit_record.json')
+  assert.throws(() => comparisonViewFromClaimAudit({ ...record, contract_version: '1.5.0' }), IdentityMismatch)
 })

@@ -7,14 +7,16 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 const check = process.argv.includes('--check')
 const root = new URL('../../contracts/', import.meta.url)
 const fixtures = [
-  'sample_calendar.json', 'sample_calendar_unverified_footprint.json', 'sample_region_selector.json',
+  'sample_calendar.json', 'sample_calendar_unverified_footprint.json', 'sample_calendar_sealed_boundary.json',
+  'sample_region_selector.json',
   'sample_comparison_normal.json', 'sample_comparison_missing_evidence.json',
   'sample_comparison_stable_failed_applicability.json', 'sample_comparison_out_of_domain.json',
   'sample_comparison_within_margin_opposite_sign.json',
+  'sample_claim_audit_record.json',
 ]
 const pairs = [
   [new URL('generated/types.ts', root), new URL('../src/contracts/types.ts', import.meta.url)],
-  ...fixtures.map((n) => [new URL(`fixtures/${n}`, root), new URL(`../test-fixtures/contract-1.5.0/${n}`, import.meta.url)]),
+  ...fixtures.map((n) => [new URL(`fixtures/${n}`, root), new URL(`../test-fixtures/contract-1.6.0/${n}`, import.meta.url)]),
 ]
 if (!existsSync(new URL('generated/types.ts', root))) {
   console.log('SKIPPED: ../contracts is not in this checkout (P4-B not integrated yet)')
