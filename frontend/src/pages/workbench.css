@@ -97,3 +97,11 @@
   .wb__side { position: static; }
 }
 @media (prefers-reduced-motion: reduce) { .wb__area { transition: none; } }
+
+/* region markers */
+.rm__marker { cursor: pointer; }
+.rm__halo { fill: rgba(229, 164, 59, .18); stroke: var(--amber); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.rm__dot { fill: var(--amber); }
+.rm__label { fill: var(--ivory); font-family: var(--ui); paint-order: stroke; stroke: rgba(8, 11, 13, .85); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rm__marker.is-selected .rm__halo { fill: rgba(229, 164, 59, .32); stroke: var(--ivory); stroke-width: 2.5px; }
+.rm__marker:hover .rm__halo { fill: rgba(229, 164, 59, .3); }

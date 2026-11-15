@@ -8,9 +8,9 @@ const share = (n: number) => n.toFixed(3)
 
 /* ---------- yearly rates, one sensor per chart, sealed years kept apart ---------- */
 
-type Slot = { year: number; sealed: boolean; value: number | null; note: string }
+export type Slot = { year: number; sealed: boolean; value: number | null; note: string }
 
-function YearBars({ sensor, slots, max }: { sensor: SensorKey; slots: Slot[]; max: number }) {
+export function YearBars({ sensor, slots, max }: { sensor: SensorKey; slots: Slot[]; max: number }) {
   const W = 560, H = 190, m = { l: 46, r: 8, t: 12, b: 28 }
   const iw = W - m.l - m.r, ih = H - m.t - m.b, sw = iw / slots.length, bw = sw * 0.6
   const y = (v: number) => m.t + ih - (v / max) * ih
@@ -48,7 +48,7 @@ function boundaryTitle(b: Boundary, region: string): string {
   return `${region}: correction that would make VIIRS equal Aqua`
 }
 
-function BoundaryCard({ b, region }: { b: Boundary; region: string }) {
+export function BoundaryCard({ b, region }: { b: Boundary; region: string }) {
   const rows = b.periods
   const factors = rows.flatMap((p) => [1, ...(p.aBreak !== null ? [p.aBreak] : []), ...p.variants.map((v) => v.factor).filter((x): x is number => x !== null)])
   const lo = factors.length ? Math.min(...factors) : 0, hi = factors.length ? Math.max(...factors) : 1
@@ -101,7 +101,7 @@ function BoundaryCard({ b, region }: { b: Boundary; region: string }) {
 
 /* ---------- composition: share of usable observations by region, per sensor ---------- */
 
-function CompositionCard({ c, regions }: { c: Composition; regions: RegionEvidence[] }) {
+export function CompositionCard({ c, regions }: { c: Composition; regions: RegionEvidence[] }) {
   const names = new Map(regions.map((r) => [r.code, r.name]))
   const codes = [...new Set((['aqua', 'viirs'] as const).flatMap((s) => c.bySensor[s].flatMap((y) => Object.keys(y.shares))))]
   return (

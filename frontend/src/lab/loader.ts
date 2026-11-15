@@ -82,10 +82,9 @@ async function loadEvidence(base: string, index: BundleIndex): Promise<EvidenceV
     if (!doc || typeof doc !== 'object') continue
     try {
       const view = evidenceFromDocument(doc as Record<string, unknown>, `${base}${entry.path}`)
-      // Per-region numbers are read only from a released document; otherwise they stay withheld.
-      if (view.released) {
-        try { view.detail = evidenceFromJson(doc) } catch { /* detail refused: summary only */ }
-      }
+      // Per-region numbers are shown now, labelled preliminary while the file is not released (team decision).
+      // The reader still refuses a file that read sealed years.
+      try { view.detail = evidenceFromJson(doc) } catch { /* detail refused: summary only */ }
       out.push(view)
     } catch {
       // Format or contract mismatch: the document is skipped, never partially shown.

@@ -254,7 +254,6 @@ export default function Landing() {
           <div className="gate__head">
             <h1 className="gate__title notranslate" id="gate-title" translate="no">The Third Eye</h1>
             <p className="gate__sub">A fire calendar with a third eye.</p>
-            <HeadlineStatus className="gate__headline" />
           </div>
 
           <section className="gate__modes" aria-labelledby="gate-choose">
@@ -345,7 +344,7 @@ export default function Landing() {
                 <Link to="/story/third-eye" className="finale__skip" data-cursor="Skip" onClick={() => playSfx('skip')}>Skip to the story</Link>
               </div>
               <p className="finale__others">
-                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link>, both being built. <button type="button" onClick={backToModes}>See all modes</button>
+                Other modes: <Link to="/lab" onClick={() => playSfx('mode')}>Research Lab</Link> (preliminary real data for California and British Columbia) and <Link to="/mission" onClick={() => playSfx('mode')}>Quick Mission</Link> (being built). <button type="button" onClick={backToModes}>See all modes</button>
               </p>
               <aside className="headline">
                 <span className="headline__mark" aria-hidden="true" />
