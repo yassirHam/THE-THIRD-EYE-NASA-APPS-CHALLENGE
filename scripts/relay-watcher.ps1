@@ -483,18 +483,24 @@ function Process-IncomingFixedForTesting {
             $TestResults = (python -m pytest tests/unit -q -p no:cacheprovider 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
         } elseif ($OwnerRole -eq "P3") {
-            if (-not (Test-Path "$TestSandbox\frontend\node_modules")) {
-                $existingNM = @("$RepoRoot\frontend\node_modules", "$ProjectsDir\the-third-eye\frontend\node_modules") | Where-Object { Test-Path $_ } | Select-Object -First 1
-                if ($existingNM) {
-                    New-Item -ItemType Junction -Path "$TestSandbox\frontend\node_modules" -Target $existingNM -ErrorAction SilentlyContinue | Out-Null
+            Push-Location "$TestSandbox\frontend"
+            try {
+                if (-not (Test-Path "node_modules\typescript\bin\tsc")) {
+                    $existingNM = @("$RepoRoot\frontend\node_modules", "$ProjectsDir\the-third-eye\frontend\node_modules") | Where-Object { Test-Path "$_\typescript\bin\tsc" } | Select-Object -First 1
+                    if ($existingNM) {
+                        if (Test-Path "node_modules") { Remove-Item -Recurse -Force "node_modules" -ErrorAction SilentlyContinue }
+                        New-Item -ItemType Junction -Path "$TestSandbox\frontend\node_modules" -Target $existingNM -ErrorAction SilentlyContinue | Out-Null
+                    } else {
+                        if (Test-Path "node_modules") { Remove-Item -Recurse -Force "node_modules" -ErrorAction SilentlyContinue }
+                        Write-Host "  -> Installing frontend dependencies (with devDependencies) in test sandbox..." -ForegroundColor Gray
+                        npm install --include=dev --no-audit --no-fund 2>&1 | Out-Host
+                    }
                 }
+                $TestResults = (npm run build 2>&1) -join "`n"
+                $TestExitCode = $LASTEXITCODE
+            } finally {
+                Pop-Location
             }
-            if (-not (Test-Path "$TestSandbox\frontend\node_modules\.bin\tsc")) {
-                Write-Host "  -> Installing frontend dependencies in test sandbox..." -ForegroundColor Gray
-                npm --prefix "$TestSandbox\frontend" install --no-audit --no-fund 2>&1 | Out-Null
-            }
-            $TestResults = (npm --prefix "$TestSandbox\frontend" run build 2>&1) -join "`n"
-            $TestExitCode = $LASTEXITCODE
         } else {
             $TestResults = (python -m pytest -q -p no:cacheprovider 2>&1) -join "`n"
             $TestExitCode = $LASTEXITCODE
