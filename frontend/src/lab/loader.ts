@@ -13,6 +13,7 @@
  */
 import type { CalendarArtifact, ComparisonResult, RegionSelectorArtifact } from '../contracts/types.ts'
 import { areaFromArtifacts } from './adapter.ts'
+import { evidenceFromJson, type EvidenceView } from './evidence.ts'
 import type { LabView } from './model.ts'
 
 /** Minimal shape of bundle_index.json (tte-static-bundle-v1). */
@@ -25,11 +26,19 @@ interface BundleEntry {
   policy_id: string
   path: string
 }
+/** Entry of evidence_entries (tte-stage-a-evidence-v1). */
+interface EvidenceEntry {
+  evidence_format: string
+  evidence_id: string
+  path: string
+  sha256: string
+}
 interface BundleIndex {
   bundle_format: string
   bundle_version: string
   data_classification: string
   entries: BundleEntry[]
+  evidence_entries?: EvidenceEntry[]
 }
 
 function key(e: { geometry_id: string; period_spec: string; method_id: string; policy_id: string }): string {
@@ -47,6 +56,33 @@ async function fetchJson(base: string, path: string): Promise<unknown> {
   }
 }
 
+async function sha256Hex(bytes: ArrayBuffer): Promise<string | null> {
+  if (typeof crypto === 'undefined' || !crypto.subtle) return null
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  return Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** Load the evidence documents listed in evidence_entries. A document whose hash differs from the
+ * index, or that the evidence reader refuses (wrong format, not real data, sealed years read), is
+ * skipped; nothing is substituted. */
+async function loadEvidence(base: string, entries: EvidenceEntry[]): Promise<EvidenceView[]> {
+  const out: EvidenceView[] = []
+  for (const e of entries) {
+    if (e.evidence_format !== 'tte-stage-a-evidence-v1') continue
+    try {
+      const r = await fetch(`${base}${e.path}`)
+      if (!r.ok) continue
+      const bytes = await r.arrayBuffer()
+      const hash = await sha256Hex(bytes)
+      if (hash !== null && hash !== e.sha256) continue
+      out.push(evidenceFromJson(JSON.parse(new TextDecoder().decode(bytes))))
+    } catch {
+      // unreadable or refused evidence: leave it out rather than show something wrong
+    }
+  }
+  return out
+}
+
 /**
  * Load the static artifact bundle and build the LabView.
  *
@@ -60,18 +96,21 @@ export async function loadBundle(base: string): Promise<LabView> {
     return { areas: [] }
   }
 
+  const evidence = await loadEvidence(base, index.evidence_entries ?? [])
+  const withEvidence = (areas: LabView['areas']): LabView => (evidence.length ? { areas, evidence } : { areas })
+
   const byFamily: Record<string, BundleEntry[]> = {}
-  for (const e of index.entries) {
+  for (const e of index.entries ?? []) {
     if (!byFamily[e.family]) byFamily[e.family] = []
     byFamily[e.family].push(e)
   }
 
   // Load the region selector first — it drives area construction.
   const selectorEntry = byFamily['region_selector']?.[0]
-  if (!selectorEntry) return { areas: [] }
+  if (!selectorEntry) return withEvidence([])
 
   const selectorRaw = await fetchJson(base, selectorEntry.path)
-  if (!selectorRaw) return { areas: [] }
+  if (!selectorRaw) return withEvidence([])
   const selector = selectorRaw as RegionSelectorArtifact
 
   // Load each option's calendar and comparison (by matching geometry_id and identity fields).
@@ -112,5 +151,5 @@ export async function loadBundle(base: string): Promise<LabView> {
     }
   }
 
-  return { areas }
+  return withEvidence(areas)
 }

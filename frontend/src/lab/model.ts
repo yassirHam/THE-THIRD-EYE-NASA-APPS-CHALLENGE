@@ -1,3 +1,4 @@
+import type { EvidenceView } from './evidence'
 /** Presentation model only. P4's published artifact contract must be adapted here;
  * these types are not a scientific schema or an approval of any result. */
 export type Sensor = 'MODIS' | 'VIIRS'
@@ -98,7 +99,12 @@ export type ComparisonView = {
    * Each entry is preserved verbatim from the artifact; never recomputed or zero-filled. */
   counterexampleInterpretations?: Array<Record<string, unknown>>
 }
-export type LabView = { areas: AreaView[]; headline?: { text: string; denominator: string; evidenceUrl: string } }
+export type LabView = {
+  areas: AreaView[]
+  headline?: { text: string; denominator: string; evidenceUrl: string }
+  /** Real-data evidence documents from the bundle's evidence list. Shown as given, per region. */
+  evidence?: EvidenceView[]
+}
 
 const formatNumber = (value: number) => value.toLocaleString(undefined, { maximumSignificantDigits: 6 })
 const withUnits = (value: number, units?: string | null) => `${formatNumber(value)}${units ? ` ${units}` : ''}`

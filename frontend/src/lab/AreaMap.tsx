@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import type { AreaView } from './model'
-import { OUTLINES, boxOf, type Box } from './geo'
+import { OUTLINES as REGISTERED, boxOf, type Box } from './geo'
 
 /** The access states the map and the list distinguish. Raw availability is not a calibration. */
 export const ACCESS_TEXT = {
@@ -29,8 +29,11 @@ function fitBox(box: Box | undefined) {
  * only; the outlines are the registered ones and are coloured by what the artifacts allow. */
 export default function AreaMap({ areas, selected, onSelect }: { areas: AreaView[]; selected?: string; onSelect: (id: string) => void }) {
   const byId = useMemo(() => new Map(areas.map((area) => [area.id, area])), [areas])
-  const home = useMemo(() => fitBox(boxOf(OUTLINES)), [])
+  // Only registered outlines that belong to a loaded area are drawn; an area without a supplied boundary is listed, not guessed.
+  const OUTLINES = useMemo(() => REGISTERED.filter((o) => byId.has(o.id)), [byId])
+  const home = useMemo(() => fitBox(boxOf(OUTLINES)), [OUTLINES])
   const [view, setView] = useState(home)
+  useEffect(() => setView(home), [home])
   const [hover, setHover] = useState<string | undefined>()
   const frame = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; cx: number; cy: number; moved: boolean } | null>(null)
@@ -100,8 +103,14 @@ export default function AreaMap({ areas, selected, onSelect }: { areas: AreaView
   const ring = (pts: Array<[number, number]>) => pts.map(([x, y]) => `${x},${-y}`).join(' ')
   const hovered = hover ? OUTLINES.find((o) => o.id === hover) : undefined
   const hoveredArea = hover ? byId.get(hover) : undefined
-  const unlisted = areas.filter((area) => !OUTLINES.some((o) => o.id === area.id))
-  const shown = [...OUTLINES.map((o) => ({ id: o.id, name: byId.get(o.id)?.name ?? o.name, area: byId.get(o.id) })), ...unlisted.map((a) => ({ id: a.id, name: a.name, area: a }))]
+  const shown = areas.map((a) => ({ id: a.id, name: a.name, area: a }))
+
+  if (!OUTLINES.length) return (
+    <figure className="map wb__map">
+      <ul className="wb__arealist" aria-label="Areas">{shown.map(({ id, name, area }) => <li key={id}><button type="button" aria-pressed={id === selected} onClick={() => onSelect(id)} data-access={accessOf(area)}><i aria-hidden="true" /><span><b>{name}</b><small>{area?.role ? ` · ` : ''}{ACCESS_TEXT[accessOf(area)]}</small></span></button></li>)}</ul>
+      <figcaption className="map__caption">No boundary has been supplied for these areas yet, so none is drawn on the map.</figcaption>
+    </figure>
+  )
 
   return (
     <figure className="map wb__map">

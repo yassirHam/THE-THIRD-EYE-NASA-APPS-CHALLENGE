@@ -7,6 +7,7 @@ import BurnCalendar from '../lab/BurnCalendar'
 import Calendar from '../lab/Calendar'
 import Chart from '../lab/Chart'
 import Comparison from '../lab/Comparison'
+import EvidencePanel from '../lab/EvidencePanel'
 import PeriodDetail from '../lab/PeriodDetail'
 import { findingVisible } from '../lab/adapter'
 import { loadBundle } from '../lab/loader'
@@ -14,6 +15,7 @@ import { SENSOR_LABEL, labView as placeholderView, type LabView, type Sensor } f
 import { formatValue, highest, tally, yearOf, yearsOf } from '../lab/view'
 import './lab.css'
 import './workbench.css'
+import './evidence.css'
 
 export default function Lab() {
   const [view, setView] = useState<'month' | 'week'>('month')
@@ -36,7 +38,7 @@ export default function Lab() {
   useEffect(() => {
     const base = `${import.meta.env.BASE_URL}artifacts/`
     loadBundle(base).then((loaded) => {
-      if (loaded.areas.length > 0) {
+      if (loaded.areas.length > 0 || (loaded.evidence?.length ?? 0) > 0) {
         setLiveView(loaded)
         setAreaId(loaded.areas[0]?.id ?? '')
       }
@@ -57,7 +59,9 @@ export default function Lab() {
           <p>Explore observations from two satellite perspectives. A comparison is only shown when its evidence is available.</p>
         </div>
 
-        <div className="wb">
+        {liveView.evidence?.map((item) => <EvidencePanel key={item.id} evidence={item} />)}
+
+        {liveView.areas.length === 0 ? <section className="lab__empty wb__none" aria-live="polite"><h4>{loaded ? 'No area calendars in this bundle yet' : 'Loading the artifact bundle'}</h4><p>{loaded ? 'Monthly and weekly calendars appear here once they are published for an area. Nothing is drawn in the meantime, and no period is shown as zero.' : 'Reading the published artifacts.'}</p></section> : <div className="wb">
           <div className="wb__toolbar lab__controls" role="group" aria-label="Selection">
             <label>Area <select disabled={!liveView.areas.length} value={areaId} onChange={(event) => pickArea(event.target.value)} aria-label="Area">{liveView.areas.length ? liveView.areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>) : <option value="">{loaded ? 'No area data yet' : 'Loading area data'}</option>}</select></label>
             <label>Satellite <select value={sensor} onChange={(event) => { setSensor(event.target.value as Sensor); setPeriod(undefined) }}>{(Object.keys(SENSOR_LABEL) as Sensor[]).map((s) => <option key={s} value={s}>{SENSOR_LABEL[s]}</option>)}</select></label>
@@ -92,7 +96,7 @@ export default function Lab() {
               <p className="lab__note">Each calendar uses one sensor at a time. <Name>Suomi NPP</Name> data ended 2 November 2026; NOAA-20 is a separate platform.</p>
             </section>
           </div>
-        </div>
+        </div>}
 
         <div className="wb__lower">
           <aside className="lab__aside wb__findings" aria-label="Finding and limitations">
