@@ -382,7 +382,7 @@ $FixContent
     }
     Push-Location $TargetWorktree
     try {
-        Get-Content $FixOrder | kiro-cli chat --v3 --no-interactive --trust-all-tools --trust-workspace --agent the-third-eye-coder
+        Get-Content $FixOrder | kiro-cli chat --v2 --no-interactive --trust-all-tools --agent the-third-eye-coder
         $DirtyFiles = (git status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") -and ($_ -notmatch "\.relay-tmp[\\/]") }
         if ($DirtyFiles) {
             git add -A -- . ':!.kiro' ':!.relay-tmp' 2>$null
@@ -712,7 +712,7 @@ In frontend/:
         Write-Host "[1/4] Invoking Kiro headless for $($job.TaskId)..." -ForegroundColor Cyan
         Push-Location $TargetWorktree
         try {
-            Get-Content $TaskPromptFile | kiro-cli chat --v3 --no-interactive --trust-all-tools --trust-workspace --agent the-third-eye-coder
+            Get-Content $TaskPromptFile | kiro-cli chat --v2 --no-interactive --trust-all-tools --agent the-third-eye-coder
             $PostDirty = (git status --porcelain 2>$null) -split "`n" | Where-Object { $_ -and ($_ -notmatch "\.kiro[\\/]") -and ($_ -notmatch "\.relay-tmp[\\/]") }
             if ($PostDirty) {
                 git add -A -- . ':!.kiro' ':!.relay-tmp' 2>$null
@@ -890,3 +890,4 @@ do {
     }
     Start-Sleep -Seconds $PollIntervalSeconds
 } while ($true)
+
