@@ -604,9 +604,10 @@ function Invoke-NextRoleTask {
             RebaseIntegration = $true; RequiresMerged = @()
             TestCmd = "python -m pytest tests/unit -q -p no:cacheprovider"
             Prompt = @"
-Apply the 2 conditions from handoff/verdicts/P2/P2-A-002/r1-P2.md on branch task/P2-A-002 (already rebased onto integration):
-1. In pipeline/grid/coverage.py, make period_coverage validate and reject record_end > 2025-12-31 and multi-partition periods unless the caller passes the partition and excludes out-of-partition days with reason 'partition_boundary'. Add synthetic tests for both in tests/unit/test_coverage.py.
-2. In pipeline/grid/COVERAGE_RULE.md, explicitly state that coverage.py returns per-sensor states only and that paired/Aqua-only comparison eligibility is computed by P4 contracts (contracts/schemas/calendar.py, paired_comparison_eligible). Keep c_min=None fail-closed (1.0) and footprint_status unverified.
+Fix ALL 3 Codex findings from commit eb2d021 on task/P2-A-002 (and rebase onto origin/integration if needed):
+1. Always enforce the 2020-01-01..2021-12-31 sealed holdout boundary in pipeline/grid/coverage.py (never allow sealed_window=None or an unrelated window to return 'complete' for 2020-2021 days; reject any truthy day_present in 2020-2021 and raise ValueError if a period overlaps 2020-2021 without excluding those days as 'partition_boundary'). Add a synthetic test for a 1-day period wholly inside 2020 with sealed_window=None.
+2. Validate partition identity for ANY period spanning partitions (pre_2016: <=2015-12-31, train: 2016-2018, dev: 2019, sealed: 2020-2021, applicability: 2022-2025) by requiring an explicit partition parameter whenever a period spans >1 partition and excluding out-of-partition days with 'partition_boundary' (raise ValueError if omitted or mismatched). Add synthetic tests in tests/unit/test_coverage.py.
+3. In pipeline/grid/COVERAGE_RULE.md, state accurately that coverage.py returns per-sensor states only, and that P4 contracts (contracts/schemas/calendar.py, Contract 1.5.0/1.6.0) validate the `paired_comparison_eligible` Boolean field and `comparison_eligible` gates (do not describe `paired_comparison_eligible` as a function that computes eligibility). Also note that this revision addresses the r1 escalation items.
 Run 'python -m pytest tests/unit -q -p no:cacheprovider' and confirm 0 failures. Only edit pipeline/grid/coverage.py, pipeline/grid/COVERAGE_RULE.md, and tests/unit/test_coverage.py.
 "@
         },
@@ -890,4 +891,5 @@ do {
     }
     Start-Sleep -Seconds $PollIntervalSeconds
 } while ($true)
+
 
